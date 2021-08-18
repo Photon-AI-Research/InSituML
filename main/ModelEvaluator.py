@@ -62,7 +62,7 @@ class ModelEvaluator():
             
         for i in range(1, number_of_tasks + 2):
             iteration_id = (i-1) * 100
-            data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_{}.npy".format(iteration_id))
+            data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_{}.npy".format(iteration_id))
             data = np.expand_dims(data, axis=0)
             shape = (128,1280,128)
             
@@ -85,10 +85,10 @@ class ModelEvaluator():
     
     
     def image_show(self):
-        data_f = [np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_2000.npy"),
-                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_4000.npy"),
-                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_6000.npy"),
-                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_8000.npy")]
+        data_f = [np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_2000.npy"),
+                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_4000.npy"),
+                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_6000.npy"),
+                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_8000.npy")]
         
         
         for i,data in enumerate(data_f):
@@ -121,98 +121,3 @@ class ModelEvaluator():
                 ax_cbar.ax.tick_params(labelsize=30)
             
             wandb.log({"Report Images {}".format((i+1) * 20):fig})
-                
-            
-    
-if __name__== "__main__":    
-    print("Here")
-    with(wandb.init(project="streamed_ml")):
-        
-        device = get_default_device()
-        model_20 = load_model("electric-sponge-670_21")
-        model_40 = load_model("electric-sponge-670_41")
-        model_60 = load_model("electric-sponge-670_61")
-        model_80 = load_model("electric-sponge-670_81")
-        
-        to_device(model_20,device)
-        to_device(model_40,device)
-        to_device(model_60,device)
-        to_device(model_80,device)
-        data_f = [np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_2000.npy"),
-                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_4000.npy"),
-                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_6000.npy"),
-                np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_8000.npy")]
-        op_20 = None
-        op_40 = None
-        op_60 = None
-        op_80 = None
-        for i,data in enumerate(data_f):
-            data_set = MeshDimensionDataset(2000,  (128,1280,128), data,  None, -2.1393063, 2.140939, 1)
-            data_loader = DataLoader(data_set, 1, num_workers = 2, pin_memory=True)
-            device_data_loader = DeviceDataLoader(data_loader,device)
-            with torch.no_grad():
-                for batch in device_data_loader:
-                        _,op_20 = model_20(batch)
-                        _,op_40 = model_40(batch)
-                        _,op_60 = model_60(batch)
-                        _,op_80 = model_80(batch)
-        
-            max_norm = 2.140939
-            min_norm = -2.1393063
-            predicted_20 = op_20.detach().cpu().numpy()[0]
-            #predicted_20 = predicted_20 * (max_norm - min_norm) + min_norm
-            predicted_40 = op_40.detach().cpu().numpy()[0]
-            #predicted_40 = predicted_40 * (max_norm - min_norm) + min_norm
-            predicted_60 = op_60.detach().cpu().numpy()[0]
-            #predicted_60 = predicted_60 * (max_norm - min_norm) + min_norm
-            predicted_80 = op_80.detach().cpu().numpy()[0]
-            #predicted_80 = predicted_80 * (max_norm - min_norm) + min_norm
-
-            fig, (ax1,ax2,ax3, ax4,ax5) = plt.subplots(1,5, figsize=(35,15))
-            #fig.suptitle("Prediction Epoch {}".format(task_id))
-            a = ax1.imshow(data[1][32], cmap ="jet")
-            ax1.set_title("Original", fontsize=30)
-            ax1.yaxis.set_visible(False)
-            ax1.xaxis.set_visible(False)
-
-            b = ax2.imshow(predicted_20[0][32], cmap ="jet")
-            #b = ax2.imshow(data2[1][32], cmap ="jet")
-            ax2.set_title("Model State - 20", fontsize=30)
-            ax2.yaxis.set_visible(False)
-            ax2.xaxis.set_visible(False)
-
-            c = ax3.imshow(predicted_40[0][32], cmap ="jet")
-            #c = ax3.imshow(data3[1][32], cmap ="jet")
-            ax3.set_title("Model State - 40", fontsize=30)
-            ax3.yaxis.set_visible(False)
-            ax3.xaxis.set_visible(False)
-
-            d = ax4.imshow(predicted_60[0][32], cmap ="jet")
-            #d = ax4.imshow(data4[1][32], cmap ="jet")
-            ax4.set_title("Model State - 60", fontsize=30)
-            ax4.yaxis.set_visible(False)
-            ax4.xaxis.set_visible(False)
-
-            e = ax5.imshow(predicted_80[0][32], cmap ="jet")
-            ax5.set_title("Model State - 80", fontsize=30)
-            ax5.yaxis.set_visible(False)
-            ax5.xaxis.set_visible(False)
-
-            ax1_cbar = fig.colorbar(a,ax =ax1)
-            ax2_cbar = fig.colorbar(b,ax =ax2)
-            ax3_cbar = fig.colorbar(c,ax =ax3)
-            ax4_cbar = fig.colorbar(d,ax =ax4)
-            ax5_cbar = fig.colorbar(e,ax =ax5)
-
-            ax1_cbar.ax.tick_params(labelsize=30)
-            ax2_cbar.ax.tick_params(labelsize=30) 
-            ax3_cbar.ax.tick_params(labelsize=30) 
-            ax4_cbar.ax.tick_params(labelsize=30)
-            ax5_cbar.ax.tick_params(labelsize=30)
-
-            fig.suptitle("Task {}".format((i+1) * 20), fontsize=60)
-
-            wandb.log({"Report Images {}".format((i+1) * 20):fig})
-#         me = ModelEvaluator(None,None,None,"/home/h5/vama551b/home/streamed-ml/StreamedML/main/Model/","upbeat-cloud-523",0,0)
-#         print("okay")
-#         me.image_show()

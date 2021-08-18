@@ -47,7 +47,7 @@ class StreamBuffer(Thread):
     
 def get_data_locally(iteration_id):
     try:
-        data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/main/Data/data_{}.npy".format(iteration_id * 100))
+        data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_{}.npy".format(iteration_id * 100))
         data_dict = {'iteration_id':iteration_id,
                     'meshes':{
                         'E':data,
