@@ -1,0 +1,30 @@
+program: Application.py
+command:
+ - python
+ - ${program}
+ - ${args}
+method: grid
+metric:
+  goal: minimize
+  name: val_loss_avg
+parameters:
+  mode:
+    value: "train"
+  epochs:
+    value: 15
+  opt:
+    values: ["sgd","adam"]
+  latent_size:
+    values: [512,1024,2048]
+  layers:
+    value: 5
+  filters:
+    value: 1
+  loss:
+    value: "MSE"
+  lr:
+    value: 0.01
+  activation:
+    value: "leaky_relu"
+  tasks:
+    value: 80
