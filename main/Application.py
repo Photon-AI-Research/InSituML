@@ -1,3 +1,4 @@
+from ModelTrainerOffline import ModelTrainerOffline
 from Configure import Configurer
 from ModelTrainerTaskWise import ModelTrainerTaskWise
 from ModelEvaluator import ModelEvaluator
@@ -50,12 +51,19 @@ try:
             batchSize = args.batchSize,
             onlineEWC = args.onlineEWC,
             ewc_lambda = args.ewcLambda,
-            gamma = args.gamma
+            gamma = args.gamma,
+            offlineTrain = args.offlineTrain,
+            onFFT = args.onFFT,
+            fftProperty = args.onFFTproperty
         )
         with(wandb.init(project="streamed_ml", config = config)):
             run_name = wandb.run.name
-            trainer = ModelTrainerTaskWise(args.modelPath, config["loss"], config["layers"], config["convLayers"], config["filters"], config["latent_size"], config["epochs"], config["lr"], run_name, args.minNormVal, args.maxNormVal ,config["activation"],config["opt"],batch_size = config["batchSize"],onlineEWC = config["onlineEWC"], ewc_lambda = config["ewc_lambda"], gamma = config["gamma"])
-            trainer.train_tasks(config["tasks"], args.saveModelInterval)
+            if args.offlineTrain:
+                trainer = ModelTrainerOffline(args.modelPath, config["loss"], config["layers"], config["convLayers"], config["filters"], config["latent_size"], config["epochs"], config["lr"], run_name, args.minNormVal, args.maxNormVal ,config["activation"],config["opt"],batch_size = config["batchSize"],onlineEWC = config["onlineEWC"], ewc_lambda = config["ewc_lambda"], gamma = config["gamma"])
+                trainer.train_tasks(config["tasks"], config["onFFT"], config["fftProperty"])
+            else:
+                trainer = ModelTrainerTaskWise(args.modelPath, config["loss"], config["layers"], config["convLayers"], config["filters"], config["latent_size"], config["epochs"], config["lr"], run_name, args.minNormVal, args.maxNormVal ,config["activation"],config["opt"],batch_size = config["batchSize"],onlineEWC = config["onlineEWC"], ewc_lambda = config["ewc_lambda"], gamma = config["gamma"])
+                trainer.train_tasks(config["tasks"], args.saveModelInterval)
     else:
         print("In Evaluation mode.")
         if not args.modelName:

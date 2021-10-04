@@ -1,4 +1,3 @@
-from StreamDataReader.stream_reader import StreamReader
 from StreamDataReader.StreamBuffer import StreamBuffer
 from ModelHelpers.DeviceHelper import get_default_device, to_device , DeviceDataLoader
 from ModelHelpers.DimensionAutoEncoderModel import DimensionAutoEncoderModel
