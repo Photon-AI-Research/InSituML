@@ -1,7 +1,6 @@
 import numpy as np
 from torchvision.datasets import CIFAR100
 
-
 class CIFAR100Coarse(CIFAR100):
     def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
         super(CIFAR100Coarse, self).__init__(root, train, transform, target_transform, download)

@@ -1,14 +1,16 @@
 from ModelHelpers.DeviceHelper import get_default_device, to_device , DeviceDataLoader
-from ModelHelpers.DimensionAutoEncoderModel import DimensionAutoEncoderModel
-from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
+from ModelHelpers.Autoencoder3D import AutoEncoder3D
 from ModelHelpers.MeshDimensionDataset import MeshDimensionDataset
 from ModelHelpers.PlotHelper import prepare_data_for_plot
 from torch.utils.data.dataloader import DataLoader
 from ModelsEnum import ModelsEnum
 import torch
+import torch.nn as nn
 import wandb
 import numpy as np
 import matplotlib.pyplot as plt
+
+from main.ModelHelpers.AutoEncoder2D import AutoEncoder2D
 
 class ModelEvaluator():
     
@@ -34,10 +36,10 @@ class ModelEvaluator():
         act = model_state["act"]
         filters = model_state["filters"]
         
-        if self.model_enum is ModelsEnum.Autoencoder_Pooling:
-            model = DimensionAutoEncoderModelWithPool(input_channels, input_sizes, loss_func, n_layers,n_conv_layers, filters, latent_size, act)
-        elif self.model_enum is ModelsEnum.Autoencoder_Sampling:
-            model = DimensionAutoEncoderModel(input_channels, shape, loss_func, n_layers, n_conv_layers, filters, latent_size, act)
+        if self.model_enum is ModelsEnum.Autoencoder3D:
+            model = AutoEncoder3D(input_channels, input_sizes, loss_func, n_layers,n_conv_layers, filters, latent_size, act)
+        elif self.model_enum is ModelsEnum.Autoencoder2D:
+            model = AutoEncoder2D(input_channels, shape, loss_func, n_layers, n_conv_layers, filters, latent_size, act)
         else:
             return None
             
@@ -62,6 +64,9 @@ class ModelEvaluator():
             
         for i in range(1, number_of_tasks + 2):
             iteration_id = (i-1) * 100
+            """ 
+                change data path accordingly 
+            """ 
             data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_{}.npy".format(iteration_id))
             data = np.expand_dims(data, axis=0)
             shape = (128,1280,128)

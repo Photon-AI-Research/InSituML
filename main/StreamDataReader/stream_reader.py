@@ -1,7 +1,4 @@
-#import openpmd_api as io
-import numpy as np
-import time
-import wandb
+import openpmd_api as io
 import json
 import sys
 

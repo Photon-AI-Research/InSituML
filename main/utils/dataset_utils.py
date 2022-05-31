@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data.dataset import Dataset
 from torchvision import datasets, transforms
-from cifar100_coarse import CIFAR100Coarse
+from utils.cifar100_coarse import CIFAR100Coarse
 from StreamDataReader.StreamBuffer import StreamBuffer
 
 class SubDataset(Dataset):
@@ -48,13 +48,24 @@ class EfieldDataset(Dataset):
         iteration_id = self.iterations[idx]
         data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_{}.npy".format(iteration_id * 100))
         if self.train_dim is not None:
-            data = data[1]
-        dim = (128,1280,128)
-        
-        norm_tensor = torch.from_numpy(data)
-        #norm_tensor = torch.sub(norm_tensor, self.min_norm)
-        #norm_tensor = torch.div(norm_tensor, self.max_norm - self.min_norm)
-        return norm_tensor.view(-1,dim[0],dim[1],dim[2])
+            idx = DIMENSION_MAP[self.train_dim]
+            data = data[idx]
+            dim = (1,128,1280,128)
+        dim = (3,128,1280,128)
+
+        norm_data = []
+        #mean = [ -1.40394059e-06,  1.57518510e-04, -1.12175585e-05]
+        #std = [ 0.07121728, 0.00651213, 0.07119355]
+        mean = [-5.55989313e-06,  1.71693718e-04, -9.08668555e-06]
+        std = [0.07360622, 0.00663636, 0.07351927]
+        if dim[0] == 1:
+            norm_data.append((data[idx] - mean[idx])/std[idx])
+        else:
+            for i in range(3):
+                norm_data.append((data[i] - mean[i])/std[i])
+        norm_tensor = torch.from_numpy(np.array(norm_data))
+
+        return norm_tensor.view(-1,dim[1],dim[2],dim[3]) , iteration_id
 
 def _permutate_image_pixels(image, permutation):
     if permutation is None:
@@ -65,6 +76,12 @@ def _permutate_image_pixels(image, permutation):
     image = image[permutation, :]
     
     return image
+
+DIMENSION_MAP = {
+    'x':0,
+    'y':1,
+    'z':2
+}
 
 AVAILABLE_TRANSFORMS = {
     'mnist': [

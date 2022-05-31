@@ -1,6 +1,5 @@
 from StreamDataReader.StreamBuffer import StreamBuffer
 from ModelHelpers.DeviceHelper import get_default_device, to_device , DeviceDataLoader
-from ModelHelpers.DimensionAutoEncoderModel import DimensionAutoEncoderModel
 from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
 from ModelHelpers.MeshDimensionDataset import MeshDimensionDataset
 from ModelHelpers.PlotHelper import prepare_data_for_plot
@@ -9,7 +8,6 @@ from torch.utils.data.dataloader import DataLoader
 from torch.optim import Adam, SGD
 import torch.nn as nn
 import wandb
-import os
 import numpy as np
 import time
 from threading import Thread
@@ -17,7 +15,7 @@ from threading import Thread
 class ModelTrainerTaskWise():
     def __init__(self, model_path, model_loss_func, number_model_layers, number_conv_layers ,filters, latent_size, epochs, learning_rate, run_name, min_norm, max_norm,activation = "leaky_relu", optimizer = "sgd",batch_size = 3, onlineEWC = False, ewc_lambda = 2.0, gamma = 0.90):
         
-        self.streamBuffer = StreamBuffer(buffer_size = batch_size)
+        #self.streamBuffer = StreamBuffer(buffer_size = batch_size)
         self.device = get_default_device()
         self.model_path = model_path
         self.model = None

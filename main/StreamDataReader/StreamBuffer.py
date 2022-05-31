@@ -6,6 +6,19 @@ import time
 class StreamBuffer(Thread):
     
     def __init__(self, buffer_size = 3, use_local_data = True):
+
+        """
+            Initializing Stream Buffer.
+
+            Parameters
+            ----------
+            buffer_size : int
+                The amount of data iterations the buffer holds before reading the stream again
+            use_local_data : bool
+                To access data, if data is stored locally
+
+        """
+
         self._buffer_size = buffer_size
         self._buffer_data = None
         self.use_local_data = use_local_data
@@ -17,6 +30,15 @@ class StreamBuffer(Thread):
         self.fill_buffer()
         
     def read_buffer(self):
+        """
+            Reads the buffer.
+
+            Returns
+            -------
+            Tuple
+               iteration_id, buffer_data, shape - (if applicable)
+
+        """
         if self._buffer_data is not None:
             buffer_copy = self._buffer_data
             self._buffer_data = None
@@ -24,6 +46,14 @@ class StreamBuffer(Thread):
         return None
     
     def fill_buffer(self):
+
+        """
+            Fills the buffer.
+
+            Needs to be externally called when buffer is empty
+
+        """
+
         print("Filling buffer")
         start = time.time()
         self._buffer_data = None
