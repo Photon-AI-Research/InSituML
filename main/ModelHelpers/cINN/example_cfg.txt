@@ -1,0 +1,9 @@
+wandb_apikey: <api key>
+wandb_project: <project name>
+wandb_entity: <username>
+chunk_size: 20
+num_coupling_layers: 1
+num_linear_layers_in_subnetworks: 1
+hidden_size_of_layers_in_subnetworks: 32
+learning_rate: 1e-3
+enable_wandb: True
