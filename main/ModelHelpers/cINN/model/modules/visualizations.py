@@ -1,3 +1,5 @@
+import numpy as np
+
 import matplotlib.pyplot as plt
 import matplotlib.colors
 from mpl_toolkits.mplot3d import Axes3D
@@ -55,7 +57,7 @@ def plot_3D(particle_tensor, color_component=-1):
 
     plt.show()
     
-def plot_per_slice(pc, slice_along, num_slices, comp_of_interest, axs):
+def plot_per_slice(pc, slice_along, num_slices, comp_of_interest, axs, label='Number of particles'):
     if comp_of_interest != None:
         comp_of_interest = comp_of_interest - 1
 
@@ -72,8 +74,8 @@ def plot_per_slice(pc, slice_along, num_slices, comp_of_interest, axs):
         axs.plot([slice_ for slice_ in slices], mean_energy)
         axs.tick_params(axis='y', which='major', rotation=45)
         axs.grid(True)
-        axs.set_xlabel('Z [mm]')
-        axs.set_ylabel('Mean Energy [MeV]')
+        axs.set_xlabel('Z')
+        axs.set_ylabel(label)
         #axs.legend(prop={'size': 20})
 
 
@@ -82,8 +84,8 @@ def plot_per_slice(pc, slice_along, num_slices, comp_of_interest, axs):
         axs.plot([slice_ for slice_ in slices], num_particles)
         axs.tick_params(axis='y', which='major', rotation=45)
         axs.grid(True)
-        axs.set_xlabel('Z [mm]')
-        axs.set_ylabel('Number of particles')
+        axs.set_xlabel('Z')
+        axs.set_ylabel(label)
         #axs.legend(prop={'size': 20})
         
 def plot_2D(pc, comp_x, comp_y, axs, label_x, label_y):
@@ -93,3 +95,6 @@ def plot_2D(pc, comp_x, comp_y, axs, label_x, label_y):
     axs.set_xlabel(label_x)
     axs.set_ylabel(label_y)
     #axs.legend(prop={'size': 20})
+
+def plot_3D_Groundtruth_Reconstruction(pc_groundtruth, pc_reconstruction):
+    fig, axs
