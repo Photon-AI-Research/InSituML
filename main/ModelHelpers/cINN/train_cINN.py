@@ -20,8 +20,6 @@ for line in lines:
     key, value = line.split(': ')
     run_settings[key] = value[:-1]
 
-print(run_settings)
-
 if bool(run_settings['enable_wandb']):
 
     config_defaults = {
