@@ -12,6 +12,7 @@ import model_cINN
 
 run_settings = {}
 
+#last line in cfg.txt file should be empty
 with open('cfg.txt') as f:
     lines = f.readlines()
 
