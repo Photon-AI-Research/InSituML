@@ -7,3 +7,4 @@ num_linear_layers_in_subnetworks: 1
 hidden_size_of_layers_in_subnetworks: 32
 learning_rate: 1e-3
 enable_wandb: True
+path_to_example_data: ../../..

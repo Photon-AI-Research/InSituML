@@ -37,8 +37,7 @@ if bool(run_settings['enable_wandb']):
     wandb.init(reinit=True, project=run_settings['wandb_project'],
                entity=run_settings['wandb_entity'], config=config_defaults)
 
-path_to_example_data = "../../.."
-
+path_to_example_data = run_settings['path_to_example_data']
 paths_to_PS = [path_to_example_data + "/from_cloud/simData_68500.bp",
                path_to_example_data + "/from_cloud/simData_68500.bp"]
 paths_to_radiation = [path_to_example_data + "/from_cloud/b_radAmplitudes_68500_0_0_0.h5",
