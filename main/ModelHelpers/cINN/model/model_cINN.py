@@ -148,13 +148,16 @@ class PC_NF(nn.Module):
                 if dataset_tr.normalize:
                     phase_space = phase_space.squeeze(0)
                     radiation = radiation.squeeze(0)
+                    
                     phase_space = data_preprocessing.normalize_point(phase_space, dataset_tr.vmin_ps, dataset_tr.vmax_ps)
                     radiation = data_preprocessing.normalize_point(radiation, dataset_tr.vmin_rad, dataset_tr.vmax_rad)
 
+                #erase particle with nan values and a corresponding radiation
+                radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
+                phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
+
                 z, log_j = self.forward(phase_space.to(self.device), 
-                                        radiation.to(self.device)
-                                        .reshape(radiation.shape[0],
-                                                 radiation.shape[1]*radiation.shape[2]*radiation.shape[3]))
+                                        radiation.to(self.device))
                 loss = 0.
                 
                 loss_z.append(float(torch.mean(z**2) / 2))
@@ -210,13 +213,16 @@ class PC_NF(nn.Module):
                 if normalize:
                     phase_space = phase_space.squeeze(0)
                     radiation = radiation.squeeze(0)
+                    
                     phase_space = data_preprocessing.normalize_point(phase_space, vmin_ps, vmax_ps)
                     radiation = data_preprocessing.normalize_point(radiation, vmin_rad, vmax_rad)
 
+                #erase particle with nan values and a corresponding radiation
+                radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
+                phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
+
                 z, log_j = self.forward(phase_space.to(self.device), 
-                                        radiation.to(self.device)
-                                        .reshape(radiation.shape[0],
-                                                 radiation.shape[1]*radiation.shape[2]*radiation.shape[3]))
+                                        radiation.to(self.device))
                 loss = 0.
                 
                 loss_z.append(float(torch.mean(z**2) / 2))

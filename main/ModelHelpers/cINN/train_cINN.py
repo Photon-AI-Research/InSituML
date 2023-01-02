@@ -35,28 +35,41 @@ if bool(run_settings['enable_wandb']):
     wandb.init(reinit=True, project=run_settings['wandb_project'],
                entity=run_settings['wandb_entity'], config=config_defaults)
 
-path_to_example_data = run_settings['path_to_example_data']
-paths_to_PS = [path_to_example_data + "/from_cloud/simData_68500.bp",
-               path_to_example_data + "/from_cloud/simData_68500.bp"]
-paths_to_radiation = [path_to_example_data + "/from_cloud/b_radAmplitudes_68500_0_0_0.h5",
-                      path_to_example_data + "/from_cloud/b_radAmplitudes_68500_0_0_0.h5"]
+path_to_particle_data = run_settings['path_to_particle_data']
+path_to_radiation_data = run_settings['path_to_radiation_data']
+paths_to_PS = [path_to_particle_data + '/' + next_file for next_file in os.listdir(path_to_particle_data)]
+paths_to_PS.sort()
+paths_to_radiation = [path_to_radiation_data + '/' + next_file for next_file in os.listdir(path_to_radiation_data)]
+paths_to_radiation.sort()
 
-dataset_tr = dataset.PCDataset(items_phase_space=paths_to_PS,
-                 items_radiation=paths_to_radiation,
-                 num_points=100,
+dataset_tr = dataset.PCDataset(items_phase_space=paths_to_PS[:-1],
+                 items_radiation=paths_to_radiation[:-1],
+                 num_points=20,
+                 num_files=-1,
+                 chunk_size=int(run_settings['chunk_size']),
+                 normalize=True, a=0., b=1.)
+
+dataset_val = dataset.PCDataset(items_phase_space=paths_to_PS[-1:],
+                 items_radiation=paths_to_radiation[-1:],
+                 num_points=20,
                  num_files=-1,
                  chunk_size=int(run_settings['chunk_size']),
                  normalize=True, a=0., b=1.)
 
 #keep batch size 1, number of points per batch is defined by chunk_size
 loader_tr = loader.get_loader(dataset_tr, batch_size=1)
+ps_dim = 0
+radiation_dim = 0
 for ps, rad in loader_tr:
     print(ps.shape)
     print(rad.shape)
+
+    ps_dim = ps.shape[-1]
+    radiation_dim = rad.shape[-1]
     break
     
-model_f = model_cINN.PC_NF(dim_condition=440*2048*6,
-                 dim_input=6,
+model_f = model_cINN.PC_NF(dim_condition=radiation_dim,
+                 dim_input=ps_dim,
                  num_coupling_layers=int(run_settings['num_coupling_layers']),
                  num_linear_layers=int(run_settings['num_linear_layers_in_subnetworks']),
                  hidden_size=int(run_settings['hidden_size_of_layers_in_subnetworks']),
