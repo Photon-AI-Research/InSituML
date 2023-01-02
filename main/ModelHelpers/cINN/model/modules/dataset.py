@@ -11,6 +11,7 @@ class PCDataset(Dataset):
                  num_points=-1,
                  num_files=1,
                  chunk_size=10000,
+                 species='e_all',
                  normalize=False, a=0., b=1.):
         '''
         Prepare dataset
@@ -24,8 +25,8 @@ class PCDataset(Dataset):
             normalize(boolean): True if normalize each point to be in range [a, b]
         '''
 
-        self.get_data_phase_space_by_chunks = data_preprocessing.get_data_phase_space_by_chunks
-        self.get_data_radiation = data_preprocessing.get_data_radiation
+        self.get_data_phase_space_by_chunks = data_preprocessing.get_phase_space_by_chunks
+        self.get_data_radiation = data_preprocessing.get_radiation_spectra_2_projections
         self.normalize = normalize
         self.num_points = num_points
         self.a, self.b = a, b 
@@ -47,7 +48,7 @@ class PCDataset(Dataset):
         self.shapes = []
         
         for item in items_phase_space:
-            shape = data_preprocessing.get_shape(item)
+            shape = data_preprocessing.get_shape(item, species)
             if shape > num_points and num_points != -1:
                 self.shapes.append(num_points)
             if shape < num_points or num_points == -1:
@@ -71,8 +72,10 @@ class PCDataset(Dataset):
         for j in range(len(self.items_file_chunk)):
             #print('Chunk ',j)
             arr, _ = self.__getitem__(j)
-            #print(np.isnan(a).any())
+            #particle_tensor = particle_tensor[~np.isnan(particle_tensor).any(axis=1)]
+            
             arr = arr.detach().cpu().numpy()
+            arr = arr[~np.isnan(arr).any(axis=1)]
 
             if j==0:
                 self.vmin_ps = [np.min(arr[:, i]) for i in range(arr.shape[1])]
@@ -94,13 +97,12 @@ class PCDataset(Dataset):
         print('\t', self.vmax_ps)
         
         print('Get min/max from radiation data...')
-        self.vmin_rad, self.vmax_rad = data_preprocessing.get_vmin_vmax_radiation(items_radiation, self.chunk_size)
+        self.vmin_rad, self.vmax_rad = data_preprocessing.get_vmin_vmax_radiation(items_radiation, self.chunk_size, self.get_data_radiation)
         print('PS Minima: ')
-        print('\t', self.vmin_rad[0,0,0])
+        print('\t', self.vmin_rad[0,0])
         
         print('PS Maxima: ')
-        print('\t', self.vmax_rad[0,0,0])
-        
+        print('\t', self.vmax_rad[0,0])
 
     def __getitem__(self, index):
         ind_rad = self.items_phase_space.index(self.items_file_chunk[index][0])

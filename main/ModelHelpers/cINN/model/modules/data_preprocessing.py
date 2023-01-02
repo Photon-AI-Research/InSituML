@@ -1,9 +1,11 @@
-import openpmd_api as io
 import numpy as np
 import random
 import torch
 
 import h5py as h5
+import openpmd_api as io
+
+import radiation
 
 def get_data_phase_space(ind, 
                          items,
@@ -37,9 +39,10 @@ def get_data_phase_space(ind,
         inds = random.sample(list(range(0, particle_tensor.shape[0])), num_particles)
         return torch.from_numpy(particle_tensor[inds, :]).float()
     
-def get_data_phase_space_by_chunks(ind, 
+def get_phase_space_by_chunks(ind, 
                                    items,
-                                   chunk_size=100):
+                                   chunk_size=100,
+                                   species='e_all'):
     '''
     Load file with 1 particle cloud
     Args:
@@ -51,39 +54,37 @@ def get_data_phase_space_by_chunks(ind,
     
     filename = items[ind][0]
     chunk_num = items[ind][1]
-    
-    
+   
     series = io.Series(filename,
                        io.Access.read_only)
     i = series.iterations[int(filename.split('.bp')[0].split('_')[-1])]
     
-    particles = i.particles["b_all"]
-    
-    
-    
-    if (get_shape(filename) < (chunk_num+1)*chunk_size):
+    particles = i.particles[species]
+
+    if (get_shape(filename, species) < (chunk_num+1)*chunk_size):
         particle_tensor = np.stack((particles["position"]["x"][chunk_num*chunk_size:],
                                     particles["position"]["y"][chunk_num*chunk_size:],
                                     particles["position"]["z"][chunk_num*chunk_size:],
                                     particles["momentum"]["x"][chunk_num*chunk_size:],
                                     particles["momentum"]["y"][chunk_num*chunk_size:],
-                                    particles["momentum"]["z"][chunk_num*chunk_size:]), axis=-1)
+                                    particles["momentum"]["z"][chunk_num*chunk_size:],
+                                    particles["momentumPrev1"]["x"][chunk_num*chunk_size:],
+                                    particles["momentumPrev1"]["y"][chunk_num*chunk_size:],
+                                    particles["momentumPrev1"]["z"][chunk_num*chunk_size:]), axis=-1)
     else:
         particle_tensor = np.stack((particles["position"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
                                     particles["position"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
                                     particles["position"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
                                     particles["momentum"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
                                     particles["momentum"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["momentum"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]), axis=-1)
-    '''
-    f = open(str(chunk_num*chunk_size)+'_'+str((chunk_num+1)*chunk_size)+".txt", "a")
+                                    particles["momentum"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
+                                    particles["momentumPrev1"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
+                                    particles["momentumPrev1"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
+                                    particles["momentumPrev1"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]), axis=-1)
 
-    for i in range(particle_tensor.shape[0]):
-        f.write(" ".join([str(particle_tensor[i,k]) for k in range(6)]))
-    f.close()
-    '''
-    #print(particle_tensor.dtype)
+    #particle_tensor = particle_tensor[~np.isnan(particle_tensor).any(axis=1)]
     return torch.from_numpy(particle_tensor).float()
+    
 
 def h5_tree(val, pre=''):
     items = len(val)
@@ -103,31 +104,18 @@ def h5_tree(val, pre=''):
             else:
                 print(pre + '├── ' + key + ' (%d)' % len(val))
     
-def get_data_radiation(ind, 
-                       items,
-                      chunk_size):
+def get_testdata_radiation(ind, 
+                             items,
+                             chunk_size):
     '''
-    Load file with 1 radiation file
+    Load complex amplitudes of 1 radiation file from HZDR cloud
     Args:
         ind(integer): number of path in list of paths to files
         items(list of string): list of paths to files
+        chunk_size(int): number of particles in 1 batch, is needed to dublicate amplitudes for each particle
     '''
 
     f = h5.File(items[ind], 'r')
-    '''
-    dataAmpl_x_Im = f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('x_Im')[:]
-    dataAmpl_x_Re = f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('x_Re')[:]
-    dataAmpl_y_Im = f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('y_Im')[:]
-    dataAmpl_y_Re = f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('y_Re')[:]
-    dataAmpl_z_Im = f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('z_Im')[:]
-    dataAmpl_z_Re = f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('z_Re')[:]
-
-    dataDetector_x = f.get('data').get('68500').get('DetectorMesh').get('DetectorDirection').get('x')[:]
-    dataDetector_y = f.get('data').get('68500').get('DetectorMesh').get('DetectorDirection').get('y')[:]
-    dataDetector_z = f.get('data').get('68500').get('DetectorMesh').get('DetectorDirection').get('z')[:]
-
-    dataFreq = f.get('data').get('68500').get('DetectorMesh').get('DetectorFrequency').get('omega')[:]
-    '''
     
     x = torch.from_numpy(np.stack((f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('x_Im')[:],
                     f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('x_Re')[:],
@@ -135,8 +123,65 @@ def get_data_radiation(ind,
                     f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('y_Re')[:],
                     f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('z_Im')[:],
                     f.get('data').get('68500').get('DetectorMesh').get('Amplitude').get('z_Re')[:]), axis=2)).float().squeeze()
-    return x.repeat(chunk_size,1,1,1)
+    return x.repeat(chunk_size, 1, 1, 1)
+
+def get_radiation_spectra(ind, 
+                          items,
+                          chunk_size):
+    '''
+    Load spectra of 1 radiation file
+    Args:
+        ind(integer): number of path in list of paths to files
+        items(list of string): list of paths to files
+        chunk_size(int): number of particles in 1 batch, is needed to dublicate amplitudes for each particle
+    '''
+
+    spectra = torch.from_numpy((radiation.RadiationData(items[ind])).get_Spectra()).float()
+    return spectra.repeat(chunk_size, 1, 1)
     
+def get_radiation_spectra_intergrated_over_directions(ind, 
+                                                     items,
+                                                     chunk_size):
+    '''
+    Load intergrated over directions spectra of 1 radiation file
+    Args:
+        ind(integer): number of path in list of paths to files
+        items(list of string): list of paths to files
+        chunk_size(int): number of particles in 1 batch, is needed to dublicate amplitudes for each particle
+    '''
+
+    spectra = (radiation.RadiationData(items[ind])).get_Spectra()
+    integrated_spectra = torch.from_numpy(np.sum(spectra, axis=0)).float()
+    return integrated_spectra.repeat(chunk_size, 1)
+
+def get_radiation_spectra_intergrated_over_frequencies(ind, 
+                                                       items,
+                                                       chunk_size):
+    '''
+    Load intergrated over frequencies spectra of 1 radiation file
+    Args:
+        ind(integer): number of path in list of paths to files
+        items(list of string): list of paths to files
+        chunk_size(int): number of particles in 1 batch, is needed to dublicate amplitudes for each particle
+    '''
+
+    spectra = (radiation.RadiationData(items[ind])).get_Spectra()
+    integrated_spectra = torch.from_numpy(np.sum(spectra, axis=1)).float()
+    return integrated_spectra.repeat(chunk_size, 1)
+
+def get_radiation_spectra_2_projections(ind,
+                                        items,
+                                        chunk_size):
+    '''
+    Load radiation the spectra, integrated over directions and the spectra, integrated over frequencies
+        and concatenate them into 1 tensor.
+    Important: use only if confident, that there is the same mesh in radiation simulations
+    '''
+
+    spectra = (radiation.RadiationData(items[ind])).get_Spectra()
+    concatenated_projections = torch.from_numpy(np.concatenate((np.sum(spectra, axis=0), np.sum(spectra, axis=1)))).float()
+    return concatenated_projections.repeat(chunk_size, 1)
+
 def normalize_point(point, vmin, vmax, a=0., b=1.):
     '''
     Normalize point from a set of points with vmin(minimum) and vmax(maximum)
@@ -173,16 +218,20 @@ def get_vmin_vmax_ps(arr):
             vmax = [max(np.max(arr[:, i]), vmax[i]) for i in range(arr.shape[1])]
     return torch.Tensor(vmin), torch.Tensor(vmax)
 
-def get_vmin_vmax_radiation(items, chunk_size):
+def get_vmin_vmax_radiation(items,
+                            chunk_size,
+                            get_radiation_data):
     '''
     Find minima/maxima in all radiation simulations for normalization
     Args:
         items(list of string): list of paths to all electron clouds
+        chunk_size(int): number of particles in 1 batch, is needed to dublicate amplitudes for each particle
+        get_radiation_data(function): function to load and preprocess radiation data
     
     returns torch tensors with minima and maxima
     '''
     for ind,item in enumerate(items):
-        arr = get_data_radiation(ind, 
+        arr = get_radiation_data(ind, 
                                  items,
                                  chunk_size)
         arr = arr.detach().cpu().numpy()
@@ -195,12 +244,12 @@ def get_vmin_vmax_radiation(items, chunk_size):
             vmax = max(np.max(arr), vmax)
     return  torch.torch.full(arr.shape, vmin),  torch.torch.full(arr.shape, vmax)
 
-def get_shape(item):
+def get_shape(item, species):
     series = io.Series(item,
                        io.Access.read_only)
     i = series.iterations[int(item.split('.bp')[0].split('_')[-1])]
     
-    particles = i.particles["b_all"]
+    particles = i.particles[species]
     charge = particles["charge"][io.Mesh_Record_Component.SCALAR]
 
     series.flush()
