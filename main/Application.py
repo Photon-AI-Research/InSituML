@@ -60,7 +60,8 @@ if __name__ == '__main__':
                 LayerwiseGradUpdate = args.layerWise,
                 Episodic_memory = args.replayMemory,
                 Gradient_episodic_memory= args.refGradMemory,
-                methodLambda = args.agemEncLambda
+                methodLambda = args.agemEncLambda,
+                masLambda=0.0,
             )
 
             """ 
