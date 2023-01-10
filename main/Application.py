@@ -1,10 +1,11 @@
-from ModelTrainer import ModelTrainer
+import os
+
+import wandb
+
 from Configure import Configurer
 from ModelEvaluator import ModelEvaluator
 from ModelsEnum import ModelsEnum
-import wandb
-import traceback
-import os
+from ModelTrainer import ModelTrainer
 from ReplayTrainer import ReplayTrainer
 
 if __name__ == '__main__':
@@ -116,7 +117,5 @@ if __name__ == '__main__':
                 evaluator.evaluate()
                 evaluator.image_show()
 
-    except ValueError as err:
-        print(err)
     except:
-        print(traceback.format_exc())
+        raise
