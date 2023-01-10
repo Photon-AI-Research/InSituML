@@ -9,7 +9,8 @@ import time
 import pytorch_ssim
 
 from ModelHelpers.AutoEncoder2D import AutoEncoder2D
-from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
+# Does not exist.
+# from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
 from ModelHelpers.DeviceHelper import get_default_device, to_device
 from ModelsEnum import ModelsEnum
 from ModelHelpers.Autoencoder3D import AutoEncoder3D
