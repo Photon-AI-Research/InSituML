@@ -2,8 +2,17 @@ import numpy as np
 import torch
 from torch.utils.data.dataset import Dataset
 from torchvision import datasets, transforms
-from utils.cifar100_coarse import CIFAR100Coarse
+
 from StreamDataReader.StreamBuffer import StreamBuffer
+from utils.cifar100_coarse import CIFAR100Coarse
+
+
+class UnknownDatasetError(ValueError):
+    def __init__(self, msg=None):
+        if msg is None:
+            msg = 'unknown dataset name'
+        super().__init__(msg)
+
 
 class SubDataset(Dataset):
     '''To sub-sample a dataset, taking only those samples with label in [sub_labels].
@@ -135,7 +144,7 @@ def _get_dataset(name, train=True, download=True, permutation=None):
                 *AVAILABLE_TRANSFORMS[dataset_name],])
 
     else:
-        pass
+        raise UnknownDatasetError()
 
     return dataset_class(
         './datasets/{name}'.format(name=dataset_name), train=train,

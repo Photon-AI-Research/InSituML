@@ -3,6 +3,7 @@ import os
 import wandb
 
 from Configure import Configurer
+from utils.dataset_utils import UnknownDatasetError
 from ModelEvaluator import ModelEvaluator
 from ModelsEnum import ModelsEnum
 from ModelTrainer import ModelTrainer
@@ -90,6 +91,8 @@ if __name__ == '__main__':
                 input_sizes = (128, 1280, 128)
                 model_type = ModelsEnum.Autoencoder3D
                 classes = 50
+            else:
+                raise UnknownDatasetError()
                 
             with(wandb.init(project="streamed_ml", config=config)):
                 run_name = wandb.run.name
