@@ -10,7 +10,36 @@ from utils.plot_helper import plot_reconstructed_data, plot_reconstructed_data_t
 
 class ModelTrainer(Trainer):
 
-    def __init__(self, model_path, model_loss_func, input_channels, number_model_layers, number_conv_layers, filters, latent_size, epochs, learning_rate, run_name, input_sizes, number_of_tasks, dataset_name, classes, saveModelInterval, model_type=..., e_field_dimension = None, is_e_field = False, activation="leaky_relu", optimizer="adam", batch_size=3, onlineEWC=False, ewc_lambda = 0.0, gamma=0.0, mas_lambda = 0.0, agem_l_enc_lambda = 1):
+    def __init__(
+            self,
+            model_path,
+            model_loss_func,
+            input_channels,
+            number_model_layers,
+            number_conv_layers,
+            filters,
+            latent_size,
+            epochs,
+            learning_rate,
+            run_name,
+            input_sizes,
+            number_of_tasks,
+            dataset_name,
+            classes,
+            saveModelInterval,
+            model_type=None,
+            e_field_dimension=None,
+            is_e_field=False,
+            data_path=None,
+            activation="leaky_relu",
+            optimizer="adam",
+            batch_size=3,
+            onlineEWC=False,
+            ewc_lambda=0.0,
+            gamma=0.0,
+            mas_lambda=0.0,
+            agem_l_enc_lambda=1,
+    ):
 
         super().__init__(model_path, model_loss_func, input_channels, number_model_layers, number_conv_layers, filters, latent_size, epochs, learning_rate, run_name, input_sizes, saveModelInterval, model_type=model_type, activation=activation, optimizer=optimizer, batch_size=batch_size, onlineEWC=onlineEWC, ewc_lambda=ewc_lambda, gamma=gamma, mas_lambda=mas_lambda, agem_l_enc_lambda = agem_l_enc_lambda)
         wandb.watch(self.model, log="all")
@@ -18,6 +47,7 @@ class ModelTrainer(Trainer):
         self.test_data_sets = None
         self.is_e_field = is_e_field
         self.e_field_dimension = e_field_dimension
+        self.data_path = data_path
         self.number_of_tasks = number_of_tasks
         self.dataset_name = dataset_name
         self.classes = classes
@@ -45,13 +75,32 @@ class ModelTrainer(Trainer):
             train_datasets = []
             test_datasets = []
             for i in range(self.number_of_tasks):
-                train_datasets.append(EfieldDataset(range((i * no_datasets) + 1, (i * no_datasets) + no_datasets + 1), self.e_field_dimension))
-                #test_datasets.append(EfieldDataset([(i * no_datasets) + 1],self.e_field_dimension))
+                train_datasets.append(EfieldDataset(
+                    self.data_path,
+                    range((i * no_datasets) + 1, (i * no_datasets) + no_datasets + 1),
+                    self.e_field_dimension,
+                ))
+                # test_datasets.append(EfieldDataset(
+                #     self.data_path,
+                #     [(i * no_datasets) + 1],
+                #     self.e_field_dimension,
+                # ))
             self.train_data_sets = train_datasets
             self.test_data_sets = train_datasets
         else:
-            self.train_data_sets = get_tasks_datasets(self.dataset_name, self.classes, self.number_of_tasks)
-            self.test_data_sets = get_tasks_datasets(self.dataset_name, self.classes, self.number_of_tasks, train=False)
+            self.train_data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                self.number_of_tasks,
+            )
+            self.test_data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                self.number_of_tasks,
+                train=False,
+            )
 
     def _train_offline(self):
         print("GOING OFFLINE......")
@@ -211,9 +260,16 @@ class ModelTrainer(Trainer):
         if self.is_e_field:
             data_sets = []
             for i in range(self.classes):
-                data_sets.append(EfieldDataset([i+1], self.e_field_dimension))
+                data_sets.append(EfieldDataset(
+                    self.data_path, [i+1], self.e_field_dimension))
         else:
-            data_sets = get_tasks_datasets(self.dataset_name, self.classes, num_tasks=self.classes, train=False)
+            data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                num_tasks=self.classes,
+                train=False,
+            )
         self.model.eval()
         with torch.no_grad():
             for task_id, data_set in enumerate(data_sets):
@@ -298,7 +354,13 @@ class ModelTrainer(Trainer):
         if self.is_e_field:
             data_sets = self.test_data_sets
         else:
-            data_sets = get_tasks_datasets(self.dataset_name, self.classes, num_tasks=self.classes, train=False)
+            data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                num_tasks=self.classes,
+                train=False,
+            )
 
         self.model.eval()
         original = []

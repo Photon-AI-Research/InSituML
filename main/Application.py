@@ -64,6 +64,7 @@ if __name__ == '__main__':
                 Gradient_episodic_memory= args.refGradMemory,
                 methodLambda = args.agemEncLambda,
                 masLambda=0.0,
+                data_path=args.datasetPath,
             )
 
             """ 
@@ -86,6 +87,8 @@ if __name__ == '__main__':
                 if 'cifar-100' in args.datasetName:
                     classes = 20
             elif 'e_field' in args.datasetName:
+                assert args.datasetPath, \
+                    'need a dataset path for "e_field" data'
                 is_e_field = True
                 input_channels = 3
                 input_sizes = (128, 1280, 128)
@@ -97,12 +100,70 @@ if __name__ == '__main__':
             with(wandb.init(project="streamed_ml", config=config)):
                 run_name = wandb.run.name
                 if not config["Replayer"]:
-                    trainer = ModelTrainer(args.modelPath, config["loss"], input_channels, config["layers"], config["convLayers"], config["filters"], config["latent_size"], config["epochs"], config["lr"], run_name, input_sizes, config["tasks"], config["dataset"], classes, config["saveModelInterval"],
-                                           model_type, e_field_dimension=None, is_e_field=is_e_field, activation=config["activation"], optimizer=config["opt"], batch_size=config["batchSize"], onlineEWC=config["onlineEWC"], ewc_lambda=config["ewc_lambda"], gamma=config["gamma"], mas_lambda=config["masLambda"])
+                    trainer = ModelTrainer(
+                        args.modelPath,
+                        config["loss"],
+                        input_channels,
+                        config["layers"],
+                        config["convLayers"],
+                        config["filters"],
+                        config["latent_size"],
+                        config["epochs"],
+                        config["lr"],
+                        run_name,
+                        input_sizes,
+                        config["tasks"],
+                        config["dataset"],
+                        classes,
+                        config["saveModelInterval"],
+                        model_type,
+                        e_field_dimension=None,
+                        is_e_field=is_e_field,
+                        data_path=config['data_path'],
+                        activation=config["activation"],
+                        optimizer=config["opt"],
+                        batch_size=config["batchSize"],
+                        onlineEWC=config["onlineEWC"],
+                        ewc_lambda=config["ewc_lambda"],
+                        gamma=config["gamma"],
+                        mas_lambda=config["masLambda"],
+                    )
                     trainer.train()
                 else:
                     print("Replay Training....")
-                    trainer = ReplayTrainer(args.modelPath, config["loss"], input_channels, config["layers"], config["convLayers"], config["filters"], config["latent_size"], config["epochs"], config["lr"], run_name, input_sizes, config["tasks"], config["dataset"], classes, config["saveModelInterval"], replayer_mem_size= args.replayMemory, aGEM_selection_size= args.refGradMemory, store_encoded = config["EncodedStorage"], layerWise = config["LayerwiseGradUpdate"],model_type = model_type, e_field_dimension=None, is_e_field=is_e_field, activation=config["activation"], optimizer=config["opt"], batch_size=config["batchSize"], onlineEWC=config["onlineEWC"], ewc_lambda=config["ewc_lambda"], gamma=config["gamma"], mas_lambda=config["masLambda"], agem_l_enc_lambda=config["methodLambda"])
+                    trainer = ReplayTrainer(
+                        args.modelPath,
+                        config["loss"],
+                        input_channels,
+                        config["layers"],
+                        config["convLayers"],
+                        config["filters"],
+                        config["latent_size"],
+                        config["epochs"],
+                        config["lr"],
+                        run_name,
+                        input_sizes,
+                        config["tasks"],
+                        config["dataset"],
+                        classes,
+                        config["saveModelInterval"],
+                        replayer_mem_size=args.replayMemory,
+                        aGEM_selection_size=args.refGradMemory,
+                        store_encoded=config["EncodedStorage"],
+                        layerWise=config["LayerwiseGradUpdate"],
+                        model_type=model_type,
+                        e_field_dimension=None,
+                        is_e_field=is_e_field,
+                        data_path=config['data_path'],
+                        activation=config["activation"],
+                        optimizer=config["opt"],
+                        batch_size=config["batchSize"],
+                        onlineEWC=config["onlineEWC"],
+                        ewc_lambda=config["ewc_lambda"],
+                        gamma=config["gamma"],
+                        mas_lambda=config["masLambda"],
+                        agem_l_enc_lambda=config["methodLambda"],
+                    )
                     trainer.train_with_replay()
         else:
             print("In Evaluation mode.")
