@@ -37,6 +37,11 @@ class ModelTrainer(Trainer):
     def _init_train_datasets(self):
         if self.is_e_field:
             no_datasets, _ = divmod(self.classes, self.number_of_tasks)
+            if no_datasets <= 0:
+                raise ValueError(
+                    f'`classes` ({self.classes}) must be larger than or equal '
+                    f'to `--nTasks` ({self.number_of_tasks})'
+                )
             train_datasets = []
             test_datasets = []
             for i in range(self.number_of_tasks):
