@@ -3,7 +3,7 @@ import sys
 
 class Configurer:
     def __init__(self):
-        print("Initiliazed Configurer")
+        print("Initialized Configurer")
     
     def parseArguments(self):
         parser = argparse.ArgumentParser(description='openPMD Pipe')
