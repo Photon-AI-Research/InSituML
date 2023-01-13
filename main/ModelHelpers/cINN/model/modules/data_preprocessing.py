@@ -9,7 +9,8 @@ import radiation
 
 def get_data_phase_space(ind, 
                          items,
-                         num_particles=-1):
+                         num_particles=-1,
+                         species='e_all'):
     '''
     Load file with 1 particle cloud
     Args:
@@ -17,6 +18,7 @@ def get_data_phase_space(ind,
         items(list of string): list of paths to files
         num_particles(integer): number of particles to sample from an electron cloud, 
                            if -1 then take electron cloud completely
+        species(string): name of particle species to be loaded from the openPMD format
     '''
     
     series = io.Series(items[ind],
@@ -26,12 +28,25 @@ def get_data_phase_space(ind,
     
     particles = i.particles["b_all"]
 
-    particle_tensor = np.stack((particles["position"]["x"],
-                                particles["position"]["y"],
-                                particles["position"]["z"],
-                                particles["momentum"]["x"],
-                                particles["momentum"]["y"],
-                                particles["momentum"]["z"]), axis=-1)
+    x_pos = particles["position"]["x"]
+    y_pos = particles["position"]["y"]
+    z_pos = particles["position"]["z"]
+    x_pos_offset = particles["positionOffset"]["x"]
+    y_pos_offset = particles["positionOffset"]["y"]
+    z_pos_offset = particles["positionOffset"]["z"]
+
+    x_momentum = particles["momentum"]["x"]
+    y_momentum = particles["momentum"]["y"]
+    z_momentum = particles["momentum"]["z"]
+
+    series.flush()
+
+    particle_tensor = np.stack((x_pos+x_pos_offset,
+                                y_pos+y_pos_offset,
+                                z_pos+z_pos_offset,
+                                x_momentum,
+                                y_momentum,
+                                z_momentum), axis=-1)
 
     if num_particles == -1:
         return particle_tensor
@@ -40,16 +55,18 @@ def get_data_phase_space(ind,
         return torch.from_numpy(particle_tensor[inds, :]).float()
     
 def get_phase_space_by_chunks(ind, 
-                                   items,
-                                   chunk_size=100,
-                                   species='e_all'):
+                              items,
+                              chunk_size=100,
+                              species='e_all'):
     '''
     Load file with 1 particle cloud
     Args:
         ind(integer): number of path in list of paths to files
-        items(list of string): list of paths to files
-        num_particles(integer): number of particles to sample from an electron cloud, 
-                           if -1 then take electron cloud completely
+        items(list of (string, integer)): list of paths to files and number of chunk
+                                          to be loaded from a corresponding file
+        chunk_size(integer): number of particles to load per time from an electron cloud
+                             (a complete cloud is too large)
+        species(string): name of particle species to be loaded from the openPMD format
     '''
     
     filename = items[ind][0]
@@ -62,27 +79,45 @@ def get_phase_space_by_chunks(ind,
     particles = i.particles[species]
 
     if (get_shape(filename, species) < (chunk_num+1)*chunk_size):
-        particle_tensor = np.stack((particles["position"]["x"][chunk_num*chunk_size:],
-                                    particles["position"]["y"][chunk_num*chunk_size:],
-                                    particles["position"]["z"][chunk_num*chunk_size:],
-                                    particles["momentum"]["x"][chunk_num*chunk_size:],
-                                    particles["momentum"]["y"][chunk_num*chunk_size:],
-                                    particles["momentum"]["z"][chunk_num*chunk_size:],
-                                    particles["momentumPrev1"]["x"][chunk_num*chunk_size:],
-                                    particles["momentumPrev1"]["y"][chunk_num*chunk_size:],
-                                    particles["momentumPrev1"]["z"][chunk_num*chunk_size:]), axis=-1)
-    else:
-        particle_tensor = np.stack((particles["position"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["position"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["position"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["momentum"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["momentum"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["momentum"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["momentumPrev1"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["momentumPrev1"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size],
-                                    particles["momentumPrev1"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]), axis=-1)
+        x_pos = particles["position"]["x"][chunk_num*chunk_size:]
+        y_pos = particles["position"]["y"][chunk_num*chunk_size:]
+        z_pos = particles["position"]["z"][chunk_num*chunk_size:]
+        x_pos_offset = particles["positionOffset"]["x"][chunk_num*chunk_size:]
+        y_pos_offset = particles["positionOffset"]["y"][chunk_num*chunk_size:]
+        z_pos_offset = particles["positionOffset"]["z"][chunk_num*chunk_size:]
 
-    #particle_tensor = particle_tensor[~np.isnan(particle_tensor).any(axis=1)]
+        x_momentum = particles["momentum"]["x"][chunk_num*chunk_size:]
+        y_momentum = particles["momentum"]["y"][chunk_num*chunk_size:]
+        z_momentum = particles["momentum"]["z"][chunk_num*chunk_size:]
+
+        series.flush()
+
+        particle_tensor = np.stack((x_pos+x_pos_offset,
+                                    y_pos+y_pos_offset,
+                                    z_pos+z_pos_offset,
+                                    x_momentum,
+                                    y_momentum,
+                                    z_momentum), axis=-1)
+    else:
+        x_pos = particles["position"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+        y_pos = particles["position"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+        z_pos = particles["position"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+        x_pos_offset = particles["positionOffset"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+        y_pos_offset = particles["positionOffset"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+        z_pos_offset = particles["positionOffset"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+
+        x_momentum = particles["momentum"]["x"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+        y_momentum = particles["momentum"]["y"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+        z_momentum = particles["momentum"]["z"][chunk_num*chunk_size:(chunk_num+1)*chunk_size]
+
+        series.flush()
+
+        particle_tensor = np.stack((x_pos+x_pos_offset,
+                                    y_pos+y_pos_offset,
+                                    z_pos+z_pos_offset,
+                                    x_momentum,
+                                    y_momentum,
+                                    z_momentum), axis=-1)
     return torch.from_numpy(particle_tensor).float()
     
 
