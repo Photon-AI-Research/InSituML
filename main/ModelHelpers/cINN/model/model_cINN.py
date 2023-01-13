@@ -149,8 +149,8 @@ class PC_NF(nn.Module):
                     phase_space = phase_space.squeeze(0)
                     radiation = radiation.squeeze(0)
                     
-                    phase_space = data_preprocessing.normalize_point(phase_space, dataset_tr.vmin_ps, dataset_tr.vmax_ps)
-                    radiation = data_preprocessing.normalize_point(radiation, dataset_tr.vmin_rad, dataset_tr.vmax_rad)
+                    phase_space = data_preprocessing.normalize_point(phase_space, dataset_tr.vmin_ps, dataset_tr.vmax_ps, dataset_tr.a, dataset_tr.b)
+                    radiation = data_preprocessing.normalize_point(radiation, dataset_tr.vmin_rad, dataset_tr.vmax_rad, dataset_tr.a, dataset_tr.b)
 
                 #erase particle with nan values and a corresponding radiation
                 radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
@@ -197,12 +197,12 @@ class PC_NF(nn.Module):
                 self.validation(dataset_val, 
                                 dataset_tr.vmin_ps, dataset_tr.vmax_ps,
                                 dataset_tr.vmin_rad, dataset_tr.vmax_rad,
-                                batch_size, dataset_tr.normalize)
+                                batch_size, dataset_tr.normalize, dataset_tr.a, dataset_tr.b)
                 
     def validation(self, dataset_val, 
                    vmin_ps, vmax_ps,
                    vmin_rad, vmax_rad,
-                   batch_size, normalize):
+                   batch_size, normalize, a, b):
         loader_val = loader.get_loader(dataset_val, batch_size=batch_size)
         with torch.no_grad():
             loss_avg = []
