@@ -47,6 +47,7 @@ dataset_tr = dataset.PCDataset(items_phase_space=paths_to_PS[:-1],
                  num_points=20,
                  num_files=-1,
                  chunk_size=int(run_settings['chunk_size']),
+                 species=run_settings['species'],
                  normalize=True, a=0., b=1.)
 
 dataset_val = dataset.PCDataset(items_phase_space=paths_to_PS[-1:],
@@ -54,6 +55,7 @@ dataset_val = dataset.PCDataset(items_phase_space=paths_to_PS[-1:],
                  num_points=20,
                  num_files=-1,
                  chunk_size=int(run_settings['chunk_size']),
+                 species=run_settings['species'],
                  normalize=True, a=0., b=1.)
 
 #keep batch size 1, number of points per batch is defined by chunk_size

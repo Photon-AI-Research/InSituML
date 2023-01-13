@@ -22,6 +22,9 @@ class PCDataset(Dataset):
             num_points(integer): number of points to sample from each electron cloud,
                                  if -1 then take a complete electron cloud 
             num_files(integer): number of files to take for a dataset
+            chunk_size(integer): number of particles to load per time
+                                 (a complete point cloud does not pass into the memory)
+            species(string): name of particle species to be loaded from openPMD file
             normalize(boolean): True if normalize each point to be in range [a, b]
         '''
 
