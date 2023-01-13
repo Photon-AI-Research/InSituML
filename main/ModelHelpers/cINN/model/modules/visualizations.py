@@ -69,7 +69,7 @@ def plot_per_slice(pc, slice_along, num_slices, comp_of_interest, axs, label='Nu
     pc_[:, -1][(pc_[:, -3]>=slices[-1])] = len(slices) - 1
 
     if comp_of_interest != None:
-        mean_energy = [np.mean(pc_[:, comp_of_interest][pc_[:,-1]==ind]) for ind in range(len(slices))]
+        mean_energy = [np.mean(pc_[:, comp_of_interest][pc_[:,-1]==ind]) if (pc_[:, comp_of_interest][pc_[:,-1]==ind]).shape[0] > 1 else None for ind in range(len(slices))]
         std_energy = [np.std(pc_[:, comp_of_interest][pc_[:,-1]==ind]) if pc_[:, comp_of_interest][pc_[:,-1]==ind].shape[0] > 1 else None for ind in range(len(slices)) ]
         axs.plot([slice_ for slice_ in slices], mean_energy)
         axs.tick_params(axis='y', which='major', rotation=45)
@@ -96,5 +96,6 @@ def plot_2D(pc, comp_x, comp_y, axs, label_x, label_y):
     axs.set_ylabel(label_y)
     #axs.legend(prop={'size': 20})
 
-def plot_3D_Groundtruth_Reconstruction(pc_groundtruth, pc_reconstruction):
-    fig, axs
+#def plot_3D_Groundtruth_Reconstruction(pc_groundtruth, pc_reconstruction):
+#   to be defined to track reconstruction quality
+#    fig, axs
