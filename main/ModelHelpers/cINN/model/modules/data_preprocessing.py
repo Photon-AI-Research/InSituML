@@ -5,7 +5,7 @@ import torch
 import h5py as h5
 import openpmd_api as io
 
-import radiation
+from . import radiation
 
 
 def get_data_phase_space(ind, 

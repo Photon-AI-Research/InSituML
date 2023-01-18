@@ -1,16 +1,13 @@
-import sys
-sys.path.append('./model')
-sys.path.append('./model/modules')
 import os
 
 import torch
 import wandb
 
-import dataset
-import loader
-import model_cINN 
-import data_preprocessing
-import visualizations
+from .model import model_cINN
+from .model.modules import data_preprocessing
+from .model.modules import dataset
+from .model.modules import loader
+from .model.modules import visualizations
 
 run_settings = {}
 

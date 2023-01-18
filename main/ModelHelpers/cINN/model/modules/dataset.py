@@ -2,7 +2,8 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 
-import data_preprocessing
+from . import data_preprocessing
+
 
 class PCDataset(Dataset):
     def __init__(self, 

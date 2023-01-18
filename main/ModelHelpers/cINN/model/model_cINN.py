@@ -1,6 +1,3 @@
-import sys
-sys.path.append('./modules')
-
 import torch
 import torch.nn as nn
 import torch.optim
@@ -17,8 +14,8 @@ import matplotlib.colors
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 
-import data_preprocessing
-import loader
+from .modules import data_preprocessing
+from .modules import loader
 
 import wandb
 
