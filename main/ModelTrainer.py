@@ -1,12 +1,14 @@
-import wandb
-import torch
 import pandas as pd
-from ModelHelpers.DeviceHelper import DeviceDataLoader
+import torch
 from torch.utils.data.dataloader import DataLoader
-from utils.dataset_utils import DIMENSION_MAP
+import wandb
+
+from ModelsEnum import TaskEnum
+from ModelHelpers.DeviceHelper import DeviceDataLoader
 from trainer import Trainer
-from utils.dataset_utils import get_tasks_datasets, EfieldDataset
+from utils.dataset_utils import DIMENSION_MAP, EfieldDataset, get_tasks_datasets
 from utils.plot_helper import plot_reconstructed_data, plot_reconstructed_data_taskwise, plot_heatmap_df
+
 
 class ModelTrainer(Trainer):
 
@@ -31,6 +33,7 @@ class ModelTrainer(Trainer):
             e_field_dimension=None,
             is_e_field=False,
             data_path=None,
+            task_enum=TaskEnum.OTHER,
             activation="leaky_relu",
             optimizer="adam",
             batch_size=3,
@@ -45,7 +48,9 @@ class ModelTrainer(Trainer):
         wandb.watch(self.model, log="all")
         self.train_data_sets = None
         self.test_data_sets = None
-        self.is_e_field = is_e_field
+        if is_e_field:
+            task_enum = TaskEnum.E_FIELD
+        self.task_enum = task_enum
         self.e_field_dimension = e_field_dimension
         self.data_path = data_path
         self.number_of_tasks = number_of_tasks
@@ -63,7 +68,11 @@ class ModelTrainer(Trainer):
         if self.number_of_tasks - 1 not in self.prev_task_ids:
             self.prev_task_ids.append(self.number_of_tasks - 1)
             self.last_task_included = True
-            
+
+    @property
+    def is_e_field(self):
+        return self.task_enum is TaskEnum.E_FIELD
+
     def _init_train_datasets(self):
         if self.is_e_field:
             no_datasets, _ = divmod(self.classes, self.number_of_tasks)

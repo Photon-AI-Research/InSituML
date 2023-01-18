@@ -5,7 +5,7 @@ import wandb
 from Configure import Configurer
 from utils.dataset_utils import UnknownDatasetError
 from ModelEvaluator import ModelEvaluator
-from ModelsEnum import ModelsEnum
+from ModelsEnum import ModelsEnum, TaskEnum
 from ModelTrainer import ModelTrainer
 from ReplayTrainer import ReplayTrainer
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
                 that will be split into tasks based on (classes / nTasks) 
             """ 
 
-            is_e_field = False
+            task_enum = TaskEnum.OTHER
             if 'mnist' in args.datasetName:
                 input_channels = 1
                 input_sizes = (28, 28)
@@ -89,7 +89,7 @@ if __name__ == '__main__':
             elif 'e_field' in args.datasetName:
                 assert args.datasetPath, \
                     'need a dataset path for "e_field" data'
-                is_e_field = True
+                task_enum = TaskEnum.E_FIELD
                 input_channels = 3
                 input_sizes = (128, 1280, 128)
                 model_type = ModelsEnum.Autoencoder3D
@@ -118,8 +118,8 @@ if __name__ == '__main__':
                         config["saveModelInterval"],
                         model_type,
                         e_field_dimension=None,
-                        is_e_field=is_e_field,
                         data_path=config['data_path'],
+                        task_enum=task_enum,
                         activation=config["activation"],
                         optimizer=config["opt"],
                         batch_size=config["batchSize"],
@@ -153,8 +153,8 @@ if __name__ == '__main__':
                         layerWise=config["LayerwiseGradUpdate"],
                         model_type=model_type,
                         e_field_dimension=None,
-                        is_e_field=is_e_field,
                         data_path=config['data_path'],
+                        task_enum=task_enum,
                         activation=config["activation"],
                         optimizer=config["opt"],
                         batch_size=config["batchSize"],

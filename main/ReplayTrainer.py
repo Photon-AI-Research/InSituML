@@ -1,8 +1,10 @@
 from torch.utils.data.dataloader import DataLoader
 import wandb
+
 from ModelHelpers.DeviceHelper import DeviceDataLoader
-from utils.EpisodicMemory import EpisodicMemory
+from ModelsEnum import TaskEnum
 from ModelTrainer import ModelTrainer
+from utils.EpisodicMemory import EpisodicMemory
 
 
 class ReplayTrainer(ModelTrainer, EpisodicMemory):
@@ -32,6 +34,7 @@ class ReplayTrainer(ModelTrainer, EpisodicMemory):
             e_field_dimension=None,
             is_e_field=False,
             data_path=None,
+            task_enum=TaskEnum.OTHER,
             activation="leaky_relu",
             optimizer="adam",
             batch_size=3,
@@ -62,6 +65,7 @@ class ReplayTrainer(ModelTrainer, EpisodicMemory):
             e_field_dimension=e_field_dimension,
             is_e_field=is_e_field,
             data_path=data_path,
+            task_enum=task_enum,
             activation=activation,
             optimizer=optimizer,
             batch_size=batch_size,
