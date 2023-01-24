@@ -22,6 +22,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 import os
 
+from toy8 import generate
+
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
@@ -31,7 +33,7 @@ def setup(rank, world_size):
 def cleanup():
     dist.destroy_process_group()
     
-    
+'''
 def generate(labels, tot_dataset_size):
     # print('Generating artifical data for setup "%s"' % (labels))
 
@@ -68,7 +70,7 @@ def generate(labels, tot_dataset_size):
     labels = torch.tensor(labels, dtype=torch.float)
 
     return pos, labels
-
+'''
 
 def train_NLL(model, trainable_parameters, optimizer, train_loader, i_epoch=0, n_its_per_epoch = 8):
     model.train()
