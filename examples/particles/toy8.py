@@ -65,6 +65,6 @@ def generate_timeDependent(labels, tot_dataset_size, fctn, t = np.arange(10)):
     
     for ti in t:
         pos_t = torch.cat([pos_t, pos+fctn(ti)])
-        labels_t = torch.cat([labels_t, (ti+1)+labels])
+        labels_t = torch.cat([labels_t, (ti+1)*labels]) # 
 
     return pos_t, labels_t
