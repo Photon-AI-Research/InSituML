@@ -80,10 +80,8 @@ class StreamReader():
         #mesh extraction
         for record_variable in self._meshes:
             mesh_dict = data_dict["meshes"]
-            data, shape = self._get_data_from_key(
+            mesh_dict[record_variable] = self._get_data_from_key(
                 current_iteration.meshes, record_variable)
-            mesh_dict[record_variable] = data
-            mesh_dict[record_variable + '_shape'] = shape
                 
         #particles extraction
         for record_variable in self._particles.keys():
@@ -92,11 +90,8 @@ class StreamReader():
                 particles_dict[record_variable] = dict()
                 current_particle = current_iteration.particles[record_variable]
                 for component in self._particles[record_variable]:
-                    data, shape = self._get_data_from_key(
-                        current_particle, component)
-                    particles_dict[record_variable][component] = data
-                    particles_dict[record_variable][component + '_shape'] = \
-                        shape
+                    particles_dict[record_variable][component] = \
+                        self._get_data_from_key(current_particle, component)
             else:
                 print("Didn't find {}".format(record_variable))
         
