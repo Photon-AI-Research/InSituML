@@ -1,15 +1,24 @@
-import openpmd_api as io
 import json
+import os
 import sys
+
+import openpmd_api as io
+
 
 class StreamReader():
     
-    def __init__(self):
-        self.__init_from_config_file()
+    def __init__(
+            self,
+            stream_config_json=os.path.join(
+                os.path.dirname(__file__),
+                'stream_config.json',
+            ),
+    ):
+        self.__init_from_config_file(stream_config_json)
     
-    def __init_from_config_file(self):
+    def __init_from_config_file(self, stream_config_json):
         try:
-            with open(r"/home/h5/vama551b/home/streamed-ml/StreamedML/main/StreamDataReader/stream_config.json") as stream_config:
+            with open(stream_config_json) as stream_config:
                 stream = json.load(stream_config)
                 self._stream_path = stream["stream_path"]
                 self._meshes = stream["meshes"]
