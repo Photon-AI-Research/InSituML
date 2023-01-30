@@ -16,7 +16,7 @@ class StreamBuffer(Thread):
                 'stream_config.json',
             ),
             buffer_size=3,
-            use_local_data=True,
+            use_local_data=False,
     ):
 
         """
