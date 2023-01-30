@@ -7,17 +7,10 @@ from .model import model_cINN
 from .model.modules import data_preprocessing
 from .model.modules import dataset
 from .model.modules import loader
+from .model.modules import utils
 from .model.modules import visualizations
 
-run_settings = {}
-
-#last line in cfg.txt file should be empty
-with open('cfg.txt') as f:
-    lines = f.readlines()
-
-for line in lines:
-    key, value = line.split(': ')
-    run_settings[key] = value[:-1]
+run_settings = utils.load_run_settings('cfg.txt')
 
 if bool(run_settings['enable_wandb']):
 
