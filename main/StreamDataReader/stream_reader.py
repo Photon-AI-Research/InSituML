@@ -73,7 +73,7 @@ class StreamReader():
 
     def _get_data(self,current_iteration):
         data_dict = dict()
-        data_dict["iteration_id"] = current_iteration.iteration_index
+        data_dict["iteration_index"] = current_iteration.iteration_index
         data_dict["meshes"] = dict()
         data_dict["particles"] = dict()
         
