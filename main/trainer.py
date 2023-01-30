@@ -8,12 +8,12 @@ import numpy as np
 import time
 import pytorch_ssim
 
+from ModelsEnum import ModelsEnum
 from ModelHelpers.AutoEncoder2D import AutoEncoder2D
+from ModelHelpers.Autoencoder3D import AutoEncoder3D
+from ModelHelpers.DeviceHelper import get_default_device, to_device
 # Does not exist.
 # from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
-from ModelHelpers.DeviceHelper import get_default_device, to_device
-from ModelsEnum import ModelsEnum
-from ModelHelpers.Autoencoder3D import AutoEncoder3D
 from ModelHelpers.mlp import MLP
 
 class Trainer():
