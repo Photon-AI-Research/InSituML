@@ -213,6 +213,7 @@ class PC_NF(nn.Module):
     def validation(self, dataset_val,
                    batch_size, normalize):
         loader_val = loader.get_loader(dataset_val, batch_size=batch_size)
+        self.model.eval()
         with torch.no_grad():
             loss_avg = []
             loss_z = []
@@ -246,6 +247,7 @@ class PC_NF(nn.Module):
                       .format(sum(loss_avg)/len(loss_avg),
                               sum(loss_z)/len(loss_z),
                               sum(loss_j)/len(loss_j)))
+        self.model.train()
 
     def save_checkpoint(self, model, optimizer, path, epoch):
             state = {
