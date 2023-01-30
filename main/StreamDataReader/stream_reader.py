@@ -45,7 +45,32 @@ class StreamReader():
             return iteration
         except StopIteration:
             return None
-    
+
+    def _get_data_from_key(self, record, record_key):
+        if record_key in record:
+            current_record = record[record_key]
+            if len(current_record) == 1:
+                data = current_record[io.Mesh_Record_Component.SCALAR][0]
+                shape = ()
+            else:
+                loadedChunks = []
+                shapes = []
+                for dim in current_record:
+                    rc = current_record[dim]
+                    loadedChunks.append(rc.load_chunk([0], rc.shape))
+                    shapes.append(rc.shape)
+                data = loadedChunks
+                if isinstance(shapes[0], int):
+                    shape = (len(shapes), shapes[0])
+                else:
+                    shapes[0].insert(0, len(shapes))
+                    shape = tuple(shapes[0])
+        else:
+            print("Didn't find", record_key)
+            data = None
+            shape = None
+        return data, shape
+
     def _get_data(self,current_iteration):
         data_dict = dict()
         data_dict["iteration_id"] = current_iteration.iteration_index
@@ -55,26 +80,10 @@ class StreamReader():
         #mesh extraction
         for record_variable in self._meshes:
             mesh_dict = data_dict["meshes"]
-            mesh_dict[record_variable] = None
-            if record_variable in current_iteration.meshes:
-                current_record = current_iteration.meshes[record_variable]
-                if len(current_record) == 1:
-                    mesh_dict[record_variable] = current_record[io.Mesh_Record_Component.SCALAR][0]
-                else:
-                    loadedChunks = []
-                    shapes = []
-                    for dim in current_record:
-                        rc = current_record[dim]
-                        loadedChunks.append(rc.load_chunk([0], rc.shape))
-                        shapes.append(rc.shape)
-                    mesh_dict[record_variable] = loadedChunks
-                    if isinstance(shapes[0], int):
-                         mesh_dict[str(record_variable)+"_shape"] = (len(shapes), shapes[0])
-                    else:
-                        shapes[0].insert(0,len(shapes))
-                        mesh_dict[str(record_variable)+"_shape"] = tuple(shapes[0])
-            else:
-                print("Didn't find {}".format(record_variable))
+            data, shape = self._get_data_from_key(
+                current_iteration.meshes, record_variable)
+            mesh_dict[record_variable] = data
+            mesh_dict[record_variable + '_shape'] = shape
                 
         #particles extraction
         for record_variable in self._particles.keys():
@@ -83,26 +92,11 @@ class StreamReader():
                 particles_dict[record_variable] = dict()
                 current_particle = current_iteration.particles[record_variable]
                 for component in self._particles[record_variable]:
-                    particles_dict[record_variable][component] = None
-                    if component in current_particle:
-                        current_record = current_particle[component]
-                        if len(current_record) == 1:
-                            particles_dict[record_variable][component] = current_record[io.Mesh_Record_Component.SCALAR][0]
-                        else:
-                            loadedChunks = []
-                            shapes = []
-                            for dim in current_record:
-                                rc = current_record[dim]
-                                loadedChunks.append(rc.load_chunk([0], rc.shape))
-                                shapes.append(rc.shape[0])
-                            particles_dict[record_variable][component] = loadedChunks
-                            if isinstance(shapes[0], int):
-                                particles_dict[record_variable][str(component) + "_shape"] = (len(shapes), shapes[0])
-                            else:
-                                shapes[0].insert(0,len(shapes))
-                                particles_dict[record_variable][str(component) + "_shape"] = tuple(shapes[0])
-                    else:
-                        print("Didn't find {}".format(component))
+                    data, shape = self._get_data_from_key(
+                        current_particle, component)
+                    particles_dict[record_variable][component] = data
+                    particles_dict[record_variable][component + '_shape'] = \
+                        shape
             else:
                 print("Didn't find {}".format(record_variable))
         
