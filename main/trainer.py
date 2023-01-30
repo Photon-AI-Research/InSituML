@@ -56,7 +56,8 @@ class Trainer():
         elif self.model_type == ModelsEnum.MLP:
             model_class = MLP
         else:
-            model_class = DimensionAutoEncoderModelWithPool
+            raise ValueError('unknown model type')
+            # model_class = DimensionAutoEncoderModelWithPool
         model = model_class(self.input_channels,self.input_sizes,self.number_model_layers, self.number_conv_layers,self.filters,self.latent_size,self.activation,self.onlineEWC, self.ewc_lambda, self.gamma)
         model.apply(model._weights_init)
         return model, {}
