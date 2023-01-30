@@ -34,7 +34,7 @@ if __name__ == '__main__':
             if args.epochs < 1:
                 raise ValueError("Number of epochs cannot be less than 1.")
 
-            if args.lr <= 0:
+            if args.lr < 0:
                 raise ValueError("Invalid Learning rate")
 
             config = dict(

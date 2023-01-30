@@ -42,9 +42,9 @@ class Trainer():
         self.agem_l_enc_lambda = agem_l_enc_lambda
         self.gamma = gamma
         self.activation = self._get_activation(activation)
-        self.model = self._init_model()
+        self.model, self.opt_kwargs = self._init_model()
         self.opt = optimizer
-        self.optimizer = self._init_optimizer(optimizer)
+        self.optimizer = self._init_optimizer(optimizer, self.opt_kwargs)
         self.elp_training_time = []
         self._send_model_to_device()
         
@@ -59,7 +59,7 @@ class Trainer():
             model_class = DimensionAutoEncoderModelWithPool
         model = model_class(self.input_channels,self.input_sizes,self.number_model_layers, self.number_conv_layers,self.filters,self.latent_size,self.activation,self.onlineEWC, self.ewc_lambda, self.gamma)
         model.apply(model._weights_init)
-        return model
+        return model, {}
     
     def _send_model_to_device(self):
         if self.model_type == ModelsEnum.Autoencoder3D:
@@ -89,14 +89,22 @@ class Trainer():
             return nn.LeakyReLU(0.1)
         return nn.ReLU()
     
-    def _init_optimizer(self, optimizer):
+    def _init_optimizer(self, optimizer, opt_kwargs):
+        # If `--lr` is 0, use the learning rate from `opt_kwargs`.
+        if 'lr' in opt_kwargs and self.learning_rate == 0:
+            opt_kwargs = opt_kwargs.copy()
+            learning_rate = opt_kwargs.pop('lr')
+        else:
+            assert self.learning_rate != 0
+            learning_rate = self.learning_rate
+
         if optimizer == "sgd":
-            return SGD(self.model.parameters(), lr = self.learning_rate)
+            return SGD(self.model.parameters(), lr=learning_rate, **opt_kwargs)
         
-        return Adam(self.model.parameters(), lr = self.learning_rate)
+        return Adam(self.model.parameters(), lr=learning_rate, **opt_kwargs)
     
     def _reset_optimizer(self):
-        self.optimizer = self._init_optimizer(self.opt)
+        self.optimizer = self._init_optimizer(self.opt, self.opt_kwargs)
 
     def _save_model(self, name, path, after_task):
         self.model.save_checkpoint(path,name, after_task)
