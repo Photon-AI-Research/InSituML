@@ -10,3 +10,4 @@ class ModelsEnum(Enum):
 class TaskEnum(Enum):
     OTHER = auto()
     E_FIELD = auto()
+    PC_FIELD = auto()

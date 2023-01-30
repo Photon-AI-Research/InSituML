@@ -1,9 +1,13 @@
+import os
+
 import pandas as pd
 import torch
 from torch.utils.data.dataloader import DataLoader
 import wandb
 
 from ModelsEnum import TaskEnum
+from ModelHelpers.cINN.model.modules import dataset as cinn_dataset
+from ModelHelpers.cINN.model.modules import utils as cinn_utils
 from ModelHelpers.DeviceHelper import DeviceDataLoader
 from trainer import Trainer
 from utils.dataset_utils import DIMENSION_MAP, EfieldDataset, get_tasks_datasets
@@ -73,6 +77,51 @@ class ModelTrainer(Trainer):
     def is_e_field(self):
         return self.task_enum is TaskEnum.E_FIELD
 
+    def _create_pc_datasets(self, data_path):
+        run_settings = cinn_utils.load_run_settings(data_path)
+        path_to_particle_data = run_settings['path_to_particle_data']
+        path_to_radiation_data = run_settings['path_to_radiation_data']
+
+        paths_to_PS = [
+            path_to_particle_data + '/' + next_file
+            for next_file in os.listdir(path_to_particle_data)
+        ]
+        paths_to_PS.sort()
+        paths_to_radiation = [
+            path_to_radiation_data + '/' + next_file
+            for next_file in os.listdir(path_to_radiation_data)
+        ]
+        paths_to_radiation.sort()
+
+        if len(paths_to_PS) == 1:
+            paths_to_PS.append(paths_to_PS[0])
+            paths_to_radiation.append(paths_to_radiation[0])
+
+        dataset_tr = cinn_dataset.PCDataset(
+            items_phase_space=paths_to_PS[:-1],
+            items_radiation=paths_to_radiation[:-1],
+            num_points=20,
+            num_files=-1,
+            chunk_size=int(run_settings['chunk_size']),
+            species=run_settings['species'],
+            normalize=True,
+            a=0.0,
+            b=1.0,
+        )
+
+        dataset_val = cinn_dataset.PCDataset(
+            items_phase_space=paths_to_PS[-1:],
+            items_radiation=paths_to_radiation[-1:],
+            num_points=20,
+            num_files=-1,
+            chunk_size=int(run_settings['chunk_size']),
+            species=run_settings['species'],
+            normalize=True,
+            a=0.0,
+            b=1.0,
+        )
+        return dataset_tr, dataset_val
+
     def _init_train_datasets(self):
         if self.is_e_field:
             no_datasets, _ = divmod(self.classes, self.number_of_tasks)
@@ -96,6 +145,11 @@ class ModelTrainer(Trainer):
                 # ))
             self.train_data_sets = train_datasets
             self.test_data_sets = train_datasets
+        elif self.task_enum is TaskEnum.PC_FIELD:
+            dataset_tr, dataset_val = self._create_pc_datasets(self.data_path)
+
+            self.train_data_sets = [dataset_tr]
+            self.test_data_sets = [dataset_val]
         else:
             self.train_data_sets = get_tasks_datasets(
                 self.dataset_name,
