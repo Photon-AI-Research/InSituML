@@ -261,7 +261,7 @@ class PC_NF(nn.Module):
                 'b': self.b
             }
 
-            torch.save(state, path + 'model_' + str(epoch))
+            torch.save(state, os.path.join(path, 'model_' + str(epoch)))
 
     def sample_pointcloud(self, cond, num_points):
         '''
