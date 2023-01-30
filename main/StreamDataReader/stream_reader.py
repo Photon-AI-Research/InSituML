@@ -19,10 +19,8 @@ class StreamReader():
     def __init_from_config_file(self, stream_config_json):
         try:
             with open(stream_config_json) as stream_config:
-                stream = json.load(stream_config)
-                self._stream_path = stream["stream_path"]
-                self._meshes = stream["meshes"]
-                self._particles = stream["particles"]
+                self._stream_cfg = json.load(stream_config)
+                self._stream_path = self._stream_cfg.pop("stream_path")
             self._series = self._init_stream()
             self._series_iterator = self._init_series_iterator()
         except:
@@ -72,30 +70,50 @@ class StreamReader():
         return data, shape
 
     def _get_data(self,current_iteration):
-        data_dict = dict()
-        data_dict["iteration_index"] = current_iteration.iteration_index
-        data_dict["meshes"] = dict()
-        data_dict["particles"] = dict()
-        
-        #mesh extraction
-        for record_variable in self._meshes:
-            mesh_dict = data_dict["meshes"]
-            mesh_dict[record_variable] = self._get_data_from_key(
-                current_iteration.meshes, record_variable)
-                
-        #particles extraction
-        for record_variable in self._particles.keys():
-            particles_dict = data_dict["particles"]
-            if record_variable in current_iteration.particles:
-                particles_dict[record_variable] = dict()
-                current_particle = current_iteration.particles[record_variable]
-                for component in self._particles[record_variable]:
-                    particles_dict[record_variable][component] = \
-                        self._get_data_from_key(current_particle, component)
+        data_dict = dict(iteration_index=current_iteration.iteration_index)
+
+        # Each element in here contains a 3-tuple with the contents:
+        # - `self._stream_cfg` node under which to look for keys.
+        # - `data_dict` node under which to store results for each key.
+        # - The associated record that is supposed to contain the keys.
+        remaining_nodes = [(self._stream_cfg, data_dict, current_iteration)]
+        while remaining_nodes:
+            (
+                stream_cfg_node,
+                data_dict_node,
+                current_record,
+            ) = remaining_nodes.pop()
+
+            if isinstance(stream_cfg_node, list):
+                # Process all leaf keys.
+                for key in stream_cfg_node:
+                    data_dict_node[key] = self._get_data_from_key(
+                        current_record, key)
             else:
-                print("Didn't find {}".format(record_variable))
-        
-        
+                # Add more remaining nodes, descend tree.
+                for (key, stream_cfg_child) in stream_cfg_node.items():
+                    child_found = False
+                    # Access outer-most values by attribute, after that
+                    # only use `getitem`.
+                    if current_record is current_iteration:
+                        if hasattr(current_record, key):
+                            child_record = getattr(current_record, key)
+                            child_found = True
+                    elif key in current_record:
+                            child_record = current_record[key]
+                            child_found = True
+
+                    if child_found:
+                        data_dict_child = {}
+                        data_dict_node[key] = data_dict_child
+                        remaining_nodes.append((
+                            stream_cfg_child,
+                            data_dict_child,
+                            child_record,
+                        ))
+                    else:
+                        print('Did not find', key)
+
         current_iteration.close()
         
         return data_dict
