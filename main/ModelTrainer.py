@@ -48,7 +48,30 @@ class ModelTrainer(Trainer):
             agem_l_enc_lambda=1,
     ):
 
-        super().__init__(model_path, model_loss_func, input_channels, number_model_layers, number_conv_layers, filters, latent_size, epochs, learning_rate, run_name, input_sizes, saveModelInterval, model_type=model_type, activation=activation, optimizer=optimizer, batch_size=batch_size, onlineEWC=onlineEWC, ewc_lambda=ewc_lambda, gamma=gamma, mas_lambda=mas_lambda, agem_l_enc_lambda = agem_l_enc_lambda)
+        super().__init__(
+            model_path,
+            model_loss_func,
+            input_channels,
+            number_model_layers,
+            number_conv_layers,
+            filters,
+            latent_size,
+            epochs,
+            learning_rate,
+            run_name,
+            input_sizes,
+            saveModelInterval,
+            model_type=model_type,
+            activation=activation,
+            optimizer=optimizer,
+            batch_size=batch_size,
+            onlineEWC=onlineEWC,
+            ewc_lambda=ewc_lambda,
+            gamma=gamma,
+            mas_lambda=mas_lambda,
+            agem_l_enc_lambda=agem_l_enc_lambda,
+            model_kwargs=None,
+        )
         wandb.watch(self.model, log="all")
         self.train_data_sets = None
         self.test_data_sets = None

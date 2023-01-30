@@ -17,7 +17,34 @@ from ModelHelpers.DeviceHelper import get_default_device, to_device
 from ModelHelpers.mlp import MLP
 
 class Trainer():
-    def __init__(self, model_path, model_loss_func, input_channels, number_model_layers, number_conv_layers ,filters, latent_size, epochs, learning_rate, run_name, input_sizes, saveModelInterval ,model_type = ModelsEnum.Autoencoder2D,activation = "leaky_relu", optimizer = "adam",batch_size = 3, onlineEWC = False, ewc_lambda = 0.0, gamma = 0.0, mas_lambda = 0.0, agem_l_enc_lambda = 1):
+    def __init__(
+            self,
+            model_path,
+            model_loss_func,
+            input_channels,
+            number_model_layers,
+            number_conv_layers,
+            filters,
+            latent_size,
+            epochs,
+            learning_rate,
+            run_name,
+            input_sizes,
+            saveModelInterval,
+            model_type=ModelsEnum.Autoencoder2D,
+            activation="leaky_relu",
+            optimizer="adam",
+            batch_size=3,
+            onlineEWC=False,
+            ewc_lambda=0.0,
+            gamma=0.0,
+            mas_lambda=0.0,
+            agem_l_enc_lambda=1,
+            model_kwargs=None,
+    ):
+        if model_kwargs is None:
+            model_kwargs = {}
+
         self.device = get_default_device()
         self.l1_loss = nn.L1Loss()
         self.model_path = model_path
@@ -42,13 +69,13 @@ class Trainer():
         self.agem_l_enc_lambda = agem_l_enc_lambda
         self.gamma = gamma
         self.activation = self._get_activation(activation)
-        self.model, self.opt_kwargs = self._init_model()
+        self.model, self.opt_kwargs = self._init_model(model_kwargs)
         self.opt = optimizer
         self.optimizer = self._init_optimizer(optimizer, self.opt_kwargs)
         self.elp_training_time = []
         self._send_model_to_device()
         
-    def _init_model(self):
+    def _init_model(self, model_kwargs):
         if self.model_type == ModelsEnum.Autoencoder2D:
             model_class = AutoEncoder2D
         elif self.model_type == ModelsEnum.Autoencoder3D:
