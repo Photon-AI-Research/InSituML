@@ -166,7 +166,7 @@ class PC_NF(nn.Module):
                 for param in self.model.parameters():
                     param.grad = None
                 #optimizer.zero_grad()
-                z, log_j = self(phase_space.to(self.device), 
+                z, log_j = self(phase_space.to(self.device),
                                 radiation.to(self.device))
                 loss = 0.
                 
@@ -231,8 +231,8 @@ class PC_NF(nn.Module):
                 radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
                 phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
 
-                z, log_j = self(phase_space.to(self.device), 
-                                        radiation.to(self.device))
+                z, log_j = self(phase_space.to(self.device),
+                                radiation.to(self.device))
                 loss = 0.
                 
                 loss_z.append(float(torch.mean(z**2) / 2))
