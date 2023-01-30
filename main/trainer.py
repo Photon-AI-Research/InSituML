@@ -100,8 +100,10 @@ class Trainer():
 
         if optimizer == "sgd":
             return SGD(self.model.parameters(), lr=learning_rate, **opt_kwargs)
-        
-        return Adam(self.model.parameters(), lr=learning_rate, **opt_kwargs)
+        elif optimizer == "adam":
+            return Adam(self.model.parameters(), lr=learning_rate, **opt_kwargs)
+        else:
+            raise ValueError('unknown optimizer')
     
     def _reset_optimizer(self):
         self.optimizer = self._init_optimizer(self.opt, self.opt_kwargs)
