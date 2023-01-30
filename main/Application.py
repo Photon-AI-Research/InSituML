@@ -94,6 +94,14 @@ if __name__ == '__main__':
                 input_sizes = (128, 1280, 128)
                 model_type = ModelsEnum.Autoencoder3D
                 classes = 50
+            elif 'pc_field' in args.datasetName:
+                assert args.datasetPath, \
+                    'need a dataset path for "pc_field" data'
+                task_enum = TaskEnum.PC_FIELD
+                input_channels = None
+                input_sizes = None
+                model_type = ModelsEnum.cINN
+                classes = None
             else:
                 raise UnknownDatasetError()
                 

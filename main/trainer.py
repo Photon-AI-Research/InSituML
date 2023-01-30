@@ -11,6 +11,8 @@ import pytorch_ssim
 from ModelsEnum import ModelsEnum
 from ModelHelpers.AutoEncoder2D import AutoEncoder2D
 from ModelHelpers.Autoencoder3D import AutoEncoder3D
+from ModelHelpers.cINN.model import model_cINN
+from ModelHelpers.cINN.model.modules import utils as cinn_utils
 from ModelHelpers.DeviceHelper import get_default_device, to_device
 # Does not exist.
 # from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
@@ -82,6 +84,34 @@ class Trainer():
             model_class = AutoEncoder3D
         elif self.model_type == ModelsEnum.MLP:
             model_class = MLP
+        elif self.model_type == ModelsEnum.cINN:
+            assert len(model_kwargs) > 0
+            run_settings = cinn_utils.load_run_settings(
+                model_kwargs['data_path'])
+
+            radiation_dim = model_kwargs['radiation_dim']
+            ps_dim = model_kwargs['ps_dim']
+
+            model = model_cINN.PC_NF(
+                dim_condition=radiation_dim,
+                dim_input=ps_dim,
+                num_coupling_layers=int(run_settings['num_coupling_layers']),
+                num_linear_layers=int(
+                    run_settings['num_linear_layers_in_subnetworks']),
+                hidden_size=int(
+                    run_settings['hidden_size_of_layers_in_subnetworks']),
+                device=self.device,
+                enable_wandb=bool(run_settings['enable_wandb']),
+            )
+
+            opt_kwargs = dict(
+                lr=float(run_settings['learning_rate']),
+                betas=(0.8, 0.9),
+                eps=1e-6,
+                weight_decay=2e-5
+            )
+
+            return model, opt_kwargs
         else:
             raise ValueError('unknown model type')
             # model_class = DimensionAutoEncoderModelWithPool
@@ -118,6 +148,11 @@ class Trainer():
         return nn.ReLU()
     
     def _init_optimizer(self, optimizer, opt_kwargs):
+        if self.model_type is ModelsEnum.cINN:
+            params = self.model.trainable_parameters
+        else:
+            params = self.model.parameters()
+
         # If `--lr` is 0, use the learning rate from `opt_kwargs`.
         if 'lr' in opt_kwargs and self.learning_rate == 0:
             opt_kwargs = opt_kwargs.copy()
@@ -127,9 +162,9 @@ class Trainer():
             learning_rate = self.learning_rate
 
         if optimizer == "sgd":
-            return SGD(self.model.parameters(), lr=learning_rate, **opt_kwargs)
+            return SGD(params, lr=learning_rate, **opt_kwargs)
         elif optimizer == "adam":
-            return Adam(self.model.parameters(), lr=learning_rate, **opt_kwargs)
+            return Adam(params, lr=learning_rate, **opt_kwargs)
         else:
             raise ValueError('unknown optimizer')
     

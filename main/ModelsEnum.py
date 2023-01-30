@@ -5,6 +5,7 @@ class ModelsEnum(Enum):
     MLP = auto()
     Autoencoder2D = auto()
     Autoencoder3D = auto()
+    cINN = auto()
 
 
 class TaskEnum(Enum):

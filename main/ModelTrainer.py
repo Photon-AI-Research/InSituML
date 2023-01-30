@@ -5,7 +5,7 @@ import torch
 from torch.utils.data.dataloader import DataLoader
 import wandb
 
-from ModelsEnum import TaskEnum
+from ModelsEnum import ModelsEnum, TaskEnum
 from ModelHelpers.cINN.model.modules import dataset as cinn_dataset
 from ModelHelpers.cINN.model.modules import utils as cinn_utils
 from ModelHelpers.DeviceHelper import DeviceDataLoader
@@ -47,6 +47,19 @@ class ModelTrainer(Trainer):
             mas_lambda=0.0,
             agem_l_enc_lambda=1,
     ):
+        if model_type is ModelsEnum.cINN:
+            dataset_tr, _ = self._create_pc_datasets(data_path)
+            assert len(dataset_tr) > 0
+            ps, rad = dataset_tr[0]
+            ps_dim = ps.shape[-1]
+            radiation_dim = rad.shape[-1]
+            model_kwargs = dict(
+                data_path=data_path,
+                ps_dim=ps_dim,
+                radiation_dim=radiation_dim,
+            )
+        else:
+            model_kwargs = None
 
         super().__init__(
             model_path,
@@ -190,6 +203,21 @@ class ModelTrainer(Trainer):
 
     def _train_offline(self):
         print("GOING OFFLINE......")
+
+        if self.model_type is ModelsEnum.cINN:
+            self.model.train_(
+                self.train_data_sets[0],
+                self.test_data_sets[0],
+                self.optimizer,
+                epochs=self.epochs,
+                batch_size=self.batch_size,
+                test_epoch=25,
+                test_pointcloud='...',
+                log_plots=None,
+                path_to_models=self.model_path,
+            )
+            return
+
         for epoch in range(1, self.epochs + 1):
             losses = []
             for data_set in self.train_data_sets:
@@ -343,6 +371,20 @@ class ModelTrainer(Trainer):
         self.model.train()
     
     def validate_class_wise(self):
+        if self.model_type is ModelsEnum.cINN:
+            self.model.validation(
+                self.test_data_sets[0],
+                self.train_data_sets[0].vmin_ps,
+                self.train_data_sets[0].vmax_ps,
+                self.train_data_sets[0].vmin_rad,
+                self.train_data_sets[0].vmax_rad,
+                self.batch_size,
+                self.train_data_sets[0].normalize,
+                self.train_data_sets[0].a,
+                self.train_data_sets[0].b,
+            )
+            return
+
         if self.is_e_field:
             data_sets = []
             for i in range(self.classes):
