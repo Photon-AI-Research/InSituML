@@ -6,7 +6,7 @@ def load_run_settings(cfg_path):
         lines = f.readlines()
 
     for line in lines:
-        key, value = line.split(': ')
-        run_settings[key] = value[:-1]
+        key, value = line.split(': ', 1)
+        run_settings[key] = value
 
     return run_settings
