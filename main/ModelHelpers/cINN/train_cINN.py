@@ -42,6 +42,18 @@ paths_to_PS.sort()
 paths_to_radiation = [path_to_radiation_data + '/' + next_file for next_file in os.listdir(path_to_radiation_data)]
 paths_to_radiation.sort()
 
+#if there is only 1 simulation in direcotry
+#dublicate it in the list of paths to simulation files
+#because last simulation is used as validation data and all before as training data
+#in case of 1 simulation, we use it for training and for validation
+
+if len(paths_to_PS) == 1:
+    paths_to_PS.append(paths_to_PS[0])
+    paths_to_radiation.append(paths_to_radiation[0])
+
+print(paths_to_PS)
+print(paths_to_radiation)
+
 dataset_tr = dataset.PCDataset(items_phase_space=paths_to_PS[:-1],
                  items_radiation=paths_to_radiation[:-1],
                  num_points=20,

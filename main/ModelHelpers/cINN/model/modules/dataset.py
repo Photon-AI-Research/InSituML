@@ -33,6 +33,7 @@ class PCDataset(Dataset):
         self.normalize = normalize
         self.num_points = num_points
         self.a, self.b = a, b 
+        self.species = species
         
         #self.vmin_ps, self.vmax_ps = data_preprocessing.get_vmin_vmax_ps(items_phase_space)
         #self.vmin_rad, self.vmax_rad = data_preprocessing.get_vmin_vmax_radiation(items_radiation)
@@ -68,10 +69,10 @@ class PCDataset(Dataset):
             for j in range(num_chunks_per_file):
                 self.items_file_chunk.append((items_phase_space[ind], j))
                 
-        print('Number of simulations: ', self.num_files)
-        print('Number of chunks: ', len(self.items_file_chunk))
+        print('\nNumber of simulations: ', self.num_files)
+        print('\nNumber of chunks: ', len(self.items_file_chunk))
         
-        print('Get min/max from phase space data...')
+        print('\nGet min/max from phase space data...')
         for j in range(len(self.items_file_chunk)):
             #print('Chunk ',j)
             arr, _ = self.__getitem__(j)
@@ -99,19 +100,20 @@ class PCDataset(Dataset):
         print('PS Maxima: ')
         print('\t', self.vmax_ps)
         
-        print('Get min/max from radiation data...')
+        print('\nGet min/max from radiation data...')
         self.vmin_rad, self.vmax_rad = data_preprocessing.get_vmin_vmax_radiation(items_radiation, self.chunk_size, self.get_data_radiation)
-        print('PS Minima: ')
+        print('Radiation Minima: ')
         print('\t', self.vmin_rad[0,0])
         
-        print('PS Maxima: ')
+        print('Radiation Maxima: ')
         print('\t', self.vmax_rad[0,0])
 
     def __getitem__(self, index):
         ind_rad = self.items_phase_space.index(self.items_file_chunk[index][0])
         return (self.get_data_phase_space_by_chunks(index, 
                                               items=self.items_file_chunk,
-                                              chunk_size=self.chunk_size),
+                                              chunk_size=self.chunk_size,
+                                              species=self.species),
                 self.get_data_radiation(ind_rad,
                                        items=self.items_radiation, chunk_size=self.chunk_size))
 
