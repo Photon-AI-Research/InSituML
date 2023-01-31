@@ -1,3 +1,8 @@
+"""
+Train cINN using DistributedDataParallel on static toy8 data (using
+toy8.generate()).
+"""
+
 from time import time
 
 import torch
