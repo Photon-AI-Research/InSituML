@@ -1,0 +1,19 @@
+# Install torch manually, don't let pip pull that
+##torch
+
+# For examples/ data loading notebooks
+openpmd-api
+h5py
+
+# Mostly for examples/ notebooks
+numpy
+matplotlib
+
+# cINN library
+FrEIA
+
+# Monitoring, set WANDB_MODE=disabled if needed.
+# See https://github.com/Photon-AI-Research/InSituML/issues/4
+wandb
+
+# vim:syn=conf
