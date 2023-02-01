@@ -1,3 +1,9 @@
+"""
+Nico's original draft version for generating fake time-dependent data.
+
+Not sure if we want to keep this, but it works with the notebooks here.
+"""
+
 from typing import Callable
 
 import numpy as np
