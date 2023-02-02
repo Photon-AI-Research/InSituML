@@ -10,7 +10,9 @@ from ModelHelpers.cINN.model.modules import dataset as cinn_dataset
 from ModelHelpers.cINN.model.modules import utils as cinn_utils
 from ModelHelpers.DeviceHelper import DeviceDataLoader
 from trainer import Trainer
+from utils import dist_utils
 from utils.dataset_utils import DIMENSION_MAP, EfieldDataset, get_tasks_datasets
+from utils.dist_utils import print0
 from utils.plot_helper import plot_reconstructed_data, plot_reconstructed_data_taskwise, plot_heatmap_df
 
 
@@ -85,7 +87,8 @@ class ModelTrainer(Trainer):
             agem_l_enc_lambda=agem_l_enc_lambda,
             model_kwargs=model_kwargs,
         )
-        wandb.watch(self.model, log="all")
+        if dist_utils.is_rank_0():
+            wandb.watch(self.model, log="all")
         self.train_data_sets = None
         self.test_data_sets = None
         if is_e_field:
@@ -202,7 +205,7 @@ class ModelTrainer(Trainer):
             )
 
     def _train_offline(self):
-        print("GOING OFFLINE......")
+        print0("GOING OFFLINE......")
 
         if self.model_type is ModelsEnum.cINN:
             self.model.train_(
@@ -220,8 +223,16 @@ class ModelTrainer(Trainer):
 
         for epoch in range(1, self.epochs + 1):
             losses = []
-            for data_set in self.train_data_sets:
-                data_loader = DataLoader(data_set, self.batch_size, num_workers = 2, pin_memory=True, shuffle=True)
+            for (i, data_set) in enumerate(self.train_data_sets):
+                data_sampler = dist_utils.create_distributed_sampler(
+                    data_set, epoch, seed=i, shuffle=True)
+                data_loader = DataLoader(
+                    data_set,
+                    self.batch_size,
+                    num_workers=2,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 device_data_loader = DeviceDataLoader(data_loader,self.device)
                 for batch, labels in device_data_loader:
                     if self.is_mlp:
@@ -229,13 +240,15 @@ class ModelTrainer(Trainer):
                     encoded , decoded, _ = self.model(batch)
                     self.optimizer.zero_grad()
                     loss = self.loss_func(batch, decoded)
+                    loss_avg = dist_utils.all_reduce_avg(loss.detach())
                     loss.backward()
                     self.optimizer.step()
-                    losses.append(loss.item())
-            wandb.log({
-                        "loss_model": sum(losses) / len(losses),
-                        "epoch": epoch
-            })
+                    losses.append(loss_avg.item())
+            if dist_utils.is_rank_0():
+                wandb.log({
+                    "loss_model": sum(losses) / len(losses),
+                    "epoch": epoch
+                })
             self.validate(epoch)
         self._save_model(self.run_name,self.model_path,"")
         
@@ -247,7 +260,15 @@ class ModelTrainer(Trainer):
             list_of_encoded = []
             for e in range(self.epochs):
                 losses = []
-                data_loader = DataLoader(data_set, self.batch_size, num_workers = 2, pin_memory=True, shuffle=True)
+                data_sampler = dist_utils.create_distributed_sampler(
+                    data_set, e, seed=task_id, shuffle=True)
+                data_loader = DataLoader(
+                    data_set,
+                    self.batch_size,
+                    num_workers=2,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 device_data_loader = DeviceDataLoader(data_loader,self.device)
                 for batch, labels in device_data_loader:
                     if self.is_mlp:
@@ -259,24 +280,29 @@ class ModelTrainer(Trainer):
                     #ewc-loss-if-needed
                     if self.ewc_lambda > 0.0:
                         ewc_loss = self.ewc_lambda * self.model.ewc_loss()
+                        ewc_loss_avg = dist_utils.all_reduce_avg(
+                            ewc_loss.detach())
                         loss += ewc_loss
-                        if e == self.epochs - 1:
+                        if dist_utils.is_rank_0() and e == self.epochs - 1:
                             wandb.log({
-                                "ewc_loss" : ewc_loss,
+                                "ewc_loss" : ewc_loss_avg,
                                 "task" : task_id
                             })
+                    loss_avg = dist_utils.all_reduce_avg(loss.detach())
 
                     loss.backward()
                     self.optimizer.step()
-                    losses.append(loss.item())
+                    losses.append(loss_avg.item())
                 loss_avg = sum(losses) / len(losses)
                 task_loss.append(loss_avg)
+                if dist_utils.is_rank_0():
+                    wandb.log({
+                        "loss_model": loss_avg,
+                    })
+            if dist_utils.is_rank_0():
                 wandb.log({
-                     "loss_model": loss_avg,
-                })
-            wandb.log({
-                     "task_loss": sum(task_loss) / len(task_loss),
-                     "task": task_id + 1
+                    "task_loss": sum(task_loss) / len(task_loss),
+                    "task": task_id + 1
                 })
             #self._reset_optimizer()
             # if task_id == 0:
@@ -321,19 +347,30 @@ class ModelTrainer(Trainer):
             "inf_norm_loss":[],
             "mse_loss":[]
         }
-        val_data_loader = DataLoader(dataset, self.batch_size, num_workers = 1, pin_memory=True, shuffle=False)
+        data_sampler = dist_utils.create_distributed_sampler(
+            dataset, 0, shuffle=False)
+        val_data_loader = DataLoader(
+            dataset,
+            self.batch_size,
+            num_workers=1,
+            pin_memory=True,
+            sampler=data_sampler,
+        )
         val_device_data_loader = DeviceDataLoader(val_data_loader,self.device)
         for batch, labels in val_device_data_loader:
             if self.is_mlp:
                 batch = self._modify_batch(batch)
             encoded , decoded, _ = self.model(batch)
             val_loss = self.loss_func(batch, decoded)
+            val_loss = dist_utils.all_reduce_avg(val_loss.detach())
             val_losses["mse_loss"].append(val_loss.item())
 
             val_loss = self.l1_loss(batch, decoded)
+            val_loss = dist_utils.all_reduce_avg(val_loss.detach())
             val_losses["l1_loss"].append(val_loss.item())
 
             val_loss = self._infinity_norm_loss(batch, decoded)
+            val_loss = dist_utils.all_reduce_avg(val_loss.detach())
             val_losses["inf_norm_loss"].append(val_loss.item())
         val_losses = {n: sum(p)/len(p) for n, p in val_losses.items()}
         return val_losses
@@ -356,7 +393,9 @@ class ModelTrainer(Trainer):
         self.encoded_data.append(encoded)
         for i in range(task_id):
             enc_loss = self.loss_func(self.encoded_data[i],encoded)
-            self.prev_encoded_losses["M 1:{}".format(task_id+1)].append(enc_loss.item())
+            enc_loss_avg = dist_utils.all_reduce_avg(enc_loss.detach())
+            self.prev_encoded_losses["M 1:{}".format(task_id+1)].append(
+                enc_loss_avg.item())
         self.prev_encoded_losses["M 1:{}".format(task_id+1)].append(0.0)
 
     def validate(self, epoch):
@@ -364,10 +403,11 @@ class ModelTrainer(Trainer):
         with torch.no_grad():
             for data_set in self.test_data_sets:
                 avg_val_loss = self._get_validation_loss_avg(data_set)
-                wandb.log({
-                            "validation_loss_model": avg_val_loss["mse_loss"],
-                            "epoch": epoch
-                })
+                if dist_utils.is_rank_0():
+                    wandb.log({
+                        "validation_loss_model": avg_val_loss["mse_loss"],
+                        "epoch": epoch
+                    })
         self.model.train()
     
     def validate_class_wise(self):
@@ -402,15 +442,22 @@ class ModelTrainer(Trainer):
         with torch.no_grad():
             for task_id, data_set in enumerate(data_sets):
                 avg_val_loss = self._get_validation_loss_avg(data_set)
-                wandb.log({
-                            "validation_MSE_loss_per_class": avg_val_loss["mse_loss"],
-                            "validation_L1_loss_per_class": avg_val_loss["l1_loss"],
-                            "validation_InfinityNorm_loss_per_class": avg_val_loss["inf_norm_loss"],
-                            "class": task_id + 1
-                })
+                if dist_utils.is_rank_0():
+                    wandb.log({
+                        "validation_MSE_loss_per_class": (
+                            avg_val_loss["mse_loss"]),
+                        "validation_L1_loss_per_class": (
+                            avg_val_loss["l1_loss"]),
+                        "validation_InfinityNorm_loss_per_class": (
+                            avg_val_loss["inf_norm_loss"]),
+                        "class": task_id + 1
+                    })
         self.model.train()
 
     def log_prev_tasks_data(self):
+        if not dist_utils.is_rank_0():
+            return
+
         plot_df = pd.DataFrame.from_dict(self.prev_tasks_losses, orient='index')
         plot_df.columns = ["Task {}".format(i + 1) for i in range(self.number_of_tasks)]
 
@@ -459,7 +506,15 @@ class ModelTrainer(Trainer):
             for id in range(idx + 1):
                 prev_idx = self.prev_task_ids[id]
                 val_data_set = self.test_data_sets[prev_idx]
-                val_data_loader = DataLoader(val_data_set, 1, num_workers = 1, pin_memory=True, shuffle=False)
+                data_sampler = dist_utils.create_distributed_sampler(
+                    val_data_set, 0, shuffle=False)
+                val_data_loader = DataLoader(
+                    val_data_set,
+                    1,
+                    num_workers=1,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 val_device_data_loader = DeviceDataLoader(val_data_loader,self.device)
                 for batch, label in val_device_data_loader:
                     if last_one:
@@ -495,8 +550,16 @@ class ModelTrainer(Trainer):
         reconstructed = []
         count = 0
         with torch.no_grad():
-            for data_set in data_sets:
-                val_data_loader = DataLoader(data_set, 1, num_workers = 1, pin_memory=True, shuffle=True)
+            for (i, data_set) in enumerate(data_sets):
+                data_sampler = dist_utils.create_distributed_sampler(
+                    data_set, 0, seed=i, shuffle=True)
+                val_data_loader = DataLoader(
+                    data_set,
+                    1,
+                    num_workers=1,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 val_device_data_loader = DeviceDataLoader(val_data_loader,self.device)
                 for i in range(5):
                     batch, label = val_device_data_loader[i]
@@ -510,7 +573,8 @@ class ModelTrainer(Trainer):
         
         original, reconstructed = self.prepare_data_to_plot(original), self.prepare_data_to_plot(reconstructed)
         plot_figure = plot_reconstructed_data(original, reconstructed, "Precitions", cmap = 'jet' if self.is_e_field else 'gray')
-        wandb.log({"Reconstructed Images":plot_figure})
+        if dist_utils.is_rank_0():
+            wandb.log({"Reconstructed Images":plot_figure})
         
         self.model.train()
 
@@ -529,6 +593,8 @@ class ModelTrainer(Trainer):
         return og
     
     def plot_reconstructed_data_grid_task_wise(self):
+        if not dist_utils.is_rank_0():
+            return
         fig_plot = plot_reconstructed_data_taskwise(self.prev_tasks_images["og_imgs"], self.prev_tasks_images, self.prev_task_ids, "Reconstruction Grid", cmap = 'jet' if self.is_e_field else 'gray')
         wandb.log({"Reconstructed Imgs Grid": fig_plot})
 

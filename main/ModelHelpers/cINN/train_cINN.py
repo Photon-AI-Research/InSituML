@@ -6,10 +6,12 @@ import wandb
 from .model import model_cINN
 from .model.modules import data_preprocessing
 from .model.modules import dataset
+from .model.modules import dist_utils
 from .model.modules import loader
 from .model.modules import utils
 from .model.modules import visualizations
 
+dist_utils.maybe_initialize()
 run_settings = utils.load_run_settings('cfg.txt')
 
 if bool(run_settings['enable_wandb']):
@@ -24,8 +26,9 @@ if bool(run_settings['enable_wandb']):
 
     os.environ['WANDB_API_KEY'] = run_settings['wandb_apikey']
 
-    wandb.init(reinit=True, project=run_settings['wandb_project'],
-               entity=run_settings['wandb_entity'], config=config_defaults)
+    if dist_utils.is_rank_0():
+        wandb.init(reinit=True, project=run_settings['wandb_project'],
+                   entity=run_settings['wandb_entity'], config=config_defaults)
 
 path_to_particle_data = run_settings['path_to_particle_data']
 path_to_radiation_data = run_settings['path_to_radiation_data']
@@ -82,6 +85,7 @@ model_f = model_cINN.PC_NF(dim_condition=2,
                            hidden_size=int(run_settings['hidden_size_of_layers_in_subnetworks']),
                            device='cuda',
                            enable_wandb=bool(run_settings['enable_wandb']))
+model_f.model = dist_utils.maybe_ddp_wrap(model_f.model)
 
 optimizer = torch.optim.Adam(model_f.trainable_parameters, lr=float(run_settings['learning_rate']),
                              betas=(0.8, 0.9), eps=1e-6, weight_decay=2e-5)

@@ -17,6 +17,9 @@ from ModelHelpers.DeviceHelper import get_default_device, to_device
 # Does not exist.
 # from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
 from ModelHelpers.mlp import MLP
+from utils import dist_utils
+from utils.dist_utils import print0
+
 
 class Trainer():
     def __init__(
@@ -137,6 +140,11 @@ class Trainer():
         else:
             to_device(self.model, self.device)
 
+        if self.model_type is ModelsEnum.cINN:
+            self.model.model = dist_utils.maybe_ddp_wrap(self.model.model)
+        else:
+            self.model = dist_utils.maybe_ddp_wrap(self.model)
+
     def _custom_loss(self, predicted, actual):
         l1loss = F.l1_loss(predicted, actual)
         ssim_loss = self.ssim_loss(predicted, actual)
@@ -144,7 +152,7 @@ class Trainer():
 
 
     def _get_loss_func(self, loss):
-        print(loss)
+        print0(loss)
         if loss == 'L1':
             return nn.L1Loss()
         if loss == 'custom':
@@ -184,7 +192,8 @@ class Trainer():
         self.optimizer = self._init_optimizer(self.opt, self.opt_kwargs)
 
     def _save_model(self, name, path, after_task):
-        self.model.save_checkpoint(path,name, after_task)
+        if dist_utils.is_rank_0():
+            self.model.save_checkpoint(path,name, after_task)
     
     def _modify_batch(self,batch, reverse = False):
         batch_size = batch.size(0)

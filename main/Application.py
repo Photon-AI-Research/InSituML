@@ -1,3 +1,4 @@
+import contextlib
 import os
 
 import wandb
@@ -7,7 +8,9 @@ from ModelEvaluator import ModelEvaluator
 from ModelsEnum import ModelsEnum, TaskEnum
 from ModelTrainer import ModelTrainer
 from ReplayTrainer import ReplayTrainer
+from utils import dist_utils
 from utils.dataset_utils import UnknownDatasetError
+from utils.dist_utils import print0
 
 if __name__ == '__main__':
     try:
@@ -19,8 +22,10 @@ if __name__ == '__main__':
         if not os.path.isdir(args.modelPath):
             raise ValueError("Model Path doesn't exist.")
 
+        dist_utils.maybe_initialize()
+
         if args.mode == "train":
-            print("In training mode")
+            print0("In training mode")
 
             if args.nTasks < 1:
                 raise ValueError("Number of tasks cannot be less than 1.")
@@ -108,9 +113,22 @@ if __name__ == '__main__':
                 classes = None
             else:
                 raise UnknownDatasetError()
-                
-            with(wandb.init(project="streamed_ml", config=config)):
-                run_name = wandb.run.name
+
+            assert (
+                not dist_utils.is_distributed()
+                or model_type is not ModelsEnum.Autoencoder3D
+            ), (
+                '`Autoencoder3D` model type does not work with DDP due '
+                'to manual device assignment.'
+            )
+
+            if dist_utils.is_rank_0():
+                wandb_run = wandb.init(project="streamed_ml", config=config)
+                run_name = wandb_run.name
+            else:
+                wandb_run = contextlib.nullcontext()
+                run_name = ''
+            with wandb_run:
                 if not config["Replayer"]:
                     trainer = ModelTrainer(
                         args.modelPath,
@@ -142,7 +160,7 @@ if __name__ == '__main__':
                     )
                     trainer.train()
                 else:
-                    print("Replay Training....")
+                    print0("Replay Training....")
                     trainer = ReplayTrainer(
                         args.modelPath,
                         config["loss"],
@@ -178,7 +196,7 @@ if __name__ == '__main__':
                     )
                     trainer.train_with_replay()
         else:
-            print("In Evaluation mode.")
+            print0("In Evaluation mode.")
             if not args.modelName:
                 raise ValueError("Model Name not provided.")
 
@@ -187,7 +205,11 @@ if __name__ == '__main__':
                 model=args.modelName,
             )
 
-            with(wandb.init(project="streamed_ml", config=config)):
+            if dist_utils.is_rank_0():
+                wandb_run = wandb.init(project="streamed_ml", config=config)
+            else:
+                wandb_run = contextlib.nullcontext()
+            with wandb_run:
                 evaluator = ModelEvaluator(args.modelPath, args.modelName, [
                                            20, 40, 60, 80], ModelsEnum.Autoencoder_Pooling)
                 evaluator.evaluate()
