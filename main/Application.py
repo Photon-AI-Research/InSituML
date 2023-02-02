@@ -3,11 +3,11 @@ import os
 import wandb
 
 from Configure import Configurer
-from utils.dataset_utils import UnknownDatasetError
 from ModelEvaluator import ModelEvaluator
 from ModelsEnum import ModelsEnum, TaskEnum
 from ModelTrainer import ModelTrainer
 from ReplayTrainer import ReplayTrainer
+from utils.dataset_utils import UnknownDatasetError
 
 if __name__ == '__main__':
     try:

@@ -1,23 +1,21 @@
-import torch
-import torch.nn as nn
-import torch.optim
-import numpy as np
 import os
 import random
 
 import FrEIA.framework as Ff
 from FrEIA.framework import InputNode, OutputNode, Node, ReversibleGraphNet
 from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
-
+from matplotlib import cm
 import matplotlib.pyplot as plt
 import matplotlib.colors
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim
+import wandb
 
 from .modules import data_preprocessing
 from .modules import loader
-
-import wandb
 
 torch.autograd.set_detect_anomaly(True)
 #plt.rcParams['image.cmap'] = 'bwr'
