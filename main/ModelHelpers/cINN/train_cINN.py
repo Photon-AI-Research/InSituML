@@ -3,13 +3,13 @@ import os
 import torch
 import wandb
 
-from .model import model_cINN
-from .model.modules import data_preprocessing
-from .model.modules import dataset
-from .model.modules import dist_utils
-from .model.modules import loader
-from .model.modules import utils
-from .model.modules import visualizations
+from model import model_cINN
+from model.modules import data_preprocessing
+from model.modules import dataset
+from model.modules import dist_utils
+from model.modules import loader
+from model.modules import utils
+from model.modules import visualizations
 
 dist_utils.maybe_initialize()
 run_settings = utils.load_run_settings('cfg.txt')
