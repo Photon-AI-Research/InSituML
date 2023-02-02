@@ -83,7 +83,7 @@ class ModelTrainer(Trainer):
             gamma=gamma,
             mas_lambda=mas_lambda,
             agem_l_enc_lambda=agem_l_enc_lambda,
-            model_kwargs=None,
+            model_kwargs=model_kwargs,
         )
         wandb.watch(self.model, log="all")
         self.train_data_sets = None
