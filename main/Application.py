@@ -34,7 +34,11 @@ if __name__ == '__main__':
             if args.epochs < 1:
                 raise ValueError("Number of epochs cannot be less than 1.")
 
-            if args.lr < 0:
+            if (
+                    # Only allow LR == 0 for "pc_field" data.
+                    'pc_field' not in args.datasetName and args.lr <= 0
+                    or args.lr < 0
+            ):
                 raise ValueError("Invalid Learning rate")
 
             config = dict(
