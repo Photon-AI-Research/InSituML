@@ -110,14 +110,26 @@ class Trainer():
                 eps=1e-6,
                 weight_decay=2e-5
             )
-
-            return model, opt_kwargs
         else:
             raise ValueError('unknown model type')
             # model_class = DimensionAutoEncoderModelWithPool
-        model = model_class(self.input_channels,self.input_sizes,self.number_model_layers, self.number_conv_layers,self.filters,self.latent_size,self.activation,self.onlineEWC, self.ewc_lambda, self.gamma)
-        model.apply(model._weights_init)
-        return model, {}
+
+        if 'model' not in locals():
+            model = model_class(
+                self.input_channels,
+                self.input_sizes,
+                self.number_model_layers,
+                self.number_conv_layers,
+                self.filters,
+                self.latent_size,
+                self.activation,
+                self.onlineEWC,
+                self.ewc_lambda,
+                self.gamma,
+            )
+            model.apply(model._weights_init)
+            opt_kwargs = {}
+        return model, opt_kwargs
     
     def _send_model_to_device(self):
         if self.model_type == ModelsEnum.Autoencoder3D:
