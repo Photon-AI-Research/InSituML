@@ -54,6 +54,14 @@ def generate_time_dependent(
 ) -> tuple[T.Tensor, T.Tensor]:
 
     """
+    Generate "time dependent" toy8 data. The returned arrays have chunks
+    corresponding to time steps, so
+
+    pos[(i+1)*n_time:(i+2)*n_time, :] -> t[i]
+
+    Modify positions using fctn(t[i]). Add t[i] to non-zero one-hot label
+    entries. See Notes below for why we start at (i+1) instead of i.
+
     Parameters
     ----------
     labels, tot_dataset_size :
@@ -63,6 +71,18 @@ def generate_time_dependent(
         positions.
     t : (n_time,)
         Time axis.
+
+    Returns
+    -------
+    pos, labels
+        pos : ((n_time + 1) * tot_dataset_size, 2)
+        labels : ((n_time + 1) * tot_dataset_size, 8)
+
+    Notes
+    -----
+    The code actually has a bug/feature where we always return n_time + 1
+    chunks since pos[0:n_time,:] (same for labels) corresponds to no entry in
+    `t` (just generate()'s results).
     """
 
     pos, onehot_labels = generate(labels, tot_dataset_size)
