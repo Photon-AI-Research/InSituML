@@ -17,15 +17,12 @@ class StreamReader():
         self.__init_from_config_file(stream_config_json)
     
     def __init_from_config_file(self, stream_config_json):
-        try:
-            with open(stream_config_json) as stream_config:
-                self._stream_cfg = json.load(stream_config)
-                self._stream_path = self._stream_cfg.pop("stream_path")
-            self._series = self._init_stream()
-            self._series_iterator = self._init_series_iterator()
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-    
+        with open(stream_config_json) as stream_config:
+            self._stream_cfg = json.load(stream_config)
+            self._stream_path = self._stream_cfg.pop("stream_path")
+        self._series = self._init_stream()
+        self._series_iterator = self._init_series_iterator()
+
     def _init_stream(self):
         print("initialized stream")
         return io.Series(self._stream_path, io.Access_Type.read_only)
