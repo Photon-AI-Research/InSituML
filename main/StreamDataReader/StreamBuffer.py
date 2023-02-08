@@ -69,8 +69,7 @@ class StreamBuffer(Thread):
         print("Filling buffer")
         start = time.time()
         self._buffer_data = None
-        iteration_ids = []
-        mesh_data = []
+        data_dicts = []
         for _ in range(self._buffer_size):
             if not self.use_local_data:
                 data_dict = self._stream.get_next_data()
@@ -81,21 +80,20 @@ class StreamBuffer(Thread):
                 break
             if self.use_local_data:
                 self.__c += 1
-            iteration_ids.append(data_dict['iteration_id'])
-            mesh_data.append(data_dict['meshes']['E'])
-            shape = data_dict['meshes']['E_shape'] 
+            data_dicts.append(data_dict)
         self.elp_time.append(time.time() - start)
-        self._buffer_data = (iteration_ids, mesh_data, shape)
-    
+        self._buffer_data = data_dicts
+
+
 def get_data_locally(iteration_id):
     try:
         data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_{}.npy".format(iteration_id * 100))
-        data_dict = {'iteration_id':iteration_id,
-                    'meshes':{
-                        'E':data,
-                        'E_shape':(3,128,1280,128)
-                    }
-                    }
+        data_dict = {
+            'iteration_index': iteration_id,
+            'meshes': {
+                'E': (data, (3, 128, 1280, 128)),
+            },
+        }
     except:
         data_dict = None
     return data_dict
