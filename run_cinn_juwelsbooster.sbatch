@@ -54,7 +54,7 @@ mkdir -p "$cp_dir"
 
 # Set `lr=0` to use learning rate from config.
 lr=0
-python3 -m torch.distributed.run \
+srun python3 -m torch.distributed.run \
         --nnodes="$num_nodes" \
         --nproc_per_node=4 \
         --rdzv_id="$SLURM_JOB_ID" \

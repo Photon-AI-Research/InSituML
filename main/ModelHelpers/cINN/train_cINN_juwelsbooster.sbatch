@@ -52,7 +52,7 @@ export OMP_NUM_THREADS=1
 cp_dir=./checkpoints
 mkdir -p "$cp_dir"
 
-python3 -m torch.distributed.run \
+srun python3 -m torch.distributed.run \
         --nnodes="$num_nodes" \
         --nproc_per_node=4 \
         --rdzv_id="$SLURM_JOB_ID" \
