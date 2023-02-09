@@ -79,36 +79,58 @@ def generate_td(
     pos_lab_func: Callable = lambda: generate_toy8(
         label_kind="all", npoints=512
     ),
-    dt_pos_func: Callable = lambda x, dt: x + np.array([dt] * x.shape[-1]),
-    dt_lab_func: Callable = lambda x, dt: x + (x > 0) * dt,
-    ntime: int = 10,
-    dt=1.0,
+    time_pos_func: Callable = lambda x, t: x + np.array([t] * x.shape[-1]),
+    time_lab_func: Callable = lambda x, t: x + (x > 0) * t,
+    time_func_mode: str = "rel",
+    time: np.ndarray = np.linspace(0, 10, 10),
 ) -> Generator:
-
     """
+    Generate "time dependent" toy data.
+
     Parameters
     ----------
     pos_lab_func
-        Function that generates one set of (positions, labels).
-    dt_pos_func, dt_time_func
-        Modify and return updates to positions / labels using time step.
-    ntime
-        Number of time steps.
-    dt
-        Time step.
+        Function that generates the initial (positions, labels).
+    time_pos_func, time_lab_func
+        Functions must have signature `func(x: np.ndarray, t: float)` where
+        x.shape = (npoints, ndim_pos), ndim_pos=2 for toy8. Modify and return
+        updates to positions / labels using time step. Functions must *not*
+        modify `x` in-place. See `time_func_mode` for more.
+    time_func_mode
+        How to call time functions.
+
+        "abs" : call as time_foo_func(start, time[i])
+        "rel" : call as time_foo_func(last, dt)
+
+        where `start` is the output of `pos_lab_func()` and `last` is the
+        positions / labels from the previous time step time[i-1].
+
+        Functions are called for each time step, therefore the first step is not treated
+        special. For certain functions that do e.g. linear operations in t such as
+        time_pos_func = lambda x,t: x + t, both modes are equal if time[0] = 0.0.
+    time
+        Time axis.
 
     Returns
     -------
     Yield one tuple (positions, labels) per time step. See generate_toy8() for
-    shapes.
+    shapes. The iterator is len(time) "long".
     """
-    assert ntime > 0, "ntime must be > 0"
     positions, labels = pos_lab_func()
-    for idx in range(ntime):
-        if idx > 0:
-            positions = dt_pos_func(positions, dt)
-            labels = dt_lab_func(labels, dt)
-        yield positions.copy(), labels.copy()
+    if time_func_mode == "abs":
+        pos_0, lab_0 = positions.copy(), labels.copy()
+
+    for i_time, v_time in enumerate(time):
+        if time_func_mode == "rel":
+            if i_time > 0:
+                dt = time[i_time] - time[i_time - 1]
+                positions = time_pos_func(positions, dt)
+                labels = time_lab_func(labels, dt)
+            yield positions.copy(), labels.copy()
+        elif time_func_mode == "abs":
+            positions = time_pos_func(pos_0, v_time)
+            labels = time_lab_func(lab_0, v_time)
+            yield positions, labels
 
 
 @wraps(generate_td)
