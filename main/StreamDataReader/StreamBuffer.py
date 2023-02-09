@@ -11,6 +11,7 @@ class StreamBuffer(Thread):
     
     def __init__(
             self,
+            stream_path,
             stream_config_json=os.path.join(
                 os.path.dirname(__file__),
                 'stream_config.json',
@@ -37,7 +38,7 @@ class StreamBuffer(Thread):
         if use_local_data:
             self.__c = 0
         else:
-            self._stream = StreamReader(stream_config_json)
+            self._stream = StreamReader(stream_path, stream_config_json)
         self.elp_time = []
         self.fill_buffer()
         

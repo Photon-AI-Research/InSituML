@@ -9,17 +9,18 @@ class StreamReader():
     
     def __init__(
             self,
+            stream_path,
             stream_config_json=os.path.join(
                 os.path.dirname(__file__),
                 'stream_config.json',
             ),
     ):
+        self._stream_path = stream_path
         self.__init_from_config_file(stream_config_json)
     
     def __init_from_config_file(self, stream_config_json):
         with open(stream_config_json) as stream_config:
             self._stream_cfg = json.load(stream_config)
-            self._stream_path = self._stream_cfg.pop("stream_path")
         self._series = self._init_stream()
         self._series_iterator = self._init_series_iterator()
 
