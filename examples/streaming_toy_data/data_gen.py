@@ -24,9 +24,14 @@ def generate_toy8(
 
     Parameters
     ----------
-    label_kind : {all, some, none}
+    label_kind
+        "all" : each cluster has a different one-hot label
+        "some" : some have the same, some a different label
+        "none" : all clusters have label [1,0,0,...,0]
     npoints
         npoints for all 8 clusters in total
+    rng
+        numpy RNG instance
 
     Returns
     -------
