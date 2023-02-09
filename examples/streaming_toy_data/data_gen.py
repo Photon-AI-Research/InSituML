@@ -1,7 +1,16 @@
-from functools import wraps, partial
+from functools import wraps
 from typing import Callable, Generator
 
 import numpy as np
+
+
+def _pol2cart(radius, phi):
+    """
+    Helper for more general toyN dataset.
+
+    verts = np.array(_pol2cart(1, linspace(0, 2*pi, N, endpoint=False))).T
+    """
+    return (radius * np.cos(phi), radius * np.sin(phi))
 
 
 def generate_toy8(
@@ -74,7 +83,8 @@ def generate_td(
     """
     Parameters
     ----------
-    pos_lab_func,
+    pos_lab_func
+        Function that generates one set of (positions, labels).
     dt_pos_func, dt_time_func
         Modify and return updates to positions / labels using time step.
     ntime
