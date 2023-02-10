@@ -1,8 +1,33 @@
 import json
 import os
 import sys
+from typing import List, Optional, Tuple, Union
 
+import numpy as np
 import openpmd_api as io
+
+
+class StreamData:
+    __slots__ = ['data', 'np_shape', 'pic_shape']
+
+    def __init__(
+            self,
+            data: Union[np.ndarray, List[np.ndarray]],
+            np_shape: Tuple,
+            pic_shape: Optional[int],
+    ):
+        self.data = data
+        self.np_shape = np_shape
+        self.pic_shape = pic_shape
+
+    def __len__(self):
+        return len(self.__slots__)
+
+    def __getitem__(self, key):
+        return getattr(self, self.__slots__[key])
+
+    def __iter__(self):
+        return map(lambda key: getattr(self, key), self.__slots__)
 
 
 class StreamReader():
@@ -76,7 +101,7 @@ class StreamReader():
         else:
             print("Didn't find", record_key)
             return None
-        return data, np_shape, pic_shape
+        return StreamData(data, np_shape, pic_shape)
 
     def _get_data(self,current_iteration):
         data_dict = dict(iteration_index=current_iteration.iteration_index)
