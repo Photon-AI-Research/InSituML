@@ -46,26 +46,39 @@ class StreamReader():
         if record_key in record:
             current_record = record[record_key]
             if len(current_record) == 1:
-                data = current_record[io.Mesh_Record_Component.SCALAR][0]
-                shape = ()
+                data = current_record[io.Mesh_Record_Component.SCALAR]
+                if 'shape' in data.attributes:
+                    pic_shape = data.get_attribute('shape')
+                else:
+                    pic_shape = None
+                data = data[0]
+                np_shape = ()
             else:
                 loadedChunks = []
-                shapes = []
+                np_shapes = []
                 for dim in current_record:
                     rc = current_record[dim]
                     loadedChunks.append(rc.load_chunk([0], rc.shape))
-                    shapes.append(rc.shape)
-                data = loadedChunks
-                if isinstance(shapes[0], int):
-                    shape = (len(shapes), shapes[0])
+                    np_shapes.append(rc.shape)
+
+                # PIConGPU shape stays the same over all dimensions.
+                if np_shapes and 'shape' in rc.attributes:
+                    pic_shape = rc.get_attribute('shape')
                 else:
-                    shapes[0].insert(0, len(shapes))
-                    shape = tuple(shapes[0])
+                    pic_shape = None
+
+                data = loadedChunks
+                if isinstance(np_shapes[0], int):
+                    np_shape = (len(np_shapes), np_shapes[0])
+                else:
+                    np_shapes[0].insert(0, len(np_shapes))
+                    np_shape = tuple(np_shapes[0])
         else:
             print("Didn't find", record_key)
             data = None
-            shape = None
-        return data, shape
+            pic_shape = None
+            np_shape = None
+        return data, np_shape, pic_shape
 
     def _get_data(self,current_iteration):
         data_dict = dict(iteration_index=current_iteration.iteration_index)
