@@ -8,18 +8,27 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 
 
 def _pol2cart(radius, phi):
-    """
-    Helper for more general toyN dataset.
+    return (radius * np.cos(phi), radius * np.sin(phi))
 
-    verts = np.array(_pol2cart(1, np.linspace(0, 2*pi, N, endpoint=False))).T
+
+def points_on_circle(radius, npoints):
+    """
+    Generate equidistant points on a circle.
 
     Note that torch.linspace() doesn't have the `endpoint` arg since it is not
-    compliant to the Python array API standard [1]. So do this in numpy and
-    then convert.
+    compliant to the Python array API standard [1], so we need to do it in
+    numpy and convert.
 
     [1] https://github.com/pytorch/pytorch/issues/70919
     """
-    return (radius * np.cos(phi), radius * np.sin(phi))
+    return T.from_numpy(
+        np.array(
+            _pol2cart(
+                radius, np.linspace(0, 2 * np.pi, npoints, endpoint=False)
+            ),
+            dtype=np.float32,
+        ).T
+    )
 
 
 def generate_toy8(
