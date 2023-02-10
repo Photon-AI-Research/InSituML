@@ -116,9 +116,12 @@ def generate_td(
     Yield one tuple (positions, labels) per time step. See generate_toy8() for
     shapes. The iterator is len(time) "long".
     """
-    positions, labels = pos_lab_func()
     if time_func_mode == "abs":
-        pos_0, lab_0 = positions.copy(), labels.copy()
+        pos_0, lab_0 = pos_lab_func()
+    elif time_func_mode == "rel":
+        positions, labels = pos_lab_func()
+    else:
+        raise ValueError(f"Illegal {time_func_mode=}")
 
     for i_time, v_time in enumerate(time):
         if time_func_mode == "rel":
@@ -128,9 +131,7 @@ def generate_td(
                 labels = time_lab_func(labels, dt)
             yield positions.copy(), labels.copy()
         elif time_func_mode == "abs":
-            positions = time_pos_func(pos_0, v_time)
-            labels = time_lab_func(lab_0, v_time)
-            yield positions, labels
+            yield time_pos_func(pos_0, v_time), time_lab_func(lab_0, v_time)
 
 
 @wraps(generate_td)
