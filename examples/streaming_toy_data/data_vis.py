@@ -3,6 +3,7 @@
 import importlib
 
 import numpy as np
+import torch as T
 from matplotlib import pyplot as plt
 
 import data_gen
@@ -12,16 +13,19 @@ importlib.reload(data_gen)
 
 ps, ls = data_gen.generate_td_array(
     pos_lab_func=lambda: data_gen.generate_toy8(
-        label_kind="all", npoints=1024, rng=np.random.default_rng(123)
+        label_kind="all",
+        npoints=1024,
+        scale=0.2**2,
     ),
     time_func_mode="abs",
-    time=np.linspace(0, 50, 50),
-    time_pos_func=lambda x, t: np.array([x[:, 0] + t, x[:, 1] + np.sin(t) + 0.3*t]).T,
-    ##time_pos_func = lambda x,t: np.array([x[:,0] + 0.5*t, x[:,1] + t]).T,
+    time=T.linspace(0, 50, 50),
+    time_pos_func=lambda x, t: T.stack(
+        [x[:, 0] + t, x[:, 1] + T.sin(t) + 0.3 * t]
+    ).T,
 )
 
-ps = ps.reshape((-1, ps.shape[-1]))
-ls = ls.reshape((-1, ls.shape[-1]))
+ps = ps.numpy().reshape((-1, ps.shape[-1]))
+ls = ls.numpy().reshape((-1, ls.shape[-1]))
 
 fig, axs = plt.subplots(ncols=2)
 
