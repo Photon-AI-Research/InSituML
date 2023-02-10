@@ -75,9 +75,7 @@ class StreamReader():
                     np_shape = tuple(np_shapes[0])
         else:
             print("Didn't find", record_key)
-            data = None
-            pic_shape = None
-            np_shape = None
+            return None
         return data, np_shape, pic_shape
 
     def _get_data(self,current_iteration):
@@ -98,8 +96,9 @@ class StreamReader():
             if isinstance(stream_cfg_node, list):
                 # Process all leaf keys.
                 for key in stream_cfg_node:
-                    data_dict_node[key] = self._get_data_from_key(
-                        current_record, key)
+                    data = self._get_data_from_key(current_record, key)
+                    if data is not None:
+                        data_dict_node[key] = data
             else:
                 # Add more remaining nodes, descend tree.
                 for (key, stream_cfg_child) in stream_cfg_node.items():
