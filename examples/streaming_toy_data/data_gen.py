@@ -19,8 +19,8 @@ def generate_toy8(
     rng=np.random.default_rng(seed=None),
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    One toy8 dataset in 2d: 8 clusters of points with varying labels per cluster.
-    npoints points in total, so npoints / 8 per cluster.
+    One toy8 dataset in 2d: 8 clusters of points with varying labels per
+    cluster. npoints points in total, so npoints / 8 per cluster.
 
     Parameters
     ----------
@@ -105,9 +105,10 @@ def generate_td(
         where `start` is the output of `pos_lab_func()` and `last` is the
         positions / labels from the previous time step time[i-1].
 
-        Functions are called for each time step, therefore the first step is not treated
-        special. For certain functions that do e.g. linear operations in t such as
-        time_pos_func = lambda x,t: x + t, both modes are equal if time[0] = 0.0.
+        Functions are called for each time step, therefore the first step is
+        not treated special. For certain functions that do e.g. linear
+        operations in t such as time_pos_func = lambda x,t: x + t, both modes
+        are equal if time[0] = 0.0.
     time
         Time axis.
 
