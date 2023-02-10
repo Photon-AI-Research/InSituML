@@ -158,3 +158,6 @@ class StreamReader():
         if iteration is not None:
             return self._get_data(iteration)
         return None
+
+    def close(self):
+        del self._series
