@@ -18,7 +18,7 @@ ps, ls = data_gen.generate_td_array(
         scale=0.2**2,
     ),
     time_func_mode="abs",
-    time=T.linspace(0, 50, 50),
+    time=T.linspace(0, 25, 5),
     time_pos_func=lambda x, t: T.stack(
         [x[:, 0] + t, x[:, 1] + T.sin(t) + 0.3 * t]
     ).T,
