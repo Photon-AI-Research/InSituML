@@ -56,7 +56,14 @@ class StreamReader():
     def _init_series_iterator(self):
         print("initialized iterator")
         return iter(self._series.read_iterations())
-    
+
+    def __iter__(self):
+        while True:
+            data = self.get_next_data()
+            if data is None:
+                raise StopIteration
+            yield data
+
     def _get_iteration(self):
         try:
             print("Getting NEXT")
