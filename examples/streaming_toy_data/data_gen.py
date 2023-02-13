@@ -1,10 +1,11 @@
-from functools import wraps
-from typing import Callable, Generator
+import itertools
+from typing import Callable, Generator, Iterator
 
 import numpy as np
 
 import torch as T
 from torch.distributions.multivariate_normal import MultivariateNormal
+from torch.utils.data import IterableDataset, DataLoader
 
 
 def _pol2cart(radius, phi):
@@ -112,7 +113,7 @@ def generate_td(
     time: T.Tensor = T.linspace(0, 10, 10),
 ) -> Generator:
     """
-    Generate "time dependent" toy data.
+    Generate "time dependent" toy data, given time axis.
 
     Parameters
     ----------
@@ -120,9 +121,10 @@ def generate_td(
         Function that generates the initial (positions, labels).
     time_pos_func, time_lab_func
         Functions must have signature `func(x: T.Tensor, t: float)` where
-        x.shape = (npoints, ndim_pos), ndim_pos=2 for toy8. Modify and return
-        updates to positions / labels using time step. Functions must *not*
-        modify `x` in-place. See `time_func_mode` for more.
+        x.shape = (npoints, ndim_pos) for positions and (npoints, ndim_lab) for
+        labels. dim_pos=2 for toy8. Modify and return updates to positions /
+        labels using time step. Functions must *not* modify `x` in-place. See
+        `time_func_mode` for more.
     time_func_mode
         How to call time functions.
 
@@ -162,17 +164,101 @@ def generate_td(
             yield time_pos_func(pos_0, v_time), time_lab_func(lab_0, v_time)
 
 
-@wraps(generate_td)
-def generate_td_array(*args, **kwds):
+def arrays_from_itr(itr: Iterator):
     """
-    Version of generate_td that returns arrays.
+    Call iterator and returns arrays. We assume itr stops after `nsteps` calls.
+
+    Parameters
+    ----------
+    itr
+        Must yield a 2-tuple of tensors, (x,y)
 
     Returns
     -------
-    positions : (ntime, npoints, ndim_pos)
-    labels : (ntime, npoints, ndim_lab)
+    positions : (nsteps, *x.shape)
+    labels : (nsteps, *y.shape)
     """
-    lst = list(generate_td(*args, **kwds))
-    pos = T.stack([x[0] for x in lst])
+    lst = list(itr)
+    positions = T.stack([x[0] for x in lst])
     labels = T.stack([x[1] for x in lst])
-    return pos, labels
+    return positions, labels
+
+
+def generate_td_array(*args, **kwds):
+    """
+    Returns
+    -------
+    positions : (nsteps, npoints, ndim_pos)
+    labels : (nsteps, npoints, ndim_lab)
+    """
+    return arrays_from_itr(generate_td(*args, **kwds))
+
+
+def generate_fake_toy(npoints=5):
+    """
+    Deterministic toy data for testing.
+
+    Returns
+    -------
+    positions : (npoints, 3)
+    labels : (npoints, 3)
+    """
+    x = np.ones((npoints, 3)) * np.arange(npoints)[:, None]
+    return T.from_numpy(x), T.from_numpy(x * 10)
+
+
+class ToyIterDataset(IterableDataset):
+    """Yield stream of single (x,y) pairs. At any point in time call step() to
+    increment time and thus change how (x,y) is created, until the next step()
+    call.
+
+    There is no concept of an epoch. To fake an epoch, use
+
+    >>> ds=ToyIterDataset(...)
+    >>> DataLoader(ds, batch_size=npoints)
+
+    where npoints is the number of points which pos_lab_func() generates.
+    """
+    def __init__(
+        self,
+        pos_lab_func: Callable = lambda: generate_fake_toy(6),
+        time_pos_func: Callable = lambda x, t: x + t,
+        time_lab_func: Callable = lambda x, t: x + (x > 0) * t,
+        dt: float = 1.0,
+    ):
+        """
+        Parameters
+        ----------
+        pos_lab_func
+            Function that generates the initial (positions, labels).
+        time_pos_func, time_lab_func
+            Functions must have signature `func(x: T.Tensor, t: float)` where
+            x.shape = (ndim_pos,) for positions and (ndim_lab,) for labels.,
+            ndim_pos=2 for toy8. Modify and return updates to positions /
+            labels using time step. Functions must *not* modify `x` in-place.
+        dt
+            Time step. We only implement the equivalent of time_func_mode="abs"
+            from generate_td().
+        """
+
+        self.time = 0
+        self.dt = dt
+        self.positions, self.labels = pos_lab_func()
+        self.time_pos_func = time_pos_func
+        self.time_lab_func = time_lab_func
+
+    def __iter__(self):
+        for x, y in itertools.cycle(zip(self.positions, self.labels)):
+            xt = self.time_pos_func(x, self.time)
+            yt = self.time_lab_func(y, self.time)
+            yield xt, yt
+
+    def step(self):
+        self.time += self.dt
+
+
+def iter_ds(ds: ToyIterDataset, batch_size: int, nsteps: int):
+    dl_itr = iter(DataLoader(ds, batch_size=batch_size, shuffle=False))
+    for _ in range(nsteps):
+        yield next(dl_itr)
+        ds.step()
