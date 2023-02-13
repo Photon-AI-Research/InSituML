@@ -7,6 +7,7 @@ import openpmd_api as io
 
 import radiation
 
+
 def get_data_phase_space(ind, 
                          items,
                          num_particles=-1,
@@ -22,9 +23,9 @@ def get_data_phase_space(ind,
     '''
     
     series = io.Series(items[ind],
-                       io.Access.read_only)
+                       io.Access.read_only, '{"defer_iteration_parsing": true}')
     #print(items[ind].split('.bp')[-1].split('_')[-1])
-    i = series.iterations[int(items[ind].split('.bp')[0].split('_')[-1])]
+    i = series.iterations[int(items[ind].split('.bp')[0].split('_')[-1])].open()
     
     particles = i.particles["b_all"]
 
@@ -73,8 +74,8 @@ def get_phase_space_by_chunks(ind,
     chunk_num = items[ind][1]
    
     series = io.Series(filename,
-                       io.Access.read_only)
-    i = series.iterations[int(filename.split('.bp')[0].split('_')[-1])]
+                       io.Access.read_only, '{"defer_iteration_parsing": true}')
+    i = series.iterations[int(filename.split('.bp')[0].split('_')[-1])].open()
     
     particles = i.particles[species]
 
@@ -204,6 +205,15 @@ def get_radiation_spectra_intergrated_over_frequencies(ind,
     integrated_spectra = torch.from_numpy(np.sum(spectra, axis=1)).float()
     return integrated_spectra.repeat(chunk_size, 1)
 
+def get_unit_condition(ind,
+                       items,
+                       chunk_size):
+    '''
+    a simple condition for test
+    '''
+    c = torch.from_numpy(np.array([1])).float()
+    return c.repeat(chunk_size, 1)
+
 def get_radiation_spectra_2_projections(ind,
                                         items,
                                         chunk_size):
@@ -212,10 +222,9 @@ def get_radiation_spectra_2_projections(ind,
         and concatenate them into 1 tensor.
     Important: use only if confident, that there is the same mesh in radiation simulations
     '''
-
     spectra = (radiation.RadiationData(items[ind])).get_Spectra()
     concatenated_projections = torch.from_numpy(np.concatenate((np.sum(spectra, axis=0), np.sum(spectra, axis=1)))).float()
-    return concatenated_projections.repeat(chunk_size, 1)
+    return concatenated_projections.repeat(chunk_size, 1)[:,:2]
 
 def normalize_point(point, vmin, vmax, a=0., b=1.):
     '''
@@ -230,28 +239,6 @@ def denormalize_point(point, vmin, vmax, a=0., b=1.):
     to be in set of points with vmin(minimum) and vmax(maximum)
     '''
     return ((point - a) * (vmax - vmin) / (b - a) + vmin)
-
-def get_vmin_vmax_ps(arr):
-    '''
-    Find minima/maxima in all columns among a complete data(all simulation files)
-    Args:
-        items(list of string): list of paths to all electron clouds
-    
-    returns torch tensors with minima and maxima
-    '''
-    
-    for ind,item in enumerate(items):
-        arr = get_data_phase_space(ind, 
-                       items,
-                       num_particles=-1)
-
-        if item == items[0]:
-            vmin = [np.min(arr[:, i]) for i in range(arr.shape[1])]
-            vmax = [np.max(arr[:, i]) for i in range(arr.shape[1])]
-        else:
-            vmin = [min(np.min(arr[:, i]), vmin[i]) for i in range(arr.shape[1])]
-            vmax = [max(np.max(arr[:, i]), vmax[i]) for i in range(arr.shape[1])]
-    return torch.Tensor(vmin), torch.Tensor(vmax)
 
 def get_vmin_vmax_radiation(items,
                             chunk_size,
@@ -281,11 +268,43 @@ def get_vmin_vmax_radiation(items,
 
 def get_shape(item, species):
     series = io.Series(item,
-                       io.Access.read_only)
-    i = series.iterations[int(item.split('.bp')[0].split('_')[-1])]
+                       io.Access.read_only, '{"defer_iteration_parsing": true}')
+    i = series.iterations[int(item.split('.bp')[0].split('_')[-1])].open()
     
     particles = i.particles[species]
     charge = particles["charge"][io.Mesh_Record_Component.SCALAR]
 
     series.flush()
     return charge.get_attribute('shape')
+
+def get_particles_for_plot(filename, num_particles=10000):
+    '''
+    Extract first num_particles from file for plotting function
+    '''
+
+    series = io.Series(filename, io.Access.read_only, '{"defer_iteration_parsing": true}')
+    iteration = int(filename.split('.')[0].split('_')[-1])
+    i = series.iterations[iteration].open()
+    particles = i.particles["e_all"]
+    
+    x_pos = particles["position"]["x"][:num_particles]
+    y_pos = particles["position"]["y"][:num_particles]
+    z_pos = particles["position"]["z"][:num_particles]
+    x_pos_offset = particles["positionOffset"]["x"][:num_particles]
+    y_pos_offset = particles["positionOffset"]["y"][:num_particles]
+    z_pos_offset = particles["positionOffset"]["z"][:num_particles]
+
+    x_momentum = particles["momentum"]["x"][:num_particles]
+    y_momentum = particles["momentum"]["y"][:num_particles]
+    z_momentum = particles["momentum"]["z"][:num_particles]
+
+    series.flush()
+    
+    particle_tensor = np.stack((x_pos+x_pos_offset,
+                                y_pos+y_pos_offset,
+                                z_pos+z_pos_offset,
+                                x_momentum,
+                                y_momentum,
+                                z_momentum), axis=-1)
+
+    return particle_tensor
