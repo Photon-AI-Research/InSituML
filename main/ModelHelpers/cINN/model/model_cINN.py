@@ -58,14 +58,17 @@ class PC_NF(nn.Module):
         self.dim_input = dim_input
         self.dim_condition = dim_condition
         self.model = self.init_model().to(self.device)
+        self.vmin_ps = None
+        self.vmax_ps = None
+        self.vmin_rad = None
+        self.vmax_rad = None
+        self.a = None
+        self.b = None
 
         self.trainable_parameters = [p for p in self.model.parameters() if p.requires_grad]
 
         for param in self.trainable_parameters:
             param.data = 0.05 * torch.randn_like(param)
-        self.grads = []
-        
-        self.num_points_forward = 100000
         
         self.enable_wandb = enable_wandb
     
@@ -118,7 +121,7 @@ class PC_NF(nn.Module):
                epochs=100,
                batch_size=2,
                test_epoch=25,
-               test_pointcloud=None, log_plots=None,
+               test_pointcloud=None, test_radiation=None, log_plots=None,
                path_to_models='./RESmodels_freia/'):
         '''
         Train model
@@ -134,6 +137,14 @@ class PC_NF(nn.Module):
             path_to_models(string): path where to save pre-trained models if None then models won't be saved
         '''
         
+        self.vmin_ps = dataset_tr.vmin_ps
+        self.vmax_ps = dataset_tr.vmax_ps
+        self.vmin_rad = dataset_tr.vmin_rad
+        self.vmax_rad = dataset_tr.vmax_rad
+        self.a = dataset_tr.a
+        self.b = dataset_tr.b
+
+
         #loader_tr(torch data loader, see modules/loader.py): iterator over training data, 
         #each returned elem should be a tuple of radiation tensor and a chunk of particle data (chunk_size, 6)
         loader_tr = loader.get_loader(dataset_tr, batch_size=batch_size)
@@ -155,9 +166,11 @@ class PC_NF(nn.Module):
                 #erase particle with nan values and a corresponding radiation
                 radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
                 phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
-
-                z, log_j = self.forward(phase_space.to(self.device), 
-                                        radiation.to(self.device))
+                for param in self.model.parameters():
+                    param.grad = None
+                #optimizer.zero_grad()
+                z, log_j = self(phase_space.to(self.device), 
+                                radiation.to(self.device))
                 loss = 0.
                 
                 loss_z.append(float(torch.mean(z**2) / 2))
@@ -181,8 +194,8 @@ class PC_NF(nn.Module):
                            'loss_avg_tr': sum(loss_avg)/len(loss_avg)})
 
             if i_epoch % test_epoch == 0: 
-                #if (not test_pointcloud == None) and (not log_plots == None) and self.enable_wandb:
-                #    log_plots(test_pointcloud, dataset_tr, self)
+                if (not test_pointcloud == None) and (not test_radiation == None) and (not log_plots == None) and self.enable_wandb:
+                    log_plots(test_pointcloud, test_radiation, self)
 
                 if path_to_models != None:
                     if not os.path.exists(path_to_models):
@@ -194,15 +207,14 @@ class PC_NF(nn.Module):
                               sum(loss_avg)/len(loss_avg),
                               sum(loss_z)/len(loss_z),
                               sum(loss_j)/len(loss_j)))
-                self.validation(dataset_val, 
-                                dataset_tr.vmin_ps, dataset_tr.vmax_ps,
-                                dataset_tr.vmin_rad, dataset_tr.vmax_rad,
-                                batch_size, dataset_tr.normalize, dataset_tr.a, dataset_tr.b)
+                #self.validation(dataset_val, 
+                #                dataset_tr.vmin_ps, dataset_tr.vmax_ps,
+                #                dataset_tr.vmin_rad, dataset_tr.vmax_rad,
+                #                batch_size, dataset_tr.normalize, dataset_tr.a, dataset_tr.b)
+                self.model.train()
                 
-    def validation(self, dataset_val, 
-                   vmin_ps, vmax_ps,
-                   vmin_rad, vmax_rad,
-                   batch_size, normalize, a, b):
+    def validation(self, dataset_val,
+                   batch_size, normalize):
         loader_val = loader.get_loader(dataset_val, batch_size=batch_size)
         with torch.no_grad():
             loss_avg = []
@@ -214,14 +226,14 @@ class PC_NF(nn.Module):
                     phase_space = phase_space.squeeze(0)
                     radiation = radiation.squeeze(0)
                     
-                    phase_space = data_preprocessing.normalize_point(phase_space, vmin_ps, vmax_ps)
-                    radiation = data_preprocessing.normalize_point(radiation, vmin_rad, vmax_rad)
+                    phase_space = data_preprocessing.normalize_point(phase_space, self.vmin_ps, self.vmax_ps, self.a, self.b)
+                    radiation = data_preprocessing.normalize_point(radiation, self.vmin_rad, self.vmax_rad, self.a, self.b)
 
                 #erase particle with nan values and a corresponding radiation
                 radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
                 phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
 
-                z, log_j = self.forward(phase_space.to(self.device), 
+                z, log_j = self(phase_space.to(self.device), 
                                         radiation.to(self.device))
                 loss = 0.
                 
@@ -241,7 +253,25 @@ class PC_NF(nn.Module):
     def save_checkpoint(self, model, optimizer, path, epoch):
             state = {
                 'model': model.state_dict(),
-                'optimizer': optimizer.state_dict()
+                'optimizer': optimizer.state_dict(),
+                'vmin_ps': self.vmin_ps,
+                'vmax_ps': self.vmax_ps,
+                'vmin_rad': self.vmin_rad,
+                'vmax_rad': self.vmax_rad,
+                'a': self.a,
+                'b': self.b
             }
 
             torch.save(state, path + 'model_' + str(epoch))
+
+    def sample_pointcloud(self, cond, num_points):
+        '''
+        sample a point cloud of "num_points" particles for given "cond" condition
+        '''
+        self.model.eval()
+        print(self.a, self.b, self.vmin_ps, self.vmax_ps)
+        with torch.no_grad():
+            z = torch.randn(num_points, self.dim_input).to(self.device)
+            pc_pr, _ = self.model(z, c=cond, rev=True)
+            pc_pr = data_preprocessing.denormalize_point(pc_pr.to('cpu'), self.vmin_ps, self.vmax_ps, self.a, self.b)
+        return pc_pr
