@@ -13,42 +13,50 @@ import data_gen
 # When used as %run -i this.py in ipython
 importlib.reload(data_gen)
 
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-##ps, ls = data_gen.generate_td_array(
-##    pos_lab_func=lambda: data_gen.generate_toy8(
-##        label_kind="all",
-##        npoints=1024,
-##        scale=0.2**2,
-##    ),
-##    time_func_mode="abs",
-##    time=T.linspace(0, 25, 5),
-##    time_pos_func=lambda x, t: T.stack(
-##        [x[:, 0] + t, x[:, 1] + T.sin(t) + 0.3 * t]
-##    ).T,
-##)
-##ps = ps.numpy().reshape((-1, ps.shape[-1]))
-##ls = ls.numpy().reshape((-1, ls.shape[-1]))
-# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-npoints = 1024
-ds = data_gen.ToyIterDataset(
-    pos_lab_func=lambda: data_gen.generate_toy8(
-        label_kind="all",
-        npoints=npoints,
-        scale=0.2**2,
-    ),
-    time_pos_func=lambda x, t: T.tensor(
-        [x[0] + t, x[1] + T.sin(T.tensor(t)) + 0.3 * t]
-    ),
-    dt=6.25,
-)
+if __name__ == "__main__":
+    ##method = "dataset"
+    method = "func"
 
+    if method == "dataset":
 
-nsteps = 5
-ps, ls = data_gen.arrays_from_itr(data_gen.iter_ds(ds, npoints, nsteps))
+        npoints = 1024
+        ds = data_gen.ToyIterDataset(
+            xy_func=lambda: data_gen.generate_toy8(
+                label_kind="all",
+                npoints=npoints,
+                scale=0.2**2,
+            ),
+            time_x_func=lambda x, t: T.tensor(
+                [x[0] + t, x[1] + T.sin(T.tensor(t)) + 0.3 * t]
+            ),
+            dt=6.25,
+        )
 
-ps = ps.numpy().reshape((-1, ps.shape[-1]))
-ls = ls.numpy().reshape((-1, ls.shape[-1]))
+        nsteps = 5
+        ps, ls = data_gen.arrays_from_itr(
+            data_gen.iter_ds(ds, npoints, nsteps)
+        )
+
+        ps = ps.numpy().reshape((-1, ps.shape[-1]))
+        ls = ls.numpy().reshape((-1, ls.shape[-1]))
+    else:
+        ps, ls = data_gen.generate_td_array(
+            xy_func=lambda: data_gen.generate_toy8(
+                label_kind="all",
+                npoints=1024,
+                scale=0.2**2,
+            ),
+            time_func_mode="abs",
+            time=T.linspace(0, 25, 5),
+            time_x_func=lambda x, t: T.stack(
+                [x[:, 0] + t, x[:, 1] + T.sin(t) + 0.3 * t]
+            ).T,
+        )
+
+        ps = ps.numpy().reshape((-1, ps.shape[-1]))
+        ls = ls.numpy().reshape((-1, ls.shape[-1]))
+
 
 fig, axs = plt.subplots(ncols=2)
 

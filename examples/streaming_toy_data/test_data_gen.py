@@ -10,13 +10,13 @@ import data_gen
     "time_func_mode, label_kind",
     itertools.product(("abs", "rel"), ("all", "some", "none")),
 )
-def test_data_gen_functions_api(time_func_mode, label_kind):
+def test_functions_api(time_func_mode, label_kind):
     npoints = 16
     nsteps = 20
     dt = 4.0
 
     ps, ls = data_gen.generate_td_array(
-        pos_lab_func=lambda: data_gen.generate_toy8(
+        xy_func=lambda: data_gen.generate_toy8(
             label_kind=label_kind,
             npoints=npoints,
             seed=None,
@@ -30,14 +30,14 @@ def test_data_gen_functions_api(time_func_mode, label_kind):
     assert ls.shape == (nsteps, npoints, 8)
 
 
-def test_data_gen_time_func_mode():
+def test_time_func_mode():
     npoints = 32
     nsteps = 20
     dt = 4.0
 
     def gen(time_func_mode):
         ps, ls = data_gen.generate_td_array(
-            pos_lab_func=lambda: data_gen.generate_toy8(
+            xy_func=lambda: data_gen.generate_toy8(
                 label_kind="all",
                 npoints=npoints,
                 seed=123,
@@ -51,11 +51,11 @@ def test_data_gen_time_func_mode():
         T.testing.assert_close(aa, bb)
 
 
-def test_data_gen_toy_iter_dataset():
+def test_toy_iter_dataset():
     npoints = 32
     nsteps = 20
     dt = 4.0
-    pos_lab_func = lambda: data_gen.generate_toy8(
+    xy_func = lambda: data_gen.generate_toy8(
         label_kind="all",
         npoints=npoints,
         seed=123,
@@ -63,7 +63,7 @@ def test_data_gen_toy_iter_dataset():
 
     def gen_functional():
         ps, ls = data_gen.generate_td_array(
-            pos_lab_func=pos_lab_func,
+            xy_func=xy_func,
             time_func_mode="abs",
             time=T.linspace(0, nsteps - 1, nsteps) * dt,
         )
@@ -71,7 +71,7 @@ def test_data_gen_toy_iter_dataset():
 
     def gen_toy_iter_dataset():
         ds = data_gen.ToyIterDataset(
-            pos_lab_func=pos_lab_func,
+            xy_func=xy_func,
             dt=dt,
         )
         return data_gen.arrays_from_itr(data_gen.iter_ds(ds, npoints, nsteps))
