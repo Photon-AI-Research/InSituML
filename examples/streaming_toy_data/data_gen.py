@@ -213,16 +213,26 @@ def generate_fake_toy(npoints=5):
 
 class ToyIterDataset(IterableDataset):
     """Yield stream of single (x,y) pairs. At any point in time call step() to
-    increment time and thus change how (x,y) is created, until the next step()
-    call.
+    increment time by dt and thus change how (x,y) is created, until the next
+    step() call.
 
-    There is no concept of an epoch. To fake an epoch, use
+    With cycle=False, this is like TensorDataset(X, Y), only that (x,y) are
+    modified over time in repeated iterations in epochs as in
 
-    >>> ds=ToyIterDataset(...)
-    >>> DataLoader(ds, batch_size=npoints)
+        ds = ToyIterDataset(..., cycle=False)
+        dl = DataLoader(ds, ...)
+        for i_epoch in range(5):
+            for i_batch, (x, y) in enumerate(dl):
+                print(i_epoch, i_batch, ds.time, x, y)
+            ds.step()
 
-    where npoints is the number of points which xy_func() generates.
+    With cycle=True, there is no concept of an epoch, i.e. the iterator is
+    infinite. To fetch data from a whole epoch in this case, use
+
+        ds=ToyIterDataset(..., cycle=True)
+        DataLoader(ds, batch_size=X.shape[0])
     """
+
     def __init__(
         self,
         xy_func: Callable = lambda: generate_fake_toy(6),
@@ -238,9 +248,8 @@ class ToyIterDataset(IterableDataset):
             Function that generates the initial (X, Y).
         time_x_func
             Function must have signature `func(x: T.Tensor, t: float)` where
-            x.shape = (ndim_x,). Modify and
-            return updates to x using time step. Function must *not* modify
-            x in-place.
+            x.shape = (ndim_x,). Modify and return updates to x using current
+            absolute time value `t`. Function must *not* modify x in-place.
         time_y_func
             Same as `time_x_func` but for y. y.shape = (ndim_y,)
         dt
