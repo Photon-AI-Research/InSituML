@@ -42,7 +42,8 @@ class StreamReader():
     ):
         self._stream_path = stream_path
         self.__init_from_config_file(stream_config_json)
-    
+        self._last_data = None
+
     def __init_from_config_file(self, stream_config_json):
         with open(stream_config_json) as stream_config:
             self._stream_cfg = json.load(stream_config)
@@ -59,10 +60,11 @@ class StreamReader():
 
     def __iter__(self):
         while True:
-            data = self.get_next_data()
-            if data is None:
-                raise StopIteration
-            yield data
+            self._last_data = self.get_next_data()
+            if self._last_data is None:
+                break
+            yield self._last_data
+            self._last_data = None
 
     def _get_iteration(self):
         try:
@@ -161,6 +163,14 @@ class StreamReader():
         return data_dict
         
     def get_next_data(self):
+        # If we stopped a previous iteration, first yield the value that
+        # had already been fetched. I.e. the last value from the
+        # iterator that has been fetched, but not consumed.
+        if self._last_data is not None:
+            data = self._last_data
+            self._last_data = None
+            return data
+
         iteration = self._get_iteration()
         if iteration is not None:
             return self._get_data(iteration)
