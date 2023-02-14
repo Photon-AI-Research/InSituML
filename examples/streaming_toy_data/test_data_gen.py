@@ -51,7 +51,8 @@ def test_time_func_mode():
         T.testing.assert_close(aa, bb)
 
 
-def test_toy_iter_dataset():
+@pytest.mark.parametrize("cycle", [True, False])
+def test_toy_iter_dataset(cycle):
     npoints = 32
     nsteps = 20
     dt = 4.0
@@ -73,6 +74,7 @@ def test_toy_iter_dataset():
         ds = data_gen.ToyIterDataset(
             xy_func=xy_func,
             dt=dt,
+            cycle=cycle,
         )
         return data_gen.arrays_from_itr(data_gen.iter_ds(ds, npoints, nsteps))
 

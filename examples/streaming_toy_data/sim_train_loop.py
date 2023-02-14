@@ -11,14 +11,31 @@ import data_gen
 importlib.reload(data_gen)
 
 if __name__ == "__main__":
-    ds = data_gen.ToyIterDataset(dt=0.3)
+
+    # ------------------------------------------------------------------------
+    # Infinite stream of data. Call step() whenever, even within an "epoch",
+    # where length of epoch is X.shape[0].
+    # ------------------------------------------------------------------------
+    ##ds = data_gen.ToyIterDataset(dt=0.3, cycle=True)
+    ##dl = DataLoader(ds, batch_size=2)
+
+    ##for i_batch, (x, y) in enumerate(dl):
+    ##    ic(i_batch, ds.time, x, y)
+
+    ##    if i_batch % 2:
+    ##        ds.step()
+
+    ##    if i_batch == 10:
+    ##        break
+
+
+    # ------------------------------------------------------------------------
+    # Create epochs.
+    # ------------------------------------------------------------------------
+    ds = data_gen.ToyIterDataset(dt=0.3, cycle=False)
     dl = DataLoader(ds, batch_size=2)
 
-    for idx, (x, y) in enumerate(dl):
-        ic(idx, ds.time, x, y)
-
-        if idx % 2:
-            ds.step()
-
-        if idx == 10:
-            break
+    for i_epoch in range(5):
+        for i_batch, (x, y) in enumerate(dl):
+            ic(i_epoch, i_batch, ds.time, x, y)
+        ds.step()

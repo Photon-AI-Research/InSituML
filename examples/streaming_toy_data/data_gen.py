@@ -229,6 +229,7 @@ class ToyIterDataset(IterableDataset):
         time_x_func: Callable = lambda x, t: x + t,
         time_y_func: Callable = lambda y, t: y + (y > 0) * t,
         dt: float = 1.0,
+        cycle: bool = True,
     ):
         """
         Parameters
@@ -245,6 +246,8 @@ class ToyIterDataset(IterableDataset):
         dt
             Time step. We only implement the equivalent of time_func_mode="abs"
             from generate_td().
+        cycle
+            Whether or not to emulate epochs.
         """
 
         self.time = 0
@@ -252,9 +255,18 @@ class ToyIterDataset(IterableDataset):
         self.X, self.Y = xy_func()
         self.time_x_func = time_x_func
         self.time_y_func = time_y_func
+        self.cycle = cycle
+
+    def _get_xy_itr(self):
+        if self.cycle:
+            return itertools.cycle(zip(self.X, self.Y))
+        else:
+            return (
+                (self.X[ii, :], self.Y[ii, :]) for ii in range(self.X.shape[0])
+            )
 
     def __iter__(self):
-        for x, y in itertools.cycle(zip(self.X, self.Y)):
+        for x, y in self._get_xy_itr():
             xt = self.time_x_func(x, self.time)
             yt = self.time_y_func(y, self.time)
             yield xt, yt
@@ -264,7 +276,15 @@ class ToyIterDataset(IterableDataset):
 
 
 def iter_ds(ds: ToyIterDataset, batch_size: int, nsteps: int):
-    dl_itr = iter(DataLoader(ds, batch_size=batch_size, shuffle=False))
-    for _ in range(nsteps):
-        yield next(dl_itr)
-        ds.step()
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
+    if ds.cycle:
+        dl_itr = iter(dl)
+        for _ in range(nsteps):
+            yield next(dl_itr)
+            ds.step()
+    else:
+        for _ in range(nsteps):
+            for x,y in dl:
+                yield (x,y)
+            ds.step()
+
