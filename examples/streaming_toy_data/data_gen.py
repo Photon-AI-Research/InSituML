@@ -267,6 +267,11 @@ class TimeDependentDataset(IterableDataset):
         self.time_y_func = time_y_func
         self.cycle = cycle
 
+        self.npoints = self.X.shape[0]
+        assert (
+            self.Y.shape[0] == self.npoints
+        ), "X and Y have not the same npoints"
+
     def _get_xy_itr(self):
         if self.cycle:
             return itertools.cycle(zip(self.X, self.Y))
