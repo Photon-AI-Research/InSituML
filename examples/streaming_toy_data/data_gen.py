@@ -207,8 +207,8 @@ def generate_fake_toy(npoints=5):
     X : (npoints, 3)
     Y : (npoints, 3)
     """
-    X = np.ones((npoints, 3)) * np.arange(npoints)[:, None]
-    return T.from_numpy(X), T.from_numpy(X * 10)
+    X = T.ones((npoints, 3)) * T.arange(npoints)[:, None]
+    return X, X * 10
 
 
 class ToyIterDataset(IterableDataset):
