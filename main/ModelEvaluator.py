@@ -10,7 +10,8 @@ import wandb
 import numpy as np
 import matplotlib.pyplot as plt
 
-from main.ModelHelpers.AutoEncoder2D import AutoEncoder2D
+from ModelHelpers.AutoEncoder2D import AutoEncoder2D
+
 
 class ModelEvaluator():
     
