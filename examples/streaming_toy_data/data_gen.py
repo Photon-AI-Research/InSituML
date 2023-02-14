@@ -289,11 +289,25 @@ class TimeDependentDataset(IterableDataset):
     def step(self):
         self.time += self.dt
 
-
-def tdds_gen(ds: TimeDependentDataset, batch_size: int, nsteps: int):
+# FIXME (StS)
+#
+# Time axis equivalent to
+#   linspace(0, nsteps, nsteps) * dt
+# or
+#   linspace(0, nsteps-1, nsteps) * dt
+# ?? Calling ds.step() after yield might be wrong. Check against logic in
+# td_gen().
+#
+def tdds_gen(ds: TimeDependentDataset, nsteps: int, batch_size: int = None):
     """
     Same as td_gen() but using TimeDependentDataset.
+
+    The time axis is defined by nsteps and ds.dt
+
+    To extract all data, we use batch_size=ds.npoints by default.
     """
+    if batch_size is None:
+        batch_size = ds.npoints
     dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
     if ds.cycle:
         dl_itr = iter(dl)
