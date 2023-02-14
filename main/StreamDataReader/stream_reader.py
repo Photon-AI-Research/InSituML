@@ -168,3 +168,10 @@ class StreamReader():
 
     def close(self):
         del self._series
+
+    def __del__(self):
+        try:
+            self.close()
+        except AttributeError:
+            pass
+        super().__del__()
