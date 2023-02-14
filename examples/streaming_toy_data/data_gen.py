@@ -32,6 +32,19 @@ def points_on_circle(radius, npoints):
     )
 
 
+def generate_fake_toy(npoints=5):
+    """
+    Deterministic toy data for testing.
+
+    Returns
+    -------
+    X : (npoints, 3)
+    Y : (npoints, 3)
+    """
+    X = T.ones((npoints, 3)) * T.arange(npoints)[:, None]
+    return X, X * 10
+
+
 def generate_toy8(
     label_kind: str,
     npoints: int,
@@ -106,7 +119,7 @@ def generate_toy8(
     return X, Y
 
 
-def generate_td(
+def td_gen(
     xy_func: Callable = lambda: generate_toy8(label_kind="all", npoints=512),
     time_x_func: Callable = lambda X, t: X + T.tensor([t] * X.shape[-1]),
     time_y_func: Callable = lambda Y, t: Y + (Y > 0) * t,
@@ -114,7 +127,7 @@ def generate_td(
     time: T.Tensor = T.linspace(0, 10, 10),
 ) -> Generator:
     """
-    Generate "time dependent" toy data, given time axis.
+    Generator for "time dependent" arrays given time axis.
 
     Parameters
     ----------
@@ -186,30 +199,19 @@ def arrays_from_itr(itr: Iterator):
     return X, Y
 
 
-def generate_td_array(*args, **kwds):
+def td_arrays(*args, **kwds):
     """
+    Wrapper of td_gen() that returns arrays.
+
     Returns
     -------
     X : (nsteps, npoints, ndim_x)
     Y : (nsteps, npoints, ndim_y)
     """
-    return arrays_from_itr(generate_td(*args, **kwds))
+    return arrays_from_itr(td_gen(*args, **kwds))
 
 
-def generate_fake_toy(npoints=5):
-    """
-    Deterministic toy data for testing.
-
-    Returns
-    -------
-    X : (npoints, 3)
-    Y : (npoints, 3)
-    """
-    X = T.ones((npoints, 3)) * T.arange(npoints)[:, None]
-    return X, X * 10
-
-
-class ToyIterDataset(IterableDataset):
+class TimeDependentDataset(IterableDataset):
     """Yield stream of single (x,y) pairs. At any point in time call step() to
     increment time by dt and thus change how (x,y) is created, until the next
     step() call.
@@ -217,7 +219,7 @@ class ToyIterDataset(IterableDataset):
     With cycle=False, this is like TensorDataset(X, Y), only that (x,y) are
     modified over time in repeated iterations in epochs as in
 
-        ds = ToyIterDataset(..., cycle=False)
+        ds = TimeDependentDataset(..., cycle=False)
         dl = DataLoader(ds, ...)
         for i_epoch in range(5):
             for i_batch, (x, y) in enumerate(dl):
@@ -227,7 +229,7 @@ class ToyIterDataset(IterableDataset):
     With cycle=True, there is no concept of an epoch, i.e. the iterator is
     infinite. To fetch data from a whole epoch in this case, use
 
-        ds=ToyIterDataset(..., cycle=True)
+        ds = TimeDependentDataset(..., cycle=True)
         DataLoader(ds, batch_size=X.shape[0])
     """
 
@@ -252,11 +254,10 @@ class ToyIterDataset(IterableDataset):
             Same as `time_x_func` but for y. y.shape = (ndim_y,)
         dt
             Time step. We only implement the equivalent of time_func_mode="abs"
-            from generate_td().
+            from td_gen().
         cycle
             Whether or not to emulate epochs.
         """
-
         self.time = 0
         self.dt = dt
         self.X, self.Y = xy_func()
@@ -282,7 +283,10 @@ class ToyIterDataset(IterableDataset):
         self.time += self.dt
 
 
-def iter_ds(ds: ToyIterDataset, batch_size: int, nsteps: int):
+def tdds_gen(ds: TimeDependentDataset, batch_size: int, nsteps: int):
+    """
+    Same as td_gen() but using TimeDependentDataset.
+    """
     dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
     if ds.cycle:
         dl_itr = iter(dl)
@@ -291,7 +295,10 @@ def iter_ds(ds: ToyIterDataset, batch_size: int, nsteps: int):
             ds.step()
     else:
         for _ in range(nsteps):
-            for x,y in dl:
-                yield (x,y)
+            for x, y in dl:
+                yield (x, y)
             ds.step()
 
+
+def tdds_arrays(*args, **kwds):
+    return arrays_from_itr(tdds_gen(*args, **kwds))

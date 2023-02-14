@@ -6,8 +6,6 @@ import numpy as np
 import torch as T
 from matplotlib import pyplot as plt
 
-##from torch.utils.data import DataLoader
-
 import data_gen
 
 # When used as %run -i this.py in ipython
@@ -15,13 +13,13 @@ importlib.reload(data_gen)
 
 
 if __name__ == "__main__":
-    ##method = "dataset"
-    method = "func"
+    ##method = "td"
+    method = "tdds"
 
-    if method == "dataset":
+    if method == "tdds":
 
         npoints = 1024
-        ds = data_gen.ToyIterDataset(
+        ds = data_gen.TimeDependentDataset(
             xy_func=lambda: data_gen.generate_toy8(
                 label_kind="all",
                 npoints=npoints,
@@ -34,14 +32,13 @@ if __name__ == "__main__":
         )
 
         nsteps = 5
-        ps, ls = data_gen.arrays_from_itr(
-            data_gen.iter_ds(ds, npoints, nsteps)
-        )
+        ps, ls = data_gen.tdds_arrays(ds, batch_size=npoints, nsteps=nsteps)
 
         ps = ps.numpy().reshape((-1, ps.shape[-1]))
         ls = ls.numpy().reshape((-1, ls.shape[-1]))
-    else:
-        ps, ls = data_gen.generate_td_array(
+
+    elif method=="td":
+        ps, ls = data_gen.td_arrays(
             xy_func=lambda: data_gen.generate_toy8(
                 label_kind="all",
                 npoints=1024,

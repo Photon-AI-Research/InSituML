@@ -10,29 +10,40 @@ import data_gen
 # When used as %run -i this.py in ipython
 importlib.reload(data_gen)
 
+
+def header(msg):
+    bar = "=" * 78
+    print(f"{bar}\n{msg}\n{bar}")
+
+
 if __name__ == "__main__":
 
     # ------------------------------------------------------------------------
     # Infinite stream of data. Call step() whenever, even within an "epoch",
     # where length of epoch is X.shape[0].
     # ------------------------------------------------------------------------
-    ##ds = data_gen.ToyIterDataset(dt=0.3, cycle=True)
-    ##dl = DataLoader(ds, batch_size=2)
 
-    ##for i_batch, (x, y) in enumerate(dl):
-    ##    ic(i_batch, ds.time, x, y)
+    header("cycle=True")
 
-    ##    if i_batch % 2:
-    ##        ds.step()
+    ds = data_gen.TimeDependentDataset(dt=0.3, cycle=True)
+    dl = DataLoader(ds, batch_size=2)
 
-    ##    if i_batch == 10:
-    ##        break
+    for i_batch, (x, y) in enumerate(dl):
+        ic(i_batch, ds.time, x, y)
 
+        if i_batch % 2:
+            ds.step()
+
+        if i_batch == 10:
+            break
 
     # ------------------------------------------------------------------------
     # Create epochs.
     # ------------------------------------------------------------------------
-    ds = data_gen.ToyIterDataset(dt=0.3, cycle=False)
+
+    header("cycle=False")
+
+    ds = data_gen.TimeDependentDataset(dt=0.3, cycle=False)
     dl = DataLoader(ds, batch_size=2)
 
     for i_epoch in range(5):

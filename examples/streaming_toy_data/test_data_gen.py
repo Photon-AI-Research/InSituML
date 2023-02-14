@@ -15,7 +15,7 @@ def test_functions_api(time_func_mode, label_kind):
     nsteps = 20
     dt = 4.0
 
-    ps, ls = data_gen.generate_td_array(
+    ps, ls = data_gen.td_arrays(
         xy_func=lambda: data_gen.generate_toy8(
             label_kind=label_kind,
             npoints=npoints,
@@ -36,7 +36,7 @@ def test_time_func_mode():
     dt = 4.0
 
     def gen(time_func_mode):
-        ps, ls = data_gen.generate_td_array(
+        ps, ls = data_gen.td_arrays(
             xy_func=lambda: data_gen.generate_toy8(
                 label_kind="all",
                 npoints=npoints,
@@ -52,7 +52,7 @@ def test_time_func_mode():
 
 
 @pytest.mark.parametrize("cycle", [True, False])
-def test_toy_iter_dataset(cycle):
+def test_time_dependent_dataset(cycle):
     npoints = 32
     nsteps = 20
     dt = 4.0
@@ -62,21 +62,21 @@ def test_toy_iter_dataset(cycle):
         seed=123,
     )
 
-    def gen_functional():
-        ps, ls = data_gen.generate_td_array(
+    def td_arrays():
+        ps, ls = data_gen.td_arrays(
             xy_func=xy_func,
             time_func_mode="abs",
             time=T.linspace(0, nsteps - 1, nsteps) * dt,
         )
         return ps, ls
 
-    def gen_toy_iter_dataset():
-        ds = data_gen.ToyIterDataset(
+    def tdds_arrays():
+        ds = data_gen.TimeDependentDataset(
             xy_func=xy_func,
             dt=dt,
             cycle=cycle,
         )
-        return data_gen.arrays_from_itr(data_gen.iter_ds(ds, npoints, nsteps))
+        return data_gen.tdds_arrays(ds=ds, nsteps=nsteps, batch_size=npoints)
 
-    for aa, bb in zip(gen_functional(), gen_toy_iter_dataset()):
+    for aa, bb in zip(td_arrays(), tdds_arrays()):
         T.testing.assert_close(aa, bb)
