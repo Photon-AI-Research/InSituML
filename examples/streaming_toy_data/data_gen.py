@@ -107,9 +107,7 @@ def generate_toy8(
 
 
 def generate_td(
-    xy_func: Callable = lambda: generate_toy8(
-        label_kind="all", npoints=512
-    ),
+    xy_func: Callable = lambda: generate_toy8(label_kind="all", npoints=512),
     time_x_func: Callable = lambda X, t: X + T.tensor([t] * X.shape[-1]),
     time_y_func: Callable = lambda Y, t: Y + (Y > 0) * t,
     time_func_mode: str = "rel",
@@ -170,7 +168,7 @@ def generate_td(
 
 def arrays_from_itr(itr: Iterator):
     """
-    Call iterator and returns arrays. We assume itr stops after `nsteps` calls.
+    Call iterator and return arrays. We assume itr stops after `nsteps` calls.
 
     Parameters
     ----------
