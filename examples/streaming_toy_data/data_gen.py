@@ -1,3 +1,4 @@
+from functools import wraps
 import itertools
 from typing import Callable, Generator, Iterator
 
@@ -199,6 +200,7 @@ def arrays_from_itr(itr: Iterator):
     return X, Y
 
 
+@wraps(td_gen)
 def td_arrays(*args, **kwds):
     """
     Wrapper of td_gen() that returns arrays.
@@ -300,5 +302,6 @@ def tdds_gen(ds: TimeDependentDataset, batch_size: int, nsteps: int):
             ds.step()
 
 
+@wraps(tdds_gen)
 def tdds_arrays(*args, **kwds):
     return arrays_from_itr(tdds_gen(*args, **kwds))
