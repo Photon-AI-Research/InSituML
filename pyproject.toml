@@ -1,0 +1,22 @@
+[project]
+
+name = "insituml"
+version = "0.0.0"
+
+# TODO: list deps here
+dependencies = [
+]
+
+
+[project.optional-dependencies]
+
+# pip install project_name[test]
+test = ["pytest"]
+
+# Default.
+##[tool.setuptools.packages.find]
+##where = ["src"]
+
+[build-system]
+requires = ["setuptools>=66.1", "wheel"]
+build-backend = "setuptools.build_meta"

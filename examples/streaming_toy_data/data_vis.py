@@ -6,13 +6,7 @@ import numpy as np
 import torch as T
 from matplotlib import pyplot as plt
 
-# XXX HACK because package is not installable
-import sys
-import os.path
-
-here = os.path.dirname(__file__)
-sys.path.insert(0, os.path.abspath(f"{here}/../../main/toy_data"))
-import generate
+from insituml.toy_data import generate
 
 # When used as %run -i this.py in ipython
 importlib.reload(generate)

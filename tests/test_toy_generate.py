@@ -3,7 +3,7 @@ import itertools
 import pytest
 import torch as T
 
-from . import generate
+from insituml.toy_data import generate
 
 
 @pytest.mark.parametrize(
