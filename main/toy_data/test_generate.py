@@ -3,7 +3,7 @@ import itertools
 import pytest
 import torch as T
 
-from . import generate as data_gen
+from . import generate
 
 
 @pytest.mark.parametrize(
@@ -15,8 +15,8 @@ def test_functions_api(time_func_mode, label_kind):
     nsteps = 20
     dt = 4.0
 
-    ps, ls = data_gen.td_arrays(
-        xy_func=lambda: data_gen.generate_toy8(
+    ps, ls = generate.td_arrays(
+        xy_func=lambda: generate.generate_toy8(
             label_kind=label_kind,
             npoints=npoints,
             seed=None,
@@ -39,8 +39,8 @@ def test_time_func_mode():
     dt = 4.0
 
     def gen(time_func_mode):
-        ps, ls = data_gen.td_arrays(
-            xy_func=lambda: data_gen.generate_toy8(
+        ps, ls = generate.td_arrays(
+            xy_func=lambda: generate.generate_toy8(
                 label_kind="all",
                 npoints=npoints,
                 seed=123,
@@ -61,14 +61,14 @@ def test_time_dependent_dataset(cycle):
     npoints = 32
     nsteps = 20
     dt = 4.0
-    xy_func = lambda: data_gen.generate_toy8(
+    xy_func = lambda: generate.generate_toy8(
         label_kind="all",
         npoints=npoints,
         seed=123,
     )
 
     def td_arrays():
-        ps, ls = data_gen.td_arrays(
+        ps, ls = generate.td_arrays(
             xy_func=xy_func,
             time_func_mode="abs",
             time=T.linspace(0, nsteps - 1, nsteps) * dt,
@@ -79,14 +79,14 @@ def test_time_dependent_dataset(cycle):
 
     # When t is scaler, we must use T.some_function(T.tensor(t)) ... ok.
     def tdds_arrays():
-        ds = data_gen.TimeDependentDataset(
+        ds = generate.TimeDependentDataset(
             xy_func=xy_func,
             dt=dt,
             cycle=cycle,
             time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),
             time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t)) ** 2,
         )
-        return data_gen.tdds_arrays(ds=ds, nsteps=nsteps, batch_size=npoints)
+        return generate.tdds_arrays(ds=ds, nsteps=nsteps, batch_size=npoints)
 
     for aa, bb in zip(td_arrays(), tdds_arrays()):
         T.testing.assert_close(aa, bb)

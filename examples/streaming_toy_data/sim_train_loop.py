@@ -11,11 +11,11 @@ import os.path
 
 here = os.path.dirname(__file__)
 sys.path.insert(0, os.path.abspath(f"{here}/../../main/toy_data"))
-import generate as data_gen
+import generate
 
 
 # When used as %run -i this.py in ipython
-importlib.reload(data_gen)
+importlib.reload(generate)
 
 
 def header(msg):
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     header("cycle=True")
 
-    ds = data_gen.TimeDependentDataset(dt=0.3, cycle=True)
+    ds = generate.TimeDependentDataset(dt=0.3, cycle=True)
     dl = DataLoader(ds, batch_size=2)
 
     for i_batch, (x, y) in enumerate(dl):
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     header("cycle=False")
 
-    ds = data_gen.TimeDependentDataset(dt=0.3, cycle=False)
+    ds = generate.TimeDependentDataset(dt=0.3, cycle=False)
     dl = DataLoader(ds, batch_size=2)
 
     for i_epoch in range(5):

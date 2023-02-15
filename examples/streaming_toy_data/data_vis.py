@@ -12,10 +12,10 @@ import os.path
 
 here = os.path.dirname(__file__)
 sys.path.insert(0, os.path.abspath(f"{here}/../../main/toy_data"))
-import generate as data_gen
+import generate
 
 # When used as %run -i this.py in ipython
-importlib.reload(data_gen)
+importlib.reload(generate)
 
 
 if __name__ == "__main__":
@@ -25,8 +25,8 @@ if __name__ == "__main__":
     if method == "tdds":
 
         npoints = 1024
-        ds = data_gen.TimeDependentDataset(
-            xy_func=lambda: data_gen.generate_toy8(
+        ds = generate.TimeDependentDataset(
+            xy_func=lambda: generate.generate_toy8(
                 label_kind="all",
                 npoints=npoints,
                 scale=0.2**2,
@@ -38,14 +38,14 @@ if __name__ == "__main__":
         )
 
         nsteps = 5
-        ps, ls = data_gen.tdds_arrays(ds, batch_size=npoints, nsteps=nsteps)
+        ps, ls = generate.tdds_arrays(ds, batch_size=npoints, nsteps=nsteps)
 
         ps = ps.numpy().reshape((-1, ps.shape[-1]))
         ls = ls.numpy().reshape((-1, ls.shape[-1]))
 
     elif method == "td":
-        ps, ls = data_gen.td_arrays(
-            xy_func=lambda: data_gen.generate_toy8(
+        ps, ls = generate.td_arrays(
+            xy_func=lambda: generate.generate_toy8(
                 label_kind="all",
                 npoints=1024,
                 scale=0.2**2,
