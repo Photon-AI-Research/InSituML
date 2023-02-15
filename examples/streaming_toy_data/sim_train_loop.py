@@ -5,7 +5,14 @@ import importlib
 from icecream import ic
 from torch.utils.data import DataLoader
 
-import data_gen
+# XXX HACK because package is not installable
+import sys
+import os.path
+
+here = os.path.dirname(__file__)
+sys.path.insert(0, os.path.abspath(f"{here}/../../main/toy_data"))
+import generate as data_gen
+
 
 # When used as %run -i this.py in ipython
 importlib.reload(data_gen)

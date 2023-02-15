@@ -3,7 +3,7 @@ import itertools
 import pytest
 import torch as T
 
-import data_gen
+from . import generate as data_gen
 
 
 @pytest.mark.parametrize(
@@ -73,7 +73,7 @@ def test_time_dependent_dataset(cycle):
             time_func_mode="abs",
             time=T.linspace(0, nsteps - 1, nsteps) * dt,
             time_x_func=lambda X, t: X + T.sin(2 * t),
-            time_y_func=lambda X, t: X + (X > 0) * T.cos(2 * t)**2,
+            time_y_func=lambda X, t: X + (X > 0) * T.cos(2 * t) ** 2,
         )
         return ps, ls
 
@@ -84,7 +84,7 @@ def test_time_dependent_dataset(cycle):
             dt=dt,
             cycle=cycle,
             time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),
-            time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t))**2,
+            time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t)) ** 2,
         )
         return data_gen.tdds_arrays(ds=ds, nsteps=nsteps, batch_size=npoints)
 

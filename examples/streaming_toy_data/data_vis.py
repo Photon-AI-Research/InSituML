@@ -6,7 +6,13 @@ import numpy as np
 import torch as T
 from matplotlib import pyplot as plt
 
-import data_gen
+# XXX HACK because package is not installable
+import sys
+import os.path
+
+here = os.path.dirname(__file__)
+sys.path.insert(0, os.path.abspath(f"{here}/../../main/toy_data"))
+import generate as data_gen
 
 # When used as %run -i this.py in ipython
 importlib.reload(data_gen)
@@ -37,7 +43,7 @@ if __name__ == "__main__":
         ps = ps.numpy().reshape((-1, ps.shape[-1]))
         ls = ls.numpy().reshape((-1, ls.shape[-1]))
 
-    elif method=="td":
+    elif method == "td":
         ps, ls = data_gen.td_arrays(
             xy_func=lambda: data_gen.generate_toy8(
                 label_kind="all",
