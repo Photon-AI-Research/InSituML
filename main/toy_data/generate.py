@@ -294,24 +294,20 @@ class TimeDependentTensorDataset(Dataset, TimeDependentDataHandler):
         return self.npoints
 
 
-# FIXME (StS)
-#
-# Time axis equivalent to
-#   linspace(0, nsteps, nsteps) * dt
-# or
-#   linspace(0, nsteps-1, nsteps) * dt
-# ?? Calling ds.step() after yield might be wrong. Check against logic in
-# td_gen().
-#
 def tdds_gen(
     ds: TimeDependentTensorDataset, nsteps: int, batch_size: int = None
 ):
     """
     Same as td_gen() but using TimeDependentTensorDataset.
 
-    The time axis is defined by nsteps and ds.dt
-
     To extract all data, we use batch_size=ds.npoints by default.
+
+    The time axis is defined by nsteps and ds.dt and is equivalent to
+    linspace(0, nsteps-1, nsteps) * dt = arange(0, nsteps*dt, dt).
+
+    The first yielded batch corresponds to time=0. We call ds.step() after each
+    step, so while the last yielded batch corresponds to (nsteps-1)*dt, ds.time
+    will be nsteps*dt.
     """
     if batch_size is None:
         batch_size = ds.npoints
