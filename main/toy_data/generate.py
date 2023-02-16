@@ -80,7 +80,7 @@ def generate_toy8(
     ndim_x = 2
     ndim_y = 8
 
-    assert npoints % ndim_y == 0, "npoints is not a multiple of {ndim_y}"
+    assert npoints % ndim_y == 0, f"npoints is not a multiple of {ndim_y}"
 
     if seed is not None:
         T.manual_seed(seed)
