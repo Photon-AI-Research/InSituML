@@ -9,13 +9,10 @@ dependencies = [
     #   pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
     ##"torch",
 
-    # For examples/ data loading notebooks
+    # Data reading
     "openpmd-api",
     "h5py",
-
-    # Mostly for examples/ notebooks
     "numpy",
-    "matplotlib",
 
     # cINN library
     "FrEIA",
@@ -30,11 +27,17 @@ dependencies = [
 
 # pip install project_name[test]
 test = ["pytest"]
-examples = ["icecream"]
+examples = [
+    "icecream",
+    "matplotlib",
+    ]
 
 # Default.
 ##[tool.setuptools.packages.find]
 ##where = ["src"]
+
+[tool.black]
+line-length = 79
 
 [build-system]
 requires = ["setuptools>=66.1", "wheel"]
