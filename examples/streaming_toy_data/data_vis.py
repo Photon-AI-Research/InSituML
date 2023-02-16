@@ -19,7 +19,7 @@ if __name__ == "__main__":
     if method == "tdds":
 
         npoints = 1024
-        ds = generate.TimeDependentDataset(
+        ds = generate.TimeDependentTensorDataset(
             xy_func=lambda: generate.generate_toy8(
                 label_kind="all",
                 npoints=npoints,

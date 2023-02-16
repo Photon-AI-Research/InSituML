@@ -6,7 +6,7 @@ import numpy as np
 
 import torch as T
 from torch.distributions.multivariate_normal import MultivariateNormal
-from torch.utils.data import IterableDataset, DataLoader
+from torch.utils.data import IterableDataset, DataLoader, Dataset
 
 
 def _pol2cart(radius, phi):
@@ -123,7 +123,7 @@ def generate_toy8(
 def td_gen(
     X: T.Tensor = None,
     Y: T.Tensor = None,
-    xy_func: Callable=None,
+    xy_func: Callable = None,
     time_x_func: Callable = lambda X, t: X + T.tensor([t] * X.shape[-1]),
     time_y_func: Callable = lambda Y, t: Y + (Y > 0) * t,
     time_func_mode: str = "rel",
@@ -218,40 +218,17 @@ def td_arrays(*args, **kwds):
     return arrays_from_itr(td_gen(*args, **kwds))
 
 
-class TimeDependentDataset(IterableDataset):
-    """Yield stream of single (x,y) pairs. At any point in time call step() to
-    increment time by dt and thus change how (x,y) is created, until the next
-    step() call.
-
-    With cycle=False, this is like TensorDataset(X, Y), only that (x,y) are
-    modified over time in repeated iterations in epochs as in
-
-        ds = TimeDependentDataset(..., cycle=False)
-        dl = DataLoader(ds, ...)
-        for i_epoch in range(5):
-            for i_batch, (x, y) in enumerate(dl):
-                print(i_epoch, i_batch, ds.time, x, y)
-            ds.step()
-
-    Note that step() can be called anywhere, i.e. also every N'th epoch or
-    whatnot.
-
-    With cycle=True, there is no concept of an epoch, i.e. the iterator is
-    infinite. To fetch data from a whole epoch in this case, use
-
-        ds = TimeDependentDataset(..., cycle=True)
-        DataLoader(ds, batch_size=X.shape[0])
-    """
+class TimeDependentDataHandler:
+    """Base class."""
 
     def __init__(
         self,
-        X: T.Tensor=None,
-        Y: T.Tensor=None,
+        X: T.Tensor = None,
+        Y: T.Tensor = None,
         xy_func: Callable = None,
         time_x_func: Callable = lambda x, t: x + t,
         time_y_func: Callable = lambda y, t: y + (y > 0) * t,
         dt: float = 1.0,
-        cycle: bool = True,
     ):
         """
         Parameters
@@ -269,41 +246,52 @@ class TimeDependentDataset(IterableDataset):
             Same as `time_x_func` but for y. y.shape = (ndim_y,)
         dt
             Time step. We only implement the equivalent of time_func_mode="abs"
-            from td_gen().
-        cycle
-            Whether or not to emulate epochs.
+            from td_gen() in subclasses.
         """
         if xy_func is not None:
-            assert [X, Y].count(None) == 2, "xy_func given, X and Y must be None"
+            assert [X, Y].count(
+                None
+            ) == 2, "xy_func given, X and Y must be None"
             X, Y = xy_func()
+
         self.X, self.Y = X, Y
-        self.time = 0
+        self.time = 0.0
         self.dt = dt
         self.time_x_func = time_x_func
         self.time_y_func = time_y_func
-        self.cycle = cycle
 
         self.npoints = self.X.shape[0]
         assert (
             self.Y.shape[0] == self.npoints
         ), "X and Y have not the same npoints"
 
-    def _get_xy_itr(self):
-        if self.cycle:
-            return itertools.cycle(zip(self.X, self.Y))
-        else:
-            return (
-                (self.X[ii, :], self.Y[ii, :]) for ii in range(self.X.shape[0])
-            )
+    def step(self):
+        self.time += self.dt
+
+
+# For this to be useful, we may need to rewrite this into a
+# TimeDependentDataLoader which acts as DataLoader + TimeDependentDataHandler
+# by supporting shuffle=True. Keep as reference for now.
+class TimeDependentIterDataset(IterableDataset, TimeDependentDataHandler):
+    """Yield stream of single (x,y) pairs. DataLoader(ds, shuffle=True) not
+    supported.
+    """
 
     def __iter__(self):
-        for x, y in self._get_xy_itr():
+        for x, y in itertools.cycle(zip(self.X, self.Y)):
             xt = self.time_x_func(x, self.time)
             yt = self.time_y_func(y, self.time)
             yield xt, yt
 
-    def step(self):
-        self.time += self.dt
+
+class TimeDependentTensorDataset(Dataset, TimeDependentDataHandler):
+    def __getitem__(self, idx):
+        xt = self.time_x_func(self.X[idx, :], self.time)
+        yt = self.time_y_func(self.Y[idx, :], self.time)
+        return xt, yt
+
+    def __len__(self):
+        return self.npoints
 
 
 # FIXME (StS)
@@ -315,9 +303,11 @@ class TimeDependentDataset(IterableDataset):
 # ?? Calling ds.step() after yield might be wrong. Check against logic in
 # td_gen().
 #
-def tdds_gen(ds: TimeDependentDataset, nsteps: int, batch_size: int = None):
+def tdds_gen(
+    ds: TimeDependentTensorDataset, nsteps: int, batch_size: int = None
+):
     """
-    Same as td_gen() but using TimeDependentDataset.
+    Same as td_gen() but using TimeDependentTensorDataset.
 
     The time axis is defined by nsteps and ds.dt
 
@@ -326,16 +316,10 @@ def tdds_gen(ds: TimeDependentDataset, nsteps: int, batch_size: int = None):
     if batch_size is None:
         batch_size = ds.npoints
     dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
-    if ds.cycle:
-        dl_itr = iter(dl)
-        for _ in range(nsteps):
-            yield next(dl_itr)
-            ds.step()
-    else:
-        for _ in range(nsteps):
-            for x, y in dl:
-                yield (x, y)
-            ds.step()
+    for _ in range(nsteps):
+        for x, y in dl:
+            yield (x, y)
+        ds.step()
 
 
 @wraps(tdds_gen)

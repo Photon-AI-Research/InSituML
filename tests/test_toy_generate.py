@@ -64,8 +64,7 @@ def test_td_time_func_mode():
         T.testing.assert_close(aa, bb)
 
 
-@pytest.mark.parametrize("cycle", [True, False])
-def test_tdds_api(cycle):
+def test_tdds_api():
     npoints = 32
     nsteps = 20
     dt = 4.0
@@ -77,20 +76,18 @@ def test_tdds_api(cycle):
 
     kwds = [dict(xy_func=xy_func), dict(X=X, Y=Y)]
     for xy_kwds in kwds:
-        generate.TimeDependentDataset(
+        generate.TimeDependentTensorDataset(
             dt=dt,
-            cycle=cycle,
             time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),
             time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t)) ** 2,
             **xy_kwds,
         )
 
     # pos args
-    generate.TimeDependentDataset(X, Y)
+    generate.TimeDependentTensorDataset(X, Y)
 
 
-@pytest.mark.parametrize("cycle", [True, False])
-def test_time_dependent_dataset(cycle):
+def test_ttds():
     npoints = 32
     nsteps = 20
     dt = 4.0
@@ -109,11 +106,10 @@ def test_time_dependent_dataset(cycle):
 
     # When t is scaler, we must use T.some_function(T.tensor(t)) ... ok.
     def tdds_arrays():
-        ds = generate.TimeDependentDataset(
+        ds = generate.TimeDependentTensorDataset(
             X,
             Y,
             dt=dt,
-            cycle=cycle,
             time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),
             time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t)) ** 2,
         )
