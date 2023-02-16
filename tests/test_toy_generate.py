@@ -10,27 +10,33 @@ from insituml.toy_data import generate
     "time_func_mode, label_kind",
     itertools.product(("abs", "rel"), ("all", "some", "none")),
 )
-def test_functions_api(time_func_mode, label_kind):
+def test_td_api(time_func_mode, label_kind):
     npoints = 16
     nsteps = 20
     dt = 4.0
 
-    ps, ls = generate.td_arrays(
-        xy_func=lambda: generate.generate_toy8(
-            label_kind=label_kind,
-            npoints=npoints,
-            seed=None,
-            scale=0.1,
-        ),
-        time_func_mode=time_func_mode,
-        time=T.linspace(0, nsteps - 1, nsteps) * dt,
+    xy_func = lambda: generate.generate_toy8(
+        label_kind=label_kind,
+        npoints=npoints,
+        seed=None,
+        scale=0.1,
     )
 
-    assert ps.shape == (nsteps, npoints, 2)
-    assert ls.shape == (nsteps, npoints, 8)
+    X, Y = xy_func()
+    kwds = [dict(xy_func=xy_func), dict(X=X, Y=Y)]
+
+    for xy_kwds in kwds:
+        ps, ls = generate.td_arrays(
+            time_func_mode=time_func_mode,
+            time=T.linspace(0, nsteps - 1, nsteps) * dt,
+            **xy_kwds,
+        )
+
+        assert ps.shape == (nsteps, npoints, 2)
+        assert ls.shape == (nsteps, npoints, 8)
 
 
-def test_time_func_mode():
+def test_td_time_func_mode():
     """
     Note that abs and rel mode are only equal for time_{x,y}_func linear in t.
     """
@@ -57,19 +63,41 @@ def test_time_func_mode():
 
 
 @pytest.mark.parametrize("cycle", [True, False])
+def test_tdds_api(cycle):
+    npoints = 32
+    nsteps = 20
+    dt = 4.0
+
+    xy_func = lambda: generate.generate_toy8(
+        label_kind="all", npoints=npoints, seed=123
+    )
+    X, Y = xy_func()
+
+    kwds = [dict(xy_func=xy_func), dict(X=X, Y=Y)]
+    for xy_kwds in kwds:
+        generate.TimeDependentDataset(
+            dt=dt,
+            cycle=cycle,
+            time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),
+            time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t)) ** 2,
+            **xy_kwds,
+        )
+
+    # pos args
+    generate.TimeDependentDataset(X, Y)
+
+
+@pytest.mark.parametrize("cycle", [True, False])
 def test_time_dependent_dataset(cycle):
     npoints = 32
     nsteps = 20
     dt = 4.0
-    xy_func = lambda: generate.generate_toy8(
-        label_kind="all",
-        npoints=npoints,
-        seed=123,
-    )
+    X, Y = generate.generate_toy8(label_kind="all", npoints=npoints, seed=123)
 
     def td_arrays():
         ps, ls = generate.td_arrays(
-            xy_func=xy_func,
+            X,
+            Y,
             time_func_mode="abs",
             time=T.linspace(0, nsteps - 1, nsteps) * dt,
             time_x_func=lambda X, t: X + T.sin(2 * t),
@@ -80,7 +108,8 @@ def test_time_dependent_dataset(cycle):
     # When t is scaler, we must use T.some_function(T.tensor(t)) ... ok.
     def tdds_arrays():
         ds = generate.TimeDependentDataset(
-            xy_func=xy_func,
+            X,
+            Y,
             dt=dt,
             cycle=cycle,
             time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),

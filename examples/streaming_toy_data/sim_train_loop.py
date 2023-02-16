@@ -25,7 +25,9 @@ if __name__ == "__main__":
 
     header("cycle=True")
 
-    ds = generate.TimeDependentDataset(dt=0.3, cycle=True)
+    ds = generate.TimeDependentDataset(
+        *generate.generate_fake_toy(6), dt=0.3, cycle=True
+    )
     dl = DataLoader(ds, batch_size=2)
 
     for i_batch, (x, y) in enumerate(dl):
@@ -43,7 +45,9 @@ if __name__ == "__main__":
 
     header("cycle=False")
 
-    ds = generate.TimeDependentDataset(dt=0.3, cycle=False)
+    ds = generate.TimeDependentDataset(
+        *generate.generate_fake_toy(6), dt=0.3, cycle=False
+    )
     dl = DataLoader(ds, batch_size=2)
 
     for i_epoch in range(5):

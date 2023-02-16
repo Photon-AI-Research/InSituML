@@ -121,7 +121,9 @@ def generate_toy8(
 
 
 def td_gen(
-    xy_func: Callable = lambda: generate_toy8(label_kind="all", npoints=512),
+    X: T.Tensor = None,
+    Y: T.Tensor = None,
+    xy_func: Callable=None,
     time_x_func: Callable = lambda X, t: X + T.tensor([t] * X.shape[-1]),
     time_y_func: Callable = lambda Y, t: Y + (Y > 0) * t,
     time_func_mode: str = "rel",
@@ -133,12 +135,15 @@ def td_gen(
     Parameters
     ----------
     xy_func
-        Function that generates the initial (X, Y).
+        Function that generates the initial (X, Y), such as
+        lambda: generate_toy8(label_kind="all", npoints=512)
+    X, Y
+        Initial (X,Y). Use this or xy_func.
     time_x_func
         Function must have signature `func(X: T.Tensor, t: float)` where
-        X.shape = (npoints, ndim_x) and . Modify and
-        return updates to X using time step. Function must *not* modify
-        X in-place. See `time_func_mode` for more.
+        X.shape = (npoints, ndim_x). Modify and return updates to X using time
+        step. Function must *not* modify X in-place. See `time_func_mode` for
+        more.
     time_y_func
         Same as `time_x_func` but for Y. Y.shape = (npoints, ndim_y)
     time_func_mode
@@ -147,8 +152,8 @@ def td_gen(
         "abs" : call as time_foo_func(start, time[i])
         "rel" : call as time_foo_func(last, dt)
 
-        where `start` is the output of `xy_func()` and `last` is the
-        X / Y from the previous time step time[i-1].
+        where `start` is the initial X (Y) and `last` is the X (Y) from the
+        previous time step time[i-1].
 
         Functions are called for each time step, therefore the first step is
         not treated special. For certain functions that do e.g. linear
@@ -162,12 +167,9 @@ def td_gen(
     Yield one tuple (X, Y) per time step. See generate_toy8() for
     shapes. The iterator is len(time) "long".
     """
-    if time_func_mode == "abs":
-        X_0, Y_0 = xy_func()
-    elif time_func_mode == "rel":
+    if xy_func is not None:
+        assert [X, Y].count(None) == 2, "xy_func given, X and Y must be None"
         X, Y = xy_func()
-    else:
-        raise ValueError(f"Illegal {time_func_mode=}")
 
     for i_time, v_time in enumerate(time):
         if time_func_mode == "rel":
@@ -177,7 +179,9 @@ def td_gen(
                 Y = time_y_func(Y, dt)
             yield X.clone().detach(), Y.clone().detach()
         elif time_func_mode == "abs":
-            yield time_x_func(X_0, v_time), time_y_func(Y_0, v_time)
+            yield time_x_func(X, v_time), time_y_func(Y, v_time)
+        else:
+            raise ValueError(f"Illegal {time_func_mode=}")
 
 
 def arrays_from_itr(itr: Iterator):
@@ -203,7 +207,8 @@ def arrays_from_itr(itr: Iterator):
 @wraps(td_gen)
 def td_arrays(*args, **kwds):
     """
-    Wrapper of td_gen() that returns arrays.
+    Wrapper of td_gen() that returns arrays. Useful to generate arrays for
+    visualization.
 
     Returns
     -------
@@ -228,6 +233,9 @@ class TimeDependentDataset(IterableDataset):
                 print(i_epoch, i_batch, ds.time, x, y)
             ds.step()
 
+    Note that step() can be called anywhere, i.e. also every N'th epoch or
+    whatnot.
+
     With cycle=True, there is no concept of an epoch, i.e. the iterator is
     infinite. To fetch data from a whole epoch in this case, use
 
@@ -237,7 +245,9 @@ class TimeDependentDataset(IterableDataset):
 
     def __init__(
         self,
-        xy_func: Callable = lambda: generate_fake_toy(6),
+        X: T.Tensor=None,
+        Y: T.Tensor=None,
+        xy_func: Callable = None,
         time_x_func: Callable = lambda x, t: x + t,
         time_y_func: Callable = lambda y, t: y + (y > 0) * t,
         dt: float = 1.0,
@@ -247,7 +257,10 @@ class TimeDependentDataset(IterableDataset):
         Parameters
         ----------
         xy_func
-            Function that generates the initial (X, Y).
+            Function that generates the initial (X, Y), such as
+            lambda: generate_toy8(label_kind="all", npoints=512)
+        X, Y
+            Initial (X,Y). Use this or xy_func.
         time_x_func
             Function must have signature `func(x: T.Tensor, t: float)` where
             x.shape = (ndim_x,). Modify and return updates to x using current
@@ -260,9 +273,12 @@ class TimeDependentDataset(IterableDataset):
         cycle
             Whether or not to emulate epochs.
         """
+        if xy_func is not None:
+            assert [X, Y].count(None) == 2, "xy_func given, X and Y must be None"
+            X, Y = xy_func()
+        self.X, self.Y = X, Y
         self.time = 0
         self.dt = dt
-        self.X, self.Y = xy_func()
         self.time_x_func = time_x_func
         self.time_y_func = time_y_func
         self.cycle = cycle
@@ -288,6 +304,7 @@ class TimeDependentDataset(IterableDataset):
 
     def step(self):
         self.time += self.dt
+
 
 # FIXME (StS)
 #
