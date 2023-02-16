@@ -30,6 +30,7 @@ dependencies = [
 
 # pip install project_name[test]
 test = ["pytest"]
+examples = ["icecream"]
 
 # Default.
 ##[tool.setuptools.packages.find]
