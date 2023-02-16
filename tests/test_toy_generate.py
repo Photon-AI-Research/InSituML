@@ -1,4 +1,6 @@
 import itertools
+from pathlib import Path
+import subprocess as sp
 
 import pytest
 import torch as T
@@ -119,3 +121,10 @@ def test_time_dependent_dataset(cycle):
 
     for aa, bb in zip(td_arrays(), tdds_arrays()):
         T.testing.assert_close(aa, bb)
+
+
+@pytest.mark.examples
+def test_run_examples():
+    path = Path(__file__).parent / "../examples/streaming_toy_data/"
+    for script in path.glob("*.py"):
+        sp.run(script, check=True)

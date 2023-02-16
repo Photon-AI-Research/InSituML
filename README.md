@@ -69,3 +69,18 @@ Then
 ```py
 from insituml.foo.bar import baz
 ```
+
+## Tests
+
+Run tests, skip tests marked with "examples" that may generate interactive
+plots.
+
+```sh
+$ pytest
+```
+
+Also run examples.
+
+```sh
+$ pytest --examples
+```
