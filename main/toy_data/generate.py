@@ -123,7 +123,6 @@ def generate_toy8(
 def td_gen(
     X: T.Tensor = None,
     Y: T.Tensor = None,
-    xy_func: Callable = None,
     time_x_func: Callable = lambda X, t: X + T.tensor([t] * X.shape[-1]),
     time_y_func: Callable = lambda Y, t: Y + (Y > 0) * t,
     time_func_mode: str = "rel",
@@ -134,11 +133,8 @@ def td_gen(
 
     Parameters
     ----------
-    xy_func
-        Function that generates the initial (X, Y), such as
-        lambda: generate_toy8(label_kind="all", npoints=512)
     X, Y
-        Initial (X,Y). Use this or xy_func.
+        Initial (X,Y). E.g. X.Y = generate_toy8(label_kind="all", npoints=512)
     time_x_func
         Function must have signature `func(X: T.Tensor, t: float)` where
         X.shape = (npoints, ndim_x). Modify and return updates to X using time
@@ -164,13 +160,8 @@ def td_gen(
 
     Returns
     -------
-    Yield one tuple (X, Y) per time step. See generate_toy8() for
-    shapes. The iterator is len(time) "long".
+    Yield one tuple (X, Y) per time step. The iterator is len(time) "long".
     """
-    if xy_func is not None:
-        assert [X, Y].count(None) == 2, "xy_func given, X and Y must be None"
-        X, Y = xy_func()
-
     for i_time, v_time in enumerate(time):
         if time_func_mode == "rel":
             if i_time > 0:
@@ -225,7 +216,6 @@ class TimeDependentDataHandler:
         self,
         X: T.Tensor = None,
         Y: T.Tensor = None,
-        xy_func: Callable = None,
         time_x_func: Callable = lambda x, t: x + t,
         time_y_func: Callable = lambda y, t: y + (y > 0) * t,
         dt: float = 1.0,
@@ -233,11 +223,8 @@ class TimeDependentDataHandler:
         """
         Parameters
         ----------
-        xy_func
-            Function that generates the initial (X, Y), such as
-            lambda: generate_toy8(label_kind="all", npoints=512)
         X, Y
-            Initial (X,Y). Use this or xy_func.
+            Initial (X,Y).
         time_x_func
             Function must have signature `func(x: T.Tensor, t: float)` where
             x.shape = (ndim_x,). Modify and return updates to x using current
@@ -248,12 +235,6 @@ class TimeDependentDataHandler:
             Time step. We only implement the equivalent of time_func_mode="abs"
             from td_gen() in subclasses.
         """
-        if xy_func is not None:
-            assert [X, Y].count(
-                None
-            ) == 2, "xy_func given, X and Y must be None"
-            X, Y = xy_func()
-
         self.X, self.Y = X, Y
         self.time = 0.0
         self.dt = dt

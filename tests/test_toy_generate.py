@@ -17,25 +17,22 @@ def test_td_api(time_func_mode, label_kind):
     nsteps = 20
     dt = 4.0
 
-    xy_func = lambda: generate.generate_toy8(
+    X, Y = generate.generate_toy8(
         label_kind=label_kind,
         npoints=npoints,
         seed=None,
         scale=0.1,
     )
 
-    X, Y = xy_func()
-    kwds = [dict(xy_func=xy_func), dict(X=X, Y=Y)]
+    ps, ls = generate.td_arrays(
+        X,
+        Y,
+        time_func_mode=time_func_mode,
+        time=T.linspace(0, nsteps - 1, nsteps) * dt,
+    )
 
-    for xy_kwds in kwds:
-        ps, ls = generate.td_arrays(
-            time_func_mode=time_func_mode,
-            time=T.linspace(0, nsteps - 1, nsteps) * dt,
-            **xy_kwds,
-        )
-
-        assert ps.shape == (nsteps, npoints, 2)
-        assert ls.shape == (nsteps, npoints, 8)
+    assert ps.shape == (nsteps, npoints, 2)
+    assert ls.shape == (nsteps, npoints, 8)
 
 
 def test_td_time_func_mode():
@@ -47,8 +44,8 @@ def test_td_time_func_mode():
     dt = 4.0
 
     def gen(time_func_mode):
-        ps, ls = generate.td_arrays(
-            xy_func=lambda: generate.generate_toy8(
+        Xt, Yt = generate.td_arrays(
+            *generate.generate_toy8(
                 label_kind="all",
                 npoints=npoints,
                 seed=123,
@@ -58,7 +55,7 @@ def test_td_time_func_mode():
             time_x_func=lambda X, t: X + 2 * t,
             time_y_func=lambda X, t: X + (X > 0) * 2 * t,
         )
-        return ps, ls
+        return Xt, Yt
 
     for aa, bb in zip(gen("abs"), gen("rel")):
         T.testing.assert_close(aa, bb)
@@ -69,19 +66,15 @@ def test_tdds_api():
     nsteps = 20
     dt = 4.0
 
-    xy_func = lambda: generate.generate_toy8(
-        label_kind="all", npoints=npoints, seed=123
-    )
-    X, Y = xy_func()
+    X, Y = generate.generate_toy8(label_kind="all", npoints=npoints, seed=123)
 
-    kwds = [dict(xy_func=xy_func), dict(X=X, Y=Y)]
-    for xy_kwds in kwds:
-        generate.TimeDependentTensorDataset(
-            dt=dt,
-            time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),
-            time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t)) ** 2,
-            **xy_kwds,
-        )
+    generate.TimeDependentTensorDataset(
+        X,
+        Y,
+        dt=dt,
+        time_x_func=lambda x, t: x + T.sin(2 * T.tensor(t)),
+        time_y_func=lambda x, t: x + (x > 0) * T.cos(2 * T.tensor(t)) ** 2,
+    )
 
     # pos args
     generate.TimeDependentTensorDataset(X, Y)
@@ -94,7 +87,7 @@ def test_ttds():
     X, Y = generate.generate_toy8(label_kind="all", npoints=npoints, seed=123)
 
     def td_arrays():
-        ps, ls = generate.td_arrays(
+        Xt, Yt = generate.td_arrays(
             X,
             Y,
             time_func_mode="abs",
@@ -102,7 +95,7 @@ def test_ttds():
             time_x_func=lambda X, t: X + T.sin(2 * t),
             time_y_func=lambda X, t: X + (X > 0) * T.cos(2 * t) ** 2,
         )
-        return ps, ls
+        return Xt, Yt
 
     # When t is scaler, we must use T.some_function(T.tensor(t)) ... ok.
     def tdds_arrays():
