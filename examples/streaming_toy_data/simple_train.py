@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 
 import importlib
+from typing import Sequence, Optional
 
 from icecream import ic
-from torch.utils.data import DataLoader
 
+from torch.utils.data import DataLoader
 import torch as T
 from torch import nn
+
+import numpy as np
+
+from matplotlib import pyplot as plt
 
 from FrEIA.framework import (
     InputNode,
@@ -23,7 +28,7 @@ from insituml.toy_data import generate
 importlib.reload(generate)
 
 # Adapted from Nico_toy8_examples/train_cINN_distributed_toy8.py
-def build_model(ndim_x=2, ndim_cond=8, ncc=2, nh=512, nl=1):
+def build_model(ndim_x=2, ndim_y=8, ncc=2, nh=512, nl=1):
     def subnet_fc(c_in, c_out):
         layers = [nn.Linear(c_in, nh), nn.LeakyReLU()]
 
@@ -44,7 +49,7 @@ def build_model(ndim_x=2, ndim_cond=8, ncc=2, nh=512, nl=1):
         return mlp
 
     nodes = [InputNode(ndim_x, name="input")]
-    cond = ConditionNode(ndim_cond, name="condition")
+    cond = ConditionNode(ndim_y, name="condition")
 
     for i_cc in range(ncc):
         nodes.append(
@@ -71,37 +76,177 @@ def build_model(ndim_x=2, ndim_cond=8, ncc=2, nh=512, nl=1):
     return model
 
 
+def check_stop_iter(
+    history: Sequence[float],
+    wlen: int = 10,
+    mrtol: Optional[float] = 0.01,
+    matol: Optional[float] = None,
+    fatol: Optional[float] = None,
+    mode: Optional[str] = "plateau",
+):
+    """
+    Parameters
+    ----------
+    mrtol
+        mean relative tol
+    matol
+        mean absolute tol
+    fatol
+        direct value tol: abs(mean(history[-wlen:])) < tol
+    """
+    assert [mrtol, matol, fatol].count(
+        None
+    ) == 2, "Use one of matol, mrtol, fatol"
+
+    if len(history) < (2 * wlen):
+        return False
+    else:
+        if fatol is not None:
+            assert mode is None, "mode not used when fatol is set"
+            crit = np.abs(np.array(history[-wlen:])).mean()
+            tol = fatol
+        else:
+            prev = np.array(history[-2 * wlen : -wlen]).mean()
+            last = np.array(history[-wlen:]).mean()
+            if mode == "plateau":
+                if mrtol is not None:
+                    crit = np.abs(last - prev) / np.abs(prev)
+                    tol = mrtol
+                elif matol is not None:
+                    crit = np.abs(last - prev)
+                    tol = matol
+            elif mode in ["rise", "fall"]:
+                if mrtol is not None:
+                    crit = (last - prev) / np.abs(prev)
+                    tol = mrtol
+                elif matol is not None:
+                    crit = last - prev
+                    tol = matol
+                if mode == "fall":
+                    crit = -crit
+            else:
+                raise ValueError(f"Illegal {mode=}")
+        return crit > 0 and crit < tol
+
+
+def plot_chunks(
+    ax,
+    lst: Sequence[Sequence[float]],
+    plot_kwds=dict(),
+    vlines_kwds=dict(colors="gray", linestyles="--"),
+    log_y: bool = False,
+):
+    line_pos = []
+    start = 0
+    plot = ax.semilogy if log_y else ax.plot
+    for y in lst:
+        x = start + np.arange(len(y))
+        plot(x, y, **plot_kwds)
+        start = x[-1]
+        line_pos.append(start)
+    ax.vlines(line_pos[:-1], *ax.yaxis.get_data_interval(), **vlines_kwds)
+
+
 if __name__ == "__main__":
+
+    T.set_num_threads(8)
+
+    nsteps = 2
+    npoints = 512
+    batch_size_div = 8
+    batch_size = max(npoints // batch_size_div, 1)
+    print_every_epoch = 50
+    max_epoch = int(1e4)
+
     ds = generate.TimeDependentTensorDataset(
-        *generate.generate_toy8(label_kind="all", npoints=1024, seed=123),
-        ##*generate.generate_fake_toy(npoints=6),
-        dt=1.0,
+        *generate.generate_toy8(label_kind="all", npoints=npoints, seed=123),
+        dt=5,
     )
 
-    train_dl = DataLoader(ds, batch_size=1024, shuffle=True)
+    train_dl = DataLoader(
+        ds, batch_size=batch_size, shuffle=True, drop_last=True
+    )
 
-    model = build_model(ndim_x=2, ndim_cond=8)
+    model = build_model(ndim_x=2, ndim_y=8, ncc=2, nh=512, nl=1)
     trainable_parameters = [p for p in model.parameters() if p.requires_grad]
-    optimizer = T.optim.Adam(
-        trainable_parameters, lr=1e-3, betas=(0.8, 0.9), eps=1e-6
+    optimizer = T.optim.AdamW(
+        trainable_parameters,
+        lr=1e-3 / batch_size_div,
+        ##betas=(0.8, 0.9),
+        ##eps=1e-6,
+        betas=(0.9, 0.999),
+        eps=1e-8,
+        weight_decay=1e-3,
     )
+
+    loss_hist = []
     model.train()
 
     # PIC time step
-    for i_time in range(5):
+    for i_step in range(nsteps):
         # train some epochs on this time step's data
-        for i_epoch in range(20):
-            loss_sum = 0
+        i_epoch = -1
+        mean_epoch_loss_hist = []
+        while True:
+            i_epoch += 1
+            loss_sum = 0.0
             for i_batch, (X_batch, Y_batch) in enumerate(train_dl):
-                ##ic(i_time, i_epoch, i_batch, ds.time, X_batch, Y_batch)
+                ##ic(i_step, i_epoch, i_batch, ds.time, X_batch, Y_batch)
+                ##ic(i_step, i_epoch, i_batch, ds.time)
 
                 optimizer.zero_grad()
                 z, log_j = model(X_batch, c=Y_batch)
+                ##rev_X, _ = model(z, c=Y_batch, rev=True)
                 loss = (T.mean(z**2.0) - T.mean(log_j)) / 2.0
                 nn.utils.clip_grad_norm_(trainable_parameters, 10.0)
                 loss_sum += loss.data.item()
                 loss.backward()
                 optimizer.step()
 
-            ic(i_time, i_epoch, loss_sum)
+            mean_epoch_loss = loss_sum / batch_size
+            mean_epoch_loss_hist.append(mean_epoch_loss)
+
+            if (i_epoch + 1) % print_every_epoch == 0:
+                ic(i_step, i_epoch, mean_epoch_loss)
+
+            # termination (reconstruction loss converged, etc)
+            is_conv = check_stop_iter(
+                mean_epoch_loss_hist,
+                mrtol=1e-3,
+                mode="fall",
+                wlen=20,
+            )
+            hit_max_iter = (i_epoch + 1) == max_epoch
+            if is_conv:
+                print("converged")
+                break
+            elif hit_max_iter:
+                break
+                print("mit max iter")
+
         ds.step()
+        loss_hist.append(np.array(mean_epoch_loss_hist))
+
+    ncols = 3
+    fig, axs = plt.subplots(ncols=ncols, figsize=(5 * ncols, 5))
+
+    # Reset time, re-create train data for plotting
+    ds.time = 0
+    Xt_3d, Yt_3d = generate.tdds_arrays(
+        ds=ds, nsteps=nsteps, batch_size=npoints
+    )
+    Xt = Xt_3d.numpy().reshape((-1, Xt_3d.shape[-1]))
+    Yt = Yt_3d.numpy().reshape((-1, Yt_3d.shape[-1]))
+    color = generate.label2color_toyN(Yt)
+
+    axs[0].scatter(Xt[:, 0], Xt[:, 1], c=color, s=0.5)
+    with T.no_grad():
+        rev_X, _ = model(T.randn(Xt.shape), c=T.from_numpy(Yt), rev=True)
+
+        axs[1].scatter(rev_X[:, 0], rev_X[:, 1], c=color, s=0.5)
+
+        loss_hist_shifted = [x + np.abs(np.min(x)) + 1 for x in loss_hist]
+        plot_chunks(axs[2], loss_hist_shifted, log_y=True)
+        ##plot_chunks(axs[2], loss_hist, log_y=False)
+
+    plt.show()
