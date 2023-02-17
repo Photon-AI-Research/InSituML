@@ -186,13 +186,13 @@ def arrays_from_itr(itr: Iterator):
 
     Returns
     -------
-    X : (nsteps, *x.shape)
-    Y : (nsteps, *y.shape)
+    Xt_nd : (nsteps, *x.shape)
+    Yt_nd : (nsteps, *y.shape)
     """
     lst = list(itr)
-    X = T.stack([x[0] for x in lst])
-    Y = T.stack([x[1] for x in lst])
-    return X, Y
+    Xt_nd = T.stack([x[0] for x in lst])
+    Yt_nd = T.stack([x[1] for x in lst])
+    return Xt_nd, Yt_nd
 
 
 @wraps(td_gen)
@@ -203,8 +203,8 @@ def td_arrays(*args, **kwds):
 
     Returns
     -------
-    X : (nsteps, npoints, ndim_x)
-    Y : (nsteps, npoints, ndim_y)
+    Xt_3d : (nsteps, npoints, ndim_x)
+    Yt_3d : (nsteps, npoints, ndim_y)
     """
     return arrays_from_itr(td_gen(*args, **kwds))
 
@@ -266,7 +266,7 @@ class TimeDependentIterDataset(IterableDataset, TimeDependentDataHandler):
 
 
 class TimeDependentTensorDataset(Dataset, TimeDependentDataHandler):
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         xt = self.time_x_func(self.X[idx, :], self.time)
         yt = self.time_y_func(self.Y[idx, :], self.time)
         return xt, yt
@@ -294,8 +294,8 @@ def tdds_gen(
         batch_size = ds.npoints
     dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
     for _ in range(nsteps):
-        for x, y in dl:
-            yield (x, y)
+        for X, Y in dl:
+            yield (X, Y)
         ds.step()
 
 

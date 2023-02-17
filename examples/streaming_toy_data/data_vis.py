@@ -37,10 +37,12 @@ if __name__ == "__main__":
                 dt=6.25,
             )
 
-            ps, ls = generate.tdds_arrays(ds, batch_size=npoints, nsteps=nsteps)
+            Xt_3d, Yt_3d = generate.tdds_arrays(
+                ds, batch_size=npoints, nsteps=nsteps
+            )
 
         elif method == "td":
-            ps, ls = generate.td_arrays(
+            Xt_3d, Yt_3d = generate.td_arrays(
                 X,
                 Y,
                 time_func_mode="abs",
@@ -53,18 +55,17 @@ if __name__ == "__main__":
         else:
             raise ValueError(f"Illegal {method=}")
 
-        ps = ps.numpy().reshape((-1, ps.shape[-1]))
-        ls = ls.numpy().reshape((-1, ls.shape[-1]))
-
+        Xt = Xt_3d.numpy().reshape((-1, Xt_3d.shape[-1]))
+        Yt = Yt_3d.numpy().reshape((-1, Yt_3d.shape[-1]))
 
         fig, axs = plt.subplots(ncols=2)
 
-        nz_i, nz_j = np.nonzero(ls)
-        nz_val = ls[(nz_i, nz_j)]
+        nz_i, nz_j = np.nonzero(Yt)
+        nz_val = Yt[(nz_i, nz_j)]
         color = nz_j + nz_val
 
-        axs[0].scatter(ps[:, 0], ps[:, 1], c=color, s=0.5)
+        axs[0].scatter(Xt[:, 0], Xt[:, 1], c=color, s=0.5)
         axs[0].set_aspect("equal")
-        axs[1].matshow(ls, aspect="auto")
+        axs[1].matshow(Yt, aspect="auto")
 
         plt.show()
