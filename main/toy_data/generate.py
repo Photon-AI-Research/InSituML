@@ -121,8 +121,8 @@ def generate_toy8(
 
 
 def td_gen(
-    X: T.Tensor = None,
-    Y: T.Tensor = None,
+    X: T.Tensor,
+    Y: T.Tensor,
     time_x_func: Callable = lambda X, t: X + T.tensor([t] * X.shape[-1]),
     time_y_func: Callable = lambda Y, t: Y + (Y > 0) * t,
     time_func_mode: str = "rel",
@@ -214,8 +214,8 @@ class TimeDependentDataHandler:
 
     def __init__(
         self,
-        X: T.Tensor = None,
-        Y: T.Tensor = None,
+        X: T.Tensor,
+        Y: T.Tensor,
         time_x_func: Callable = lambda x, t: x + t,
         time_y_func: Callable = lambda y, t: y + (y > 0) * t,
         dt: float = 1.0,
