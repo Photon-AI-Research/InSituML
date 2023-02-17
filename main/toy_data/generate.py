@@ -302,3 +302,20 @@ def tdds_gen(
 @wraps(tdds_gen)
 def tdds_arrays(*args, **kwds):
     return arrays_from_itr(tdds_gen(*args, **kwds))
+
+
+def label2color_toyN(Yt_2d: T.Tensor | np.ndarray):
+    """
+    Parameters
+    ----------
+    Yt_2d : (nsteps * npoints, ndim_y)
+        (time dependent) one-hot toyN labels. Non-zero entries can be > 1.
+
+    Returns
+    -------
+    colors : (nsteps * npoints,)
+    """
+    assert Yt_2d.ndim == 2
+    nz_i, nz_j = np.nonzero(Yt_2d)
+    nz_val = Yt_2d[(nz_i, nz_j)]
+    return nz_j + nz_val
