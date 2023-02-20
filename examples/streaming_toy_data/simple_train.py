@@ -23,6 +23,8 @@ from FrEIA.framework import (
 )
 from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
 
+from nmbx.convergence import Convergence
+
 from insituml.toy_data import generate
 
 # When used as %run -i this.py in ipython
@@ -75,59 +77,6 @@ def build_model(ndim_x=2, ndim_y=8, ncc=2, nh=512, nl=1):
         nodes + [cond, OutputNode(nodes[-1])], verbose=False
     )
     return model
-
-
-def check_stop_iter(
-    history: Sequence[float],
-    wlen: int = 10,
-    mrtol: Optional[float] = 0.01,
-    matol: Optional[float] = None,
-    fatol: Optional[float] = None,
-    mode: Optional[str] = "plateau",
-):
-    """
-    Parameters
-    ----------
-    mrtol
-        mean relative tol
-    matol
-        mean absolute tol
-    fatol
-        direct value tol: abs(mean(history[-wlen:])) < tol
-    """
-    assert [mrtol, matol, fatol].count(
-        None
-    ) == 2, "Use one of matol, mrtol, fatol"
-
-    if len(history) < (2 * wlen):
-        return False
-    else:
-        if fatol is not None:
-            assert mode is None, "mode not used when fatol is set"
-            crit = np.abs(np.array(history[-wlen:])).mean()
-            tol = fatol
-        else:
-            prev = np.array(history[-2 * wlen : -wlen]).mean()
-            last = np.array(history[-wlen:]).mean()
-            if mode == "plateau":
-                if mrtol is not None:
-                    crit = np.abs(last - prev) / np.abs(prev)
-                    tol = mrtol
-                elif matol is not None:
-                    crit = np.abs(last - prev)
-                    tol = matol
-            elif mode in ["rise", "fall"]:
-                if mrtol is not None:
-                    crit = (last - prev) / np.abs(prev)
-                    tol = mrtol
-                elif matol is not None:
-                    crit = last - prev
-                    tol = matol
-                if mode == "fall":
-                    crit = -crit
-            else:
-                raise ValueError(f"Illegal {mode=}")
-        return crit > 0 and crit < tol
 
 
 def plot_chunks(
@@ -188,6 +137,9 @@ if __name__ == "__main__":
         # train some epochs on this time step's data
         i_epoch = -1
         mean_epoch_loss_hist = []
+        conv = Convergence(
+            mode="fall", wlen=20, datol=5e-4, wait=5, reduction=np.median
+        )
         while True:
             i_epoch += 1
             loss_sum = 0.0
@@ -211,17 +163,10 @@ if __name__ == "__main__":
                 ic(i_step, i_epoch, mean_epoch_loss)
 
             # termination (reconstruction loss converged, etc)
-            is_conv = check_stop_iter(
-                mean_epoch_loss_hist,
-                mrtol=1e-3,
-                mode="fall",
-                wlen=20,
-            )
-            hit_max_iter = (i_epoch + 1) == max_epoch
-            if is_conv:
+            if conv.check(mean_epoch_loss_hist):
                 print("converged")
                 break
-            elif hit_max_iter:
+            elif (i_epoch + 1) == max_epoch:
                 break
                 print("mit max iter")
 
