@@ -164,11 +164,11 @@ if __name__ == "__main__":
 
             # termination (reconstruction loss converged, etc)
             if conv.check(mean_epoch_loss_hist):
-                print("converged")
+                print(f"converged, last {mean_epoch_loss=}")
                 break
             elif (i_epoch + 1) == max_epoch:
                 break
-                print("mit max iter")
+                print(f"hit max iter, last {mean_epoch_loss=}")
 
         ds.step()
         loss_hist.append(np.array(mean_epoch_loss_hist))
