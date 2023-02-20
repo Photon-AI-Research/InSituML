@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 
@@ -98,7 +100,7 @@ class MLP(ContinualLearner):
         for key in keys:
             state['model'].pop(key, None)
             
-        filePath = path + str(name) + "_" + str(after_task)
+        filePath = os.path.join(path, str(name) + "_" + str(after_task))
  
         try:
             torch.save(state, filePath)

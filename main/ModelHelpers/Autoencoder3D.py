@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 
@@ -8,6 +10,14 @@ from ModelHelpers.DeviceHelper import to_device
 class AutoEncoder3D(ContinualLearner):
 
     def __init__(self,input_channels, input_sizes, n_layers, n_conv_layers, filters, latent_size, act, onlineEWC=False, ewc_lambda=0, gamma=0):
+        if filters is not None and len(filters) == 1:
+            filters = [filters[0]] * n_layers
+        if filters is None or len(filters) != n_layers:
+            raise ValueError(
+                '`--modelFilters` must be given and have as many elements as '
+                '`--modelLayers` (or 1 element that will be used for each layer).'
+            )
+
         super().__init__(onlineEWC=onlineEWC, ewc_lambda=ewc_lambda, gamma=gamma)
         self.input_channels = input_channels
         self.input_sizes = input_sizes
@@ -183,7 +193,7 @@ class AutoEncoder3D(ContinualLearner):
         for key in keys:
             state['model'].pop(key, None)
             
-        filePath = path + str(name) + "_" + str(after_task)
+        filePath = os.path.join(path, str(name) + "_" + str(after_task))
 
         try:
             torch.save(state, filePath)

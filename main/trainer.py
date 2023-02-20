@@ -8,15 +8,48 @@ import numpy as np
 import time
 import pytorch_ssim
 
-from ModelHelpers.AutoEncoder2D import AutoEncoder2D
-from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
-from ModelHelpers.DeviceHelper import get_default_device, to_device
 from ModelsEnum import ModelsEnum
+from ModelHelpers.AutoEncoder2D import AutoEncoder2D
 from ModelHelpers.Autoencoder3D import AutoEncoder3D
+from ModelHelpers.cINN.model import model_cINN
+from ModelHelpers.cINN.model.modules import utils as cinn_utils
+from ModelHelpers.DeviceHelper import get_default_device, to_device
+# Does not exist.
+# from ModelHelpers.DimensionAutoEncoderModelWithPool import DimensionAutoEncoderModelWithPool
 from ModelHelpers.mlp import MLP
+from utils import dist_utils
+from utils.dist_utils import print0
+
 
 class Trainer():
-    def __init__(self, model_path, model_loss_func, input_channels, number_model_layers, number_conv_layers ,filters, latent_size, epochs, learning_rate, run_name, input_sizes, saveModelInterval ,model_type = ModelsEnum.Autoencoder2D,activation = "leaky_relu", optimizer = "adam",batch_size = 3, onlineEWC = False, ewc_lambda = 0.0, gamma = 0.0, mas_lambda = 0.0, agem_l_enc_lambda = 1):
+    def __init__(
+            self,
+            model_path,
+            model_loss_func,
+            input_channels,
+            number_model_layers,
+            number_conv_layers,
+            filters,
+            latent_size,
+            epochs,
+            learning_rate,
+            run_name,
+            input_sizes,
+            saveModelInterval,
+            model_type=ModelsEnum.Autoencoder2D,
+            activation="leaky_relu",
+            optimizer="adam",
+            batch_size=3,
+            onlineEWC=False,
+            ewc_lambda=0.0,
+            gamma=0.0,
+            mas_lambda=0.0,
+            agem_l_enc_lambda=1,
+            model_kwargs=None,
+    ):
+        if model_kwargs is None:
+            model_kwargs = {}
+
         self.device = get_default_device()
         self.l1_loss = nn.L1Loss()
         self.model_path = model_path
@@ -41,30 +74,76 @@ class Trainer():
         self.agem_l_enc_lambda = agem_l_enc_lambda
         self.gamma = gamma
         self.activation = self._get_activation(activation)
-        self.model = self._init_model()
+        self.model, self.opt_kwargs = self._init_model(model_kwargs)
         self.opt = optimizer
-        self.optimizer = self._init_optimizer(optimizer)
+        self.optimizer = self._init_optimizer(optimizer, self.opt_kwargs)
         self.elp_training_time = []
         self._send_model_to_device()
         
-    def _init_model(self):
+    def _init_model(self, model_kwargs):
         if self.model_type == ModelsEnum.Autoencoder2D:
             model_class = AutoEncoder2D
         elif self.model_type == ModelsEnum.Autoencoder3D:
             model_class = AutoEncoder3D
         elif self.model_type == ModelsEnum.MLP:
             model_class = MLP
+        elif self.model_type == ModelsEnum.cINN:
+            assert len(model_kwargs) > 0
+            run_settings = cinn_utils.load_run_settings(
+                model_kwargs['data_path'])
+
+            radiation_dim = model_kwargs['radiation_dim']
+            ps_dim = model_kwargs['ps_dim']
+
+            model = model_cINN.PC_NF(
+                dim_condition=radiation_dim,
+                dim_input=ps_dim,
+                num_coupling_layers=int(run_settings['num_coupling_layers']),
+                num_linear_layers=int(
+                    run_settings['num_linear_layers_in_subnetworks']),
+                hidden_size=int(
+                    run_settings['hidden_size_of_layers_in_subnetworks']),
+                device=self.device,
+                enable_wandb=bool(run_settings['enable_wandb']),
+            )
+
+            opt_kwargs = dict(
+                lr=float(run_settings['learning_rate']),
+                betas=(0.8, 0.9),
+                eps=1e-6,
+                weight_decay=2e-5
+            )
         else:
-            model_class = DimensionAutoEncoderModelWithPool
-        model = model_class(self.input_channels,self.input_sizes,self.number_model_layers, self.number_conv_layers,self.filters,self.latent_size,self.activation,self.onlineEWC, self.ewc_lambda, self.gamma)
-        model.apply(model._weights_init)
-        return model
+            raise ValueError('unknown model type')
+            # model_class = DimensionAutoEncoderModelWithPool
+
+        if 'model' not in locals():
+            model = model_class(
+                self.input_channels,
+                self.input_sizes,
+                self.number_model_layers,
+                self.number_conv_layers,
+                self.filters,
+                self.latent_size,
+                self.activation,
+                self.onlineEWC,
+                self.ewc_lambda,
+                self.gamma,
+            )
+            model.apply(model._weights_init)
+            opt_kwargs = {}
+        return model, opt_kwargs
     
     def _send_model_to_device(self):
         if self.model_type == ModelsEnum.Autoencoder3D:
             self.model.split_gpus()
         else:
             to_device(self.model, self.device)
+
+        if self.model_type is ModelsEnum.cINN:
+            self.model.model = dist_utils.maybe_ddp_wrap(self.model.model)
+        else:
+            self.model = dist_utils.maybe_ddp_wrap(self.model)
 
     def _custom_loss(self, predicted, actual):
         l1loss = F.l1_loss(predicted, actual)
@@ -73,7 +152,7 @@ class Trainer():
 
 
     def _get_loss_func(self, loss):
-        print(loss)
+        print0(loss)
         if loss == 'L1':
             return nn.L1Loss()
         if loss == 'custom':
@@ -88,17 +167,33 @@ class Trainer():
             return nn.LeakyReLU(0.1)
         return nn.ReLU()
     
-    def _init_optimizer(self, optimizer):
+    def _init_optimizer(self, optimizer, opt_kwargs):
+        if self.model_type is ModelsEnum.cINN:
+            params = self.model.trainable_parameters
+        else:
+            params = self.model.parameters()
+
+        # If `--lr` is 0, use the learning rate from `opt_kwargs`.
+        if 'lr' in opt_kwargs and self.learning_rate == 0:
+            opt_kwargs = opt_kwargs.copy()
+            learning_rate = opt_kwargs.pop('lr')
+        else:
+            assert self.learning_rate != 0
+            learning_rate = self.learning_rate
+
         if optimizer == "sgd":
-            return SGD(self.model.parameters(), lr = self.learning_rate)
-        
-        return Adam(self.model.parameters(), lr = self.learning_rate)
+            return SGD(params, lr=learning_rate, **opt_kwargs)
+        elif optimizer == "adam":
+            return Adam(params, lr=learning_rate, **opt_kwargs)
+        else:
+            raise ValueError('unknown optimizer')
     
     def _reset_optimizer(self):
-        self.optimizer = self._init_optimizer(self.opt)
+        self.optimizer = self._init_optimizer(self.opt, self.opt_kwargs)
 
     def _save_model(self, name, path, after_task):
-        self.model.save_checkpoint(path,name, after_task)
+        if dist_utils.is_rank_0():
+            self.model.save_checkpoint(path,name, after_task)
     
     def _modify_batch(self,batch, reverse = False):
         batch_size = batch.size(0)

@@ -8,14 +8,14 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.ticker as tick
 from matplotlib import cm
 
+from . import data_preprocessing
+
 plt.rcParams['axes.labelsize'] = 20
 plt.rcParams['xtick.labelsize']=20
 plt.rcParams['ytick.labelsize']=20
 plt.rcParams['lines.linewidth']=6
 params = {'mathtext.default': 'regular' }          
 plt.rcParams.update(params)
-
-import data_preprocessing
 
 def plot_3D(particle_tensor, color_component=-1, return_fig=True):
 
