@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 import model_MAF
 import data_preprocessing
+import visualizations
 
 path_to_model = '/bigdata/hplsim/aipp/Anna/res_models/RESmodelsMAF7_1_512/model_9000'
 
@@ -17,7 +18,7 @@ test_radiation = "/bigdata/hplsim/production/LWFA_radiation_new/LWFArad_data_exa
 path_to_minmax = '/bigdata/hplsim/aipp/Anna/minmax/'
 
 print('Prepare model...')
-model_f = model_cINN.PC_MAF(dim_condition=2,
+model_f = model_MAF.PC_MAF(dim_condition=2,
                            dim_input=6,
                            num_coupling_layers=7,
                            hidden_size=512,
@@ -34,17 +35,23 @@ model_f.eval()
 
 num_points_to_sample = 1000
 
-radiation_tensor = torch.Tensor([[1.0264e-13, 8.7699e-14]]).repeat(num_points_to_sample, 1)
+radiation_tensor = torch.Tensor([[8.5180e-14, 7.3356e-14]]).repeat(num_points_to_sample, 1)
 radiation_tensor = data_preprocessing.normalize_point(radiation_tensor, 
                                                       torch.torch.full(radiation_tensor.shape, vmin_rad[0,0]), 
                                                       torch.torch.full(radiation_tensor.shape, vmax_rad[0,0]), 
                                                       torch.torch.full(radiation_tensor.shape, 0.), 
                                                       torch.torch.full(radiation_tensor.shape, 1.))
-model_f.model.eval()
 
-with torch.no_grad():
-    z = torch.randn(num_points_to_sample, 6).to(model_f.device)
-    pred_pointcloud, _ = model_f.model(z, c=radiation_tensor.to(model_f.device), rev=True)
-    pred_pointcloud = data_preprocessing.denormalize_point(pred_pointcloud.to('cpu'), model_f.vmin_ps, model_f.vmax_ps, model_f.a, model_f.b)
-
+pred_pointcloud = model_f.sample_pointcloud(cond=radiation_tensor.to(model_f.device), num_points=100000)
 pred_pointcloud = pred_pointcloud.detach().cpu().numpy()
+
+test_pointclouds = ['/bigdata/hplsim/aipp/Anna/lwfa_tests/'+nextfile for nextfile in os.listdir('/bigdata/hplsim/aipp/Anna/lwfa_tests')]
+
+test_radiation = ["/bigdata/hplsim/production/LWFA_radiation_new/LWFArad_data_example/LWFArad_data_example/radiationOpenPMD/e_radiation_10700_0_0_0.h5" for i in range(len(test_pointclouds))]
+
+print(test_pointclouds[0])
+
+visualizations.print_min_max(test_pointclouds[0], test_radiation[0], model_f)
+
+#print('vmin/vmax ps')
+#print(model_f.vmin_ps, model_f.vmax_ps)
