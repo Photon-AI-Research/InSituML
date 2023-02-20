@@ -295,6 +295,47 @@ def log_min_max(test_pointcloud, test_radiation, model):
         overlaps.append(getOverlap([mins_gt[ind], maxs_gt[ind]], [mins[ind], mins[ind]]) > 0)
     wandb.log({'Supercell '+' '.join([str(k) for k in supercell])+', Overlap with prediction ': int(all(overlaps) == True)})
 
+def print_min_max(test_pointcloud, test_radiation, model):
+    num_particles = 1000000
+    path_to_minmax = '/bigdata/hplsim/aipp/Anna/minmax/'
+    num_supercells_to_merge = 10
+    supercell = [int(k) for k in test_pointcloud.split('/')[-1].split('.')[0].split('_')[1:]]
+    iteration = test_pointcloud.split('/')[-1].split('.')[0].split('_')[0]
+
+    radiation_tensor = data_preprocessing.get_radiation_spectra_2_projections(0, [test_radiation], num_particles)
+    vmin_rad, vmax_rad = np.load(path_to_minmax+'vmin_rad.npy'),np.load(path_to_minmax+'vmax_rad.npy')
+
+    radiation_tensor = data_preprocessing.normalize_point(radiation_tensor, 
+                                                      torch.full(radiation_tensor.shape, vmin_rad[0,0]), 
+                                                      torch.full(radiation_tensor.shape, vmax_rad[0,0]), 
+                                                      torch.full(radiation_tensor.shape, 0.), 
+                                                      torch.full(radiation_tensor.shape, 1.))
+
+    gt = np.load(test_pointcloud)
+
+    pred_pointcloud_full = model.sample_pointcloud(radiation_tensor.to('cuda'), num_particles)
+    pred_pointcloud_full = pred_pointcloud_full.detach().cpu().numpy()
+    
+    gt_filter = np.logical_and((np.logical_and(np.logical_and((gt[:,0] // 8 < supercell[0]+num_supercells_to_merge),
+                                                        (gt[:,1] // 8 < supercell[1]+num_supercells_to_merge)),
+                                        gt[:,2] // 4 < supercell[2]+num_supercells_to_merge)),
+                
+                
+                (np.logical_and(np.logical_and((gt[:,0] // 8 > supercell[0]-num_supercells_to_merge),
+                                                        (gt[:,1] // 8 > supercell[1]-num_supercells_to_merge)),
+                                        gt[:,2] // 4 > supercell[2]-num_supercells_to_merge)))
+
+    mins_gt = [np.min(gt[gt_filter][:,i]) for i in range(gt.shape[1])]
+    maxs_gt = [np.max(gt[gt_filter][:,i]) for i in range(gt.shape[1])]
+
+    mins = [np.min(pred_pointcloud_full[:,i]) for i in range(pred_pointcloud_full.shape[1])]
+    maxs = [np.max(pred_pointcloud_full[:,i]) for i in range(pred_pointcloud_full.shape[1])]
+    #print(supercell)
+    labels = ['x', 'xp', 'y', 'yp', 'z', 'zp']
+    for ind,elem in enumerate(mins):
+        print(labels[ind],'\t\tGT', '\t\tPred')
+        print('min:\t', mins_gt[ind], '\t',mins[ind])
+        print('max:\t', maxs_gt[ind], '\t',maxs[ind])
 
 def log_each_plot(test_pointcloud, test_radiation, model):
     supercell = [int(k) for k in test_pointcloud.split('/')[-1].split('.')[0].split('_')[1:]]
