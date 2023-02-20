@@ -225,6 +225,7 @@ def get_radiation_spectra_2_projections(ind,
     spectra = (radiation.RadiationData(items[ind])).get_Spectra()
     concatenated_projections = torch.from_numpy(np.concatenate((np.sum(spectra, axis=0), np.sum(spectra, axis=1)))).float()
     return concatenated_projections.repeat(chunk_size, 1)[:,:2]
+    #return concatenated_projections.repeat(chunk_size, 1)
 
 def normalize_point(point, vmin, vmax, a=0., b=1.):
     '''
