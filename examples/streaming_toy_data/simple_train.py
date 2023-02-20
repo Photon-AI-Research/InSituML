@@ -2,6 +2,7 @@
 
 import importlib
 from typing import Sequence, Optional
+from multiprocessing import cpu_count
 
 from icecream import ic
 
@@ -149,7 +150,7 @@ def plot_chunks(
 
 if __name__ == "__main__":
 
-    T.set_num_threads(8)
+    T.set_num_threads(cpu_count() // 2)
 
     nsteps = 2
     npoints = 512
