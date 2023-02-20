@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     nsteps = 2
     npoints = 512
-    batch_size_div = 8
+    batch_size_div = 2
     batch_size = max(npoints // batch_size_div, 1)
     print_every_epoch = 50
     max_epoch = int(1e4)
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         ds, batch_size=batch_size, shuffle=True, drop_last=True
     )
 
-    model = build_model(ndim_x=2, ndim_y=8, ncc=2, nh=512, nl=1)
+    model = build_model(ndim_x=2, ndim_y=8, ncc=1, nh=512, nl=1)
     trainable_parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = T.optim.AdamW(
         trainable_parameters,
