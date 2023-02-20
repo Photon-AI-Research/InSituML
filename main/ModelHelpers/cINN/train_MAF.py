@@ -52,6 +52,8 @@ if len(paths_to_PS) == 1:
     paths_to_PS.append(paths_to_PS[0])
     paths_to_radiation.append(paths_to_radiation[0])
 
+paths_to_PS = ['/bigdata/hplsim/production/LWFA_radiation_new/LWFArad_data_example/LWFArad_data_example/openPMD/simData_e_010700.bp']
+paths_to_radiation = ['/bigdata/hplsim/production/LWFA_radiation_new/LWFArad_data_example/LWFArad_data_example/radiationOpenPMD/e_radiation_10700_0_0_0.h5']
 print(paths_to_PS)
 print(paths_to_radiation)
 
@@ -100,6 +102,10 @@ optimizer = torch.optim.Adam(model_f.model.parameters(), lr=float(run_settings['
 test_pointclouds = ['/bigdata/hplsim/aipp/Anna/lwfa_tests/'+nextfile for nextfile in os.listdir('/bigdata/hplsim/aipp/Anna/lwfa_tests')]
 
 test_radiation = ["/bigdata/hplsim/production/LWFA_radiation_new/LWFArad_data_example/LWFArad_data_example/radiationOpenPMD/e_radiation_10700_0_0_0.h5" for i in range(len(test_pointclouds))]
+
+print('Train data: ', paths_to_PS[:1],paths_to_radiation[:1])
+print('Test clouds: ', test_pointclouds)
+print('Test radiation: ', test_radiation)
 
 #log_plots = visualizations.log_plots
 log_plots = visualizations.log_min_max_each
