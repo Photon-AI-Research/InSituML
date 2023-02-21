@@ -1,5 +1,5 @@
 # StreamedML
-Framework for training machine learning models from streamed data 
+Framework for training machine learning models from streamed data
 
 Extend your model for CL methods
 Inherit ContinualLearner class
@@ -41,3 +41,50 @@ else:
 ```
 
 Episodic Memory implementation - utils/EpisodicMemory.py
+
+## Time-dependent toy data generation and training
+
+* `src/insituml/toy_data/generate.py`
+* `examples/streaming_toy_data/{data_vis.py,simple_train.py}`
+
+## Install
+
+All source code is located in `src/insituml`. See also `pyproject.toml`.
+
+```sh
+$ git clone ...
+$ cd /path/to/InSituML
+
+# Dev install in $HOME
+$ pip install --user -e .
+
+# Same, don't install dependencies
+$ pip install --user --no-deps -e .
+```
+
+Low-tech alternative without an external tool:
+
+```sh
+$ export PYTHONPATH=/path/to/InSituML/src:$PYTHONPATH
+```
+
+Then
+
+```py
+from insituml.foo.bar import baz
+```
+
+## Tests
+
+Run tests, skip tests marked with "examples" that may generate interactive
+plots.
+
+```sh
+$ pytest
+```
+
+Also run examples.
+
+```sh
+$ pytest --examples
+```

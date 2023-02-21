@@ -1,0 +1,47 @@
+[project]
+
+name = "insituml"
+version = "0.0.0"
+
+# Until we have a CI, it makes no sense to restrict versions here.
+##requires-python = ">=3.8"
+
+dependencies = [
+    # Install torch manually, don't let package manager pull that. Example for
+    # local CPU-only install:
+    #   pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+    ##"torch",
+
+    # Data reading
+    "openpmd-api",
+    "h5py",
+    "numpy",
+
+    # cINN library
+    "FrEIA",
+
+    # Monitoring, set WANDB_MODE=disabled if needed.
+    # See https://github.com/Photon-AI-Research/InSituML/issues/4
+    "wandb",
+]
+
+
+[project.optional-dependencies]
+
+# pip install project_name[test]
+test = ["pytest"]
+examples = [
+    "icecream",
+    "matplotlib",
+    ]
+
+# Default.
+##[tool.setuptools.packages.find]
+##where = ["src"]
+
+[tool.black]
+line-length = 79
+
+[build-system]
+requires = ["setuptools>=66.1", "wheel"]
+build-backend = "setuptools.build_meta"
