@@ -23,7 +23,20 @@ from FrEIA.framework import (
 )
 from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
 
-from nmbx.convergence import Convergence
+try:
+    from nmbx.convergence import Convergence
+    conv_control = True
+except ImportError:
+    conv_control = False
+    print("no convergence control active, we use max_epoch")
+
+    class Convergence:
+        def __init__(self, *args, **kwds):
+            pass
+
+        def check(self, *args, **kwds):
+            return False
+
 
 from insituml.toy_data import generate
 
@@ -124,7 +137,7 @@ if __name__ == "__main__":
     batch_size_div = 2
     batch_size = max(npoints // batch_size_div, 1)
     print_every_epoch = 50
-    max_epoch = int(1e4)
+    max_epoch = int(1e4) if conv_control else 50
 
     ds = generate.TimeDependentTensorDataset(
         *generate.generate_toy8(label_kind="all", npoints=npoints, seed=123),
@@ -187,8 +200,8 @@ if __name__ == "__main__":
                 print(f"converged, last {mean_epoch_loss=}")
                 break
             elif (i_epoch + 1) == max_epoch:
+                print(f"hit max_epoch, last {mean_epoch_loss=}")
                 break
-                print(f"hit max iter, last {mean_epoch_loss=}")
 
         ds.step()
         loss_hist.append(np.array(mean_epoch_loss_hist))
