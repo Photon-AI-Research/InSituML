@@ -1,6 +1,6 @@
 from functools import wraps
 import itertools
-from typing import Callable, Generator, Iterator
+from typing import Callable, Generator, Iterator, Union
 
 import numpy as np
 
@@ -304,7 +304,7 @@ def tdds_arrays(*args, **kwds):
     return arrays_from_itr(tdds_gen(*args, **kwds))
 
 
-def label2color_toyN(Yt_2d: T.Tensor | np.ndarray):
+def label2color_toyN(Yt_2d: Union[T.Tensor, np.ndarray]):
     """
     Parameters
     ----------

@@ -3,9 +3,8 @@
 name = "insituml"
 version = "0.0.0"
 
-# For type hint syntax
-#   def foo(x: A | B)
-requires-python = ">=3.10"
+# Until we have a CI, it makes no sense to restrict versions here.
+##requires-python = ">=3.8"
 
 dependencies = [
     # Install torch manually, don't let package manager pull that. Example for
