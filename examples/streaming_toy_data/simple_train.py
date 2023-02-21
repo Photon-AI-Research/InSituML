@@ -31,15 +31,33 @@ from insituml.toy_data import generate
 importlib.reload(generate)
 
 # Adapted from Nico_toy8_examples/train_cINN_distributed_toy8.py
-def build_model(ndim_x=2, ndim_y=8, ncc=2, nh=512, nl=1):
-    def subnet_fc(c_in, c_out):
-        layers = [nn.Linear(c_in, nh), nn.LeakyReLU()]
+def build_model(
+    ndim_x=2, ndim_y=8, n_coupling=2, n_hidden=1, hidden_width=512
+):
+    """
+    Parameters
+    ----------
+    ndim_x
+        Input dims. 2 in case of toy8.
+    ndim_y
+        Output (= condition) dims. 8 in case of toy8 (8 modes, one-hot label
+        vectors of length 8).
+    n_coupling
+        Number of coupling blocks.
+    n_hidden
+        Number of hidden layers of width hidden_width in coupling block internal FCNs.
+    hidden_width
+        Hidden layer width of coupling block internal fully connected nets (FCNs).
+    """
 
-        for _ in range(nl):
-            layers.append(nn.Linear(nh, nh))
+    def subnet_fc(c_in, c_out):
+        layers = [nn.Linear(c_in, hidden_width), nn.LeakyReLU()]
+
+        for _ in range(n_hidden):
+            layers.append(nn.Linear(hidden_width, hidden_width))
             layers.append(nn.LeakyReLU())
 
-        layers.append(nn.Linear(nh, c_out))
+        layers.append(nn.Linear(hidden_width, c_out))
         mlp = nn.Sequential(*layers)
 
         for lin_layer in mlp:
@@ -54,13 +72,13 @@ def build_model(ndim_x=2, ndim_y=8, ncc=2, nh=512, nl=1):
     nodes = [InputNode(ndim_x, name="input")]
     cond = ConditionNode(ndim_y, name="condition")
 
-    for i_cc in range(ncc):
+    for i_cb in range(n_coupling):
         nodes.append(
             Node(
                 nodes[-1],
                 GLOWCouplingBlock,
                 dict(subnet_constructor=subnet_fc, clamp=2.0),
-                name=f"coupling_{i_cc}",
+                name=f"coupling_{i_cb}",
                 conditions=cond,
             )
         )
@@ -68,8 +86,8 @@ def build_model(ndim_x=2, ndim_y=8, ncc=2, nh=512, nl=1):
             Node(
                 nodes[-1],
                 PermuteRandom,
-                {"seed": i_cc},
-                name=f"permute_{i_cc}",
+                {"seed": i_cb},
+                name=f"permute_{i_cb}",
             )
         )
 
@@ -117,7 +135,9 @@ if __name__ == "__main__":
         ds, batch_size=batch_size, shuffle=True, drop_last=True
     )
 
-    model = build_model(ndim_x=2, ndim_y=8, ncc=1, nh=512, nl=1)
+    model = build_model(
+        ndim_x=2, ndim_y=8, n_coupling=1, hidden_width=512, n_hidden=1
+    )
     trainable_parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = T.optim.AdamW(
         trainable_parameters,
