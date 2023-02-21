@@ -42,6 +42,10 @@ else:
 
 Episodic Memory implementation - utils/EpisodicMemory.py
 
+## Time-dependent toy data generation and training
+
+* `src/insituml/toy_data/generate.py`
+* `examples/streaming_toy_data/{data_vis.py,simple_train.py}`
 
 ## Install
 
