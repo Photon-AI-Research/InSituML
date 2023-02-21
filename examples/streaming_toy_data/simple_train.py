@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import importlib
-from typing import Sequence, Optional
+from typing import Sequence
 from multiprocessing import cpu_count
 
 from icecream import ic
