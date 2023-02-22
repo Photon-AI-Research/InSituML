@@ -3,7 +3,7 @@ import sys
 
 class Configurer:
     def __init__(self):
-        print("Initiliazed Configurer")
+        print("Initialized Configurer")
     
     def parseArguments(self):
         parser = argparse.ArgumentParser(description='openPMD Pipe')
@@ -20,7 +20,12 @@ class Configurer:
         parser.add_argument("--saveModelInterval", type=int, help='Save Model Interval', default = 1)
         parser.add_argument("--lr", type=float, help='Learning Rate.',default=0.001)
         parser.add_argument("--activation", type=str, help='Activation functions.',choices=['relu', 'tanh','leaky_relu'], default = 'leaky_relu')
-        parser.add_argument("--datasetName", type=str, help='Dataset to train on.')
+        parser.add_argument("--datasetName", type=str,
+                            help='Dataset to train on.', required=True)
+        parser.add_argument("--datasetPath", type=str,
+                            help='Path for datasets (e.g. a directory of '
+                            'other datasets or a directory of `.npy` files '
+                            'for "e_field" data).')
         parser.add_argument("--optimizer", type=str, help='Model Optimizer',choices=['adam', 'sgd'], default = 'adam')
         parser.add_argument("--mode",type=str, help='Running mode of the application', choices = ['eval','train'], default ='train')
         parser.add_argument("--modelName",type=str, help='Name of Model to be Evaluated')

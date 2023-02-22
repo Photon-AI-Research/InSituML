@@ -1,11 +1,24 @@
+import os
 from threading import Thread
-from StreamDataReader.stream_reader import StreamReader
-import numpy as np
 import time
+
+import numpy as np
+
+from StreamDataReader.stream_reader import StreamReader
+
 
 class StreamBuffer(Thread):
     
-    def __init__(self, buffer_size = 3, use_local_data = True):
+    def __init__(
+            self,
+            stream_path,
+            stream_config_json=os.path.join(
+                os.path.dirname(__file__),
+                'stream_config.json',
+            ),
+            buffer_size=3,
+            use_local_data=False,
+    ):
 
         """
             Initializing Stream Buffer.
@@ -25,7 +38,7 @@ class StreamBuffer(Thread):
         if use_local_data:
             self.__c = 0
         else:
-            self._stream = StreamReader()
+            self._stream = StreamReader(stream_path, stream_config_json)
         self.elp_time = []
         self.fill_buffer()
         
@@ -57,8 +70,7 @@ class StreamBuffer(Thread):
         print("Filling buffer")
         start = time.time()
         self._buffer_data = None
-        iteration_ids = []
-        mesh_data = []
+        data_dicts = []
         for _ in range(self._buffer_size):
             if not self.use_local_data:
                 data_dict = self._stream.get_next_data()
@@ -69,21 +81,20 @@ class StreamBuffer(Thread):
                 break
             if self.use_local_data:
                 self.__c += 1
-            iteration_ids.append(data_dict['iteration_id'])
-            mesh_data.append(data_dict['meshes']['E'])
-            shape = data_dict['meshes']['E_shape'] 
+            data_dicts.append(data_dict)
         self.elp_time.append(time.time() - start)
-        self._buffer_data = (iteration_ids, mesh_data, shape)
-    
+        self._buffer_data = data_dicts
+
+
 def get_data_locally(iteration_id):
     try:
         data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_{}.npy".format(iteration_id * 100))
-        data_dict = {'iteration_id':iteration_id,
-                    'meshes':{
-                        'E':data,
-                        'E_shape':(3,128,1280,128)
-                    }
-                    }
+        data_dict = {
+            'iteration_index': iteration_id,
+            'meshes': {
+                'E': (data, (3, 128, 1280, 128)),
+            },
+        }
     except:
         data_dict = None
     return data_dict

@@ -1,23 +1,101 @@
-import wandb
-import torch
+import os
+
 import pandas as pd
-from ModelHelpers.DeviceHelper import DeviceDataLoader
+import torch
 from torch.utils.data.dataloader import DataLoader
-from utils.dataset_utils import DIMENSION_MAP
+import wandb
+
+from ModelsEnum import ModelsEnum, TaskEnum
+from ModelHelpers.cINN.model.modules import dataset as cinn_dataset
+from ModelHelpers.cINN.model.modules import utils as cinn_utils
+from ModelHelpers.DeviceHelper import DeviceDataLoader
 from trainer import Trainer
-from utils.dataset_utils import get_tasks_datasets, EfieldDataset
+from utils import dist_utils
+from utils.dataset_utils import DIMENSION_MAP, EfieldDataset, get_tasks_datasets
+from utils.dist_utils import print0
 from utils.plot_helper import plot_reconstructed_data, plot_reconstructed_data_taskwise, plot_heatmap_df
+
 
 class ModelTrainer(Trainer):
 
-    def __init__(self, model_path, model_loss_func, input_channels, number_model_layers, number_conv_layers, filters, latent_size, epochs, learning_rate, run_name, input_sizes, number_of_tasks, dataset_name, classes, saveModelInterval, model_type=..., e_field_dimension = None, is_e_field = False, activation="leaky_relu", optimizer="adam", batch_size=3, onlineEWC=False, ewc_lambda = 0.0, gamma=0.0, mas_lambda = 0.0, agem_l_enc_lambda = 1):
+    def __init__(
+            self,
+            model_path,
+            model_loss_func,
+            input_channels,
+            number_model_layers,
+            number_conv_layers,
+            filters,
+            latent_size,
+            epochs,
+            learning_rate,
+            run_name,
+            input_sizes,
+            number_of_tasks,
+            dataset_name,
+            classes,
+            saveModelInterval,
+            model_type=None,
+            e_field_dimension=None,
+            is_e_field=False,
+            data_path=None,
+            task_enum=TaskEnum.OTHER,
+            activation="leaky_relu",
+            optimizer="adam",
+            batch_size=3,
+            onlineEWC=False,
+            ewc_lambda=0.0,
+            gamma=0.0,
+            mas_lambda=0.0,
+            agem_l_enc_lambda=1,
+    ):
+        if model_type is ModelsEnum.cINN:
+            dataset_tr, _ = self._create_pc_datasets(data_path)
+            assert len(dataset_tr) > 0
+            ps, rad = dataset_tr[0]
+            ps_dim = ps.shape[-1]
+            radiation_dim = rad.shape[-1]
+            model_kwargs = dict(
+                data_path=data_path,
+                ps_dim=ps_dim,
+                radiation_dim=radiation_dim,
+            )
+        else:
+            model_kwargs = None
 
-        super().__init__(model_path, model_loss_func, input_channels, number_model_layers, number_conv_layers, filters, latent_size, epochs, learning_rate, run_name, input_sizes, saveModelInterval, model_type=model_type, activation=activation, optimizer=optimizer, batch_size=batch_size, onlineEWC=onlineEWC, ewc_lambda=ewc_lambda, gamma=gamma, mas_lambda=mas_lambda, agem_l_enc_lambda = agem_l_enc_lambda)
-        wandb.watch(self.model, log="all")
+        super().__init__(
+            model_path,
+            model_loss_func,
+            input_channels,
+            number_model_layers,
+            number_conv_layers,
+            filters,
+            latent_size,
+            epochs,
+            learning_rate,
+            run_name,
+            input_sizes,
+            saveModelInterval,
+            model_type=model_type,
+            activation=activation,
+            optimizer=optimizer,
+            batch_size=batch_size,
+            onlineEWC=onlineEWC,
+            ewc_lambda=ewc_lambda,
+            gamma=gamma,
+            mas_lambda=mas_lambda,
+            agem_l_enc_lambda=agem_l_enc_lambda,
+            model_kwargs=model_kwargs,
+        )
+        if dist_utils.is_rank_0():
+            wandb.watch(self.model, log="all")
         self.train_data_sets = None
         self.test_data_sets = None
-        self.is_e_field = is_e_field
+        if is_e_field:
+            task_enum = TaskEnum.E_FIELD
+        self.task_enum = task_enum
         self.e_field_dimension = e_field_dimension
+        self.data_path = data_path
         self.number_of_tasks = number_of_tasks
         self.dataset_name = dataset_name
         self.classes = classes
@@ -33,27 +111,128 @@ class ModelTrainer(Trainer):
         if self.number_of_tasks - 1 not in self.prev_task_ids:
             self.prev_task_ids.append(self.number_of_tasks - 1)
             self.last_task_included = True
-            
+
+    @property
+    def is_e_field(self):
+        return self.task_enum is TaskEnum.E_FIELD
+
+    def _create_pc_datasets(self, data_path):
+        run_settings = cinn_utils.load_run_settings(data_path)
+        path_to_particle_data = run_settings['path_to_particle_data']
+        path_to_radiation_data = run_settings['path_to_radiation_data']
+
+        paths_to_PS = [
+            path_to_particle_data + '/' + next_file
+            for next_file in os.listdir(path_to_particle_data)
+        ]
+        paths_to_PS.sort()
+        paths_to_radiation = [
+            path_to_radiation_data + '/' + next_file
+            for next_file in os.listdir(path_to_radiation_data)
+        ]
+        paths_to_radiation.sort()
+
+        if len(paths_to_PS) == 1:
+            paths_to_PS.append(paths_to_PS[0])
+            paths_to_radiation.append(paths_to_radiation[0])
+
+        dataset_tr = cinn_dataset.PCDataset(
+            items_phase_space=paths_to_PS[:-1],
+            items_radiation=paths_to_radiation[:-1],
+            num_points=20,
+            num_files=-1,
+            chunk_size=int(run_settings['chunk_size']),
+            species=run_settings['species'],
+            normalize=True,
+            a=0.0,
+            b=1.0,
+        )
+
+        dataset_val = cinn_dataset.PCDataset(
+            items_phase_space=paths_to_PS[-1:],
+            items_radiation=paths_to_radiation[-1:],
+            num_points=20,
+            num_files=-1,
+            chunk_size=int(run_settings['chunk_size']),
+            species=run_settings['species'],
+            normalize=True,
+            a=0.0,
+            b=1.0,
+        )
+        return dataset_tr, dataset_val
+
     def _init_train_datasets(self):
         if self.is_e_field:
             no_datasets, _ = divmod(self.classes, self.number_of_tasks)
+            if no_datasets <= 0:
+                raise ValueError(
+                    f'`classes` ({self.classes}) must be larger than or equal '
+                    f'to `--nTasks` ({self.number_of_tasks})'
+                )
             train_datasets = []
             test_datasets = []
             for i in range(self.number_of_tasks):
-                train_datasets.append(EfieldDataset(range((i * no_datasets) + 1, (i * no_datasets) + no_datasets + 1), self.e_field_dimension))
-                #test_datasets.append(EfieldDataset([(i * no_datasets) + 1],self.e_field_dimension))
+                train_datasets.append(EfieldDataset(
+                    self.data_path,
+                    range((i * no_datasets) + 1, (i * no_datasets) + no_datasets + 1),
+                    self.e_field_dimension,
+                ))
+                # test_datasets.append(EfieldDataset(
+                #     self.data_path,
+                #     [(i * no_datasets) + 1],
+                #     self.e_field_dimension,
+                # ))
             self.train_data_sets = train_datasets
             self.test_data_sets = train_datasets
+        elif self.task_enum is TaskEnum.PC_FIELD:
+            dataset_tr, dataset_val = self._create_pc_datasets(self.data_path)
+
+            self.train_data_sets = [dataset_tr]
+            self.test_data_sets = [dataset_val]
         else:
-            self.train_data_sets = get_tasks_datasets(self.dataset_name, self.classes, self.number_of_tasks)
-            self.test_data_sets = get_tasks_datasets(self.dataset_name, self.classes, self.number_of_tasks, train=False)
+            self.train_data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                self.number_of_tasks,
+            )
+            self.test_data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                self.number_of_tasks,
+                train=False,
+            )
 
     def _train_offline(self):
-        print("GOING OFFLINE......")
+        print0("GOING OFFLINE......")
+
+        if self.model_type is ModelsEnum.cINN:
+            self.model.train_(
+                self.train_data_sets[0],
+                self.test_data_sets[0],
+                self.optimizer,
+                epochs=self.epochs,
+                batch_size=self.batch_size,
+                test_epoch=25,
+                test_pointcloud='...',
+                log_plots=None,
+                path_to_models=self.model_path,
+            )
+            return
+
         for epoch in range(1, self.epochs + 1):
             losses = []
-            for data_set in self.train_data_sets:
-                data_loader = DataLoader(data_set, self.batch_size, num_workers = 2, pin_memory=True, shuffle=True)
+            for (i, data_set) in enumerate(self.train_data_sets):
+                data_sampler = dist_utils.create_distributed_sampler(
+                    data_set, epoch, seed=i, shuffle=True)
+                data_loader = DataLoader(
+                    data_set,
+                    self.batch_size,
+                    num_workers=2,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 device_data_loader = DeviceDataLoader(data_loader,self.device)
                 for batch, labels in device_data_loader:
                     if self.is_mlp:
@@ -61,13 +240,15 @@ class ModelTrainer(Trainer):
                     encoded , decoded, _ = self.model(batch)
                     self.optimizer.zero_grad()
                     loss = self.loss_func(batch, decoded)
+                    loss_avg = dist_utils.all_reduce_avg(loss.detach())
                     loss.backward()
                     self.optimizer.step()
-                    losses.append(loss.item())
-            wandb.log({
-                        "loss_model": sum(losses) / len(losses),
-                        "epoch": epoch
-            })
+                    losses.append(loss_avg.item())
+            if dist_utils.is_rank_0():
+                wandb.log({
+                    "loss_model": sum(losses) / len(losses),
+                    "epoch": epoch
+                })
             self.validate(epoch)
         self._save_model(self.run_name,self.model_path,"")
         
@@ -79,7 +260,15 @@ class ModelTrainer(Trainer):
             list_of_encoded = []
             for e in range(self.epochs):
                 losses = []
-                data_loader = DataLoader(data_set, self.batch_size, num_workers = 2, pin_memory=True, shuffle=True)
+                data_sampler = dist_utils.create_distributed_sampler(
+                    data_set, e, seed=task_id, shuffle=True)
+                data_loader = DataLoader(
+                    data_set,
+                    self.batch_size,
+                    num_workers=2,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 device_data_loader = DeviceDataLoader(data_loader,self.device)
                 for batch, labels in device_data_loader:
                     if self.is_mlp:
@@ -91,24 +280,29 @@ class ModelTrainer(Trainer):
                     #ewc-loss-if-needed
                     if self.ewc_lambda > 0.0:
                         ewc_loss = self.ewc_lambda * self.model.ewc_loss()
+                        ewc_loss_avg = dist_utils.all_reduce_avg(
+                            ewc_loss.detach())
                         loss += ewc_loss
-                        if e == self.epochs - 1:
+                        if dist_utils.is_rank_0() and e == self.epochs - 1:
                             wandb.log({
-                                "ewc_loss" : ewc_loss,
+                                "ewc_loss" : ewc_loss_avg,
                                 "task" : task_id
                             })
+                    loss_avg = dist_utils.all_reduce_avg(loss.detach())
 
                     loss.backward()
                     self.optimizer.step()
-                    losses.append(loss.item())
+                    losses.append(loss_avg.item())
                 loss_avg = sum(losses) / len(losses)
                 task_loss.append(loss_avg)
+                if dist_utils.is_rank_0():
+                    wandb.log({
+                        "loss_model": loss_avg,
+                    })
+            if dist_utils.is_rank_0():
                 wandb.log({
-                     "loss_model": loss_avg,
-                })
-            wandb.log({
-                     "task_loss": sum(task_loss) / len(task_loss),
-                     "task": task_id + 1
+                    "task_loss": sum(task_loss) / len(task_loss),
+                    "task": task_id + 1
                 })
             #self._reset_optimizer()
             # if task_id == 0:
@@ -153,19 +347,30 @@ class ModelTrainer(Trainer):
             "inf_norm_loss":[],
             "mse_loss":[]
         }
-        val_data_loader = DataLoader(dataset, self.batch_size, num_workers = 1, pin_memory=True, shuffle=False)
+        data_sampler = dist_utils.create_distributed_sampler(
+            dataset, 0, shuffle=False)
+        val_data_loader = DataLoader(
+            dataset,
+            self.batch_size,
+            num_workers=1,
+            pin_memory=True,
+            sampler=data_sampler,
+        )
         val_device_data_loader = DeviceDataLoader(val_data_loader,self.device)
         for batch, labels in val_device_data_loader:
             if self.is_mlp:
                 batch = self._modify_batch(batch)
             encoded , decoded, _ = self.model(batch)
             val_loss = self.loss_func(batch, decoded)
+            val_loss = dist_utils.all_reduce_avg(val_loss.detach())
             val_losses["mse_loss"].append(val_loss.item())
 
             val_loss = self.l1_loss(batch, decoded)
+            val_loss = dist_utils.all_reduce_avg(val_loss.detach())
             val_losses["l1_loss"].append(val_loss.item())
 
             val_loss = self._infinity_norm_loss(batch, decoded)
+            val_loss = dist_utils.all_reduce_avg(val_loss.detach())
             val_losses["inf_norm_loss"].append(val_loss.item())
         val_losses = {n: sum(p)/len(p) for n, p in val_losses.items()}
         return val_losses
@@ -188,7 +393,9 @@ class ModelTrainer(Trainer):
         self.encoded_data.append(encoded)
         for i in range(task_id):
             enc_loss = self.loss_func(self.encoded_data[i],encoded)
-            self.prev_encoded_losses["M 1:{}".format(task_id+1)].append(enc_loss.item())
+            enc_loss_avg = dist_utils.all_reduce_avg(enc_loss.detach())
+            self.prev_encoded_losses["M 1:{}".format(task_id+1)].append(
+                enc_loss_avg.item())
         self.prev_encoded_losses["M 1:{}".format(task_id+1)].append(0.0)
 
     def validate(self, epoch):
@@ -196,32 +403,61 @@ class ModelTrainer(Trainer):
         with torch.no_grad():
             for data_set in self.test_data_sets:
                 avg_val_loss = self._get_validation_loss_avg(data_set)
-                wandb.log({
-                            "validation_loss_model": avg_val_loss["mse_loss"],
-                            "epoch": epoch
-                })
+                if dist_utils.is_rank_0():
+                    wandb.log({
+                        "validation_loss_model": avg_val_loss["mse_loss"],
+                        "epoch": epoch
+                    })
         self.model.train()
     
     def validate_class_wise(self):
+        if self.model_type is ModelsEnum.cINN:
+            self.model.validation(
+                self.test_data_sets[0],
+                self.train_data_sets[0].vmin_ps,
+                self.train_data_sets[0].vmax_ps,
+                self.train_data_sets[0].vmin_rad,
+                self.train_data_sets[0].vmax_rad,
+                self.batch_size,
+                self.train_data_sets[0].normalize,
+                self.train_data_sets[0].a,
+                self.train_data_sets[0].b,
+            )
+            return
+
         if self.is_e_field:
             data_sets = []
             for i in range(self.classes):
-                data_sets.append(EfieldDataset([i+1], self.e_field_dimension))
+                data_sets.append(EfieldDataset(
+                    self.data_path, [i+1], self.e_field_dimension))
         else:
-            data_sets = get_tasks_datasets(self.dataset_name, self.classes, num_tasks=self.classes, train=False)
+            data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                num_tasks=self.classes,
+                train=False,
+            )
         self.model.eval()
         with torch.no_grad():
             for task_id, data_set in enumerate(data_sets):
                 avg_val_loss = self._get_validation_loss_avg(data_set)
-                wandb.log({
-                            "validation_MSE_loss_per_class": avg_val_loss["mse_loss"],
-                            "validation_L1_loss_per_class": avg_val_loss["l1_loss"],
-                            "validation_InfinityNorm_loss_per_class": avg_val_loss["inf_norm_loss"],
-                            "class": task_id + 1
-                })
+                if dist_utils.is_rank_0():
+                    wandb.log({
+                        "validation_MSE_loss_per_class": (
+                            avg_val_loss["mse_loss"]),
+                        "validation_L1_loss_per_class": (
+                            avg_val_loss["l1_loss"]),
+                        "validation_InfinityNorm_loss_per_class": (
+                            avg_val_loss["inf_norm_loss"]),
+                        "class": task_id + 1
+                    })
         self.model.train()
 
     def log_prev_tasks_data(self):
+        if not dist_utils.is_rank_0():
+            return
+
         plot_df = pd.DataFrame.from_dict(self.prev_tasks_losses, orient='index')
         plot_df.columns = ["Task {}".format(i + 1) for i in range(self.number_of_tasks)]
 
@@ -270,7 +506,15 @@ class ModelTrainer(Trainer):
             for id in range(idx + 1):
                 prev_idx = self.prev_task_ids[id]
                 val_data_set = self.test_data_sets[prev_idx]
-                val_data_loader = DataLoader(val_data_set, 1, num_workers = 1, pin_memory=True, shuffle=False)
+                data_sampler = dist_utils.create_distributed_sampler(
+                    val_data_set, 0, shuffle=False)
+                val_data_loader = DataLoader(
+                    val_data_set,
+                    1,
+                    num_workers=1,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 val_device_data_loader = DeviceDataLoader(val_data_loader,self.device)
                 for batch, label in val_device_data_loader:
                     if last_one:
@@ -293,15 +537,29 @@ class ModelTrainer(Trainer):
         if self.is_e_field:
             data_sets = self.test_data_sets
         else:
-            data_sets = get_tasks_datasets(self.dataset_name, self.classes, num_tasks=self.classes, train=False)
+            data_sets = get_tasks_datasets(
+                self.dataset_name,
+                self.data_path,
+                self.classes,
+                num_tasks=self.classes,
+                train=False,
+            )
 
         self.model.eval()
         original = []
         reconstructed = []
         count = 0
         with torch.no_grad():
-            for data_set in data_sets:
-                val_data_loader = DataLoader(data_set, 1, num_workers = 1, pin_memory=True, shuffle=True)
+            for (i, data_set) in enumerate(data_sets):
+                data_sampler = dist_utils.create_distributed_sampler(
+                    data_set, 0, seed=i, shuffle=True)
+                val_data_loader = DataLoader(
+                    data_set,
+                    1,
+                    num_workers=1,
+                    pin_memory=True,
+                    sampler=data_sampler,
+                )
                 val_device_data_loader = DeviceDataLoader(val_data_loader,self.device)
                 for i in range(5):
                     batch, label = val_device_data_loader[i]
@@ -315,7 +573,8 @@ class ModelTrainer(Trainer):
         
         original, reconstructed = self.prepare_data_to_plot(original), self.prepare_data_to_plot(reconstructed)
         plot_figure = plot_reconstructed_data(original, reconstructed, "Precitions", cmap = 'jet' if self.is_e_field else 'gray')
-        wandb.log({"Reconstructed Images":plot_figure})
+        if dist_utils.is_rank_0():
+            wandb.log({"Reconstructed Images":plot_figure})
         
         self.model.train()
 
@@ -334,6 +593,8 @@ class ModelTrainer(Trainer):
         return og
     
     def plot_reconstructed_data_grid_task_wise(self):
+        if not dist_utils.is_rank_0():
+            return
         fig_plot = plot_reconstructed_data_taskwise(self.prev_tasks_images["og_imgs"], self.prev_tasks_images, self.prev_task_ids, "Reconstruction Grid", cmap = 'jet' if self.is_e_field else 'gray')
         wandb.log({"Reconstructed Imgs Grid": fig_plot})
 

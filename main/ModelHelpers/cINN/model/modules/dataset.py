@@ -2,7 +2,8 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 
-import data_preprocessing
+from . import data_preprocessing
+
 
 class PCDataset(Dataset):
     def __init__(self, 
@@ -30,6 +31,7 @@ class PCDataset(Dataset):
 
         self.get_data_phase_space_by_chunks = data_preprocessing.get_phase_space_by_chunks
         self.get_data_radiation = data_preprocessing.get_radiation_spectra_2_projections
+        #self.get_data_radiation = data_preprocessing.get_unit_condition
         self.normalize = normalize
         self.num_points = num_points
         self.a, self.b = a, b 
@@ -71,7 +73,7 @@ class PCDataset(Dataset):
                 
         print('\nNumber of simulations: ', self.num_files)
         print('\nNumber of chunks: ', len(self.items_file_chunk))
-        
+        '''
         print('\nGet min/max from phase space data...')
         for j in range(len(self.items_file_chunk)):
             #print('Chunk ',j)
@@ -102,11 +104,31 @@ class PCDataset(Dataset):
         
         print('\nGet min/max from radiation data...')
         self.vmin_rad, self.vmax_rad = data_preprocessing.get_vmin_vmax_radiation(items_radiation, self.chunk_size, self.get_data_radiation)
+        print(self.vmin_rad.shape)
+        #self.vmin_rad = self.vmin_rad[:,:2]
+        #self.vmax_rad = self.vmax_rad[:,:2]
+        '''
+
+        path_to_minmax = '/bigdata/hplsim/aipp/Anna/minmax/'
+        self.vmin_ps, self.vmax_ps, self.a, self.b = torch.from_numpy(np.load(path_to_minmax+'vmin_ps.npy')), torch.from_numpy(np.load(path_to_minmax+'vmax_ps.npy')), torch.Tensor([0.]), torch.Tensor([1.])
+        self.vmin_ps = self.vmin_ps
+        self.vmax_ps = self.vmax_ps
+        vmin_rad, vmax_rad = np.load(path_to_minmax+'vmin_rad.npy'),np.load(path_to_minmax+'vmax_rad.npy')
+        #print(vmin_rad.shape)
+        self.vmin_rad, self.vmax_rad = vmin_rad[0,0], vmax_rad[0,0]
+        
+        
+        print('PS Minima: ')
+        print('\t', self.vmin_ps)
+        
+        print('PS Maxima: ')
+        print('\t', self.vmax_ps)
+        
         print('Radiation Minima: ')
-        print('\t', self.vmin_rad[0,0])
+        print('\t', self.vmin_rad)
         
         print('Radiation Maxima: ')
-        print('\t', self.vmax_rad[0,0])
+        print('\t', self.vmax_rad)
 
     def __getitem__(self, index):
         ind_rad = self.items_phase_space.index(self.items_file_chunk[index][0])

@@ -1,9 +1,20 @@
+import os
+
 import numpy as np
 import torch
 from torch.utils.data.dataset import Dataset
 from torchvision import datasets, transforms
-from utils.cifar100_coarse import CIFAR100Coarse
+
 from StreamDataReader.StreamBuffer import StreamBuffer
+from utils.cifar100_coarse import CIFAR100Coarse
+
+
+class UnknownDatasetError(ValueError):
+    def __init__(self, msg=None):
+        if msg is None:
+            msg = 'unknown dataset name'
+        super().__init__(msg)
+
 
 class SubDataset(Dataset):
     '''To sub-sample a dataset, taking only those samples with label in [sub_labels].
@@ -37,7 +48,8 @@ class SubDataset(Dataset):
         return sample
 
 class EfieldDataset(Dataset):
-    def __init__(self, num_tasks, dim = None):
+    def __init__(self, data_dir, num_tasks, dim=None):
+        self.data_dir = data_dir
         self.iterations = num_tasks
         self.train_dim = dim
     
@@ -46,7 +58,8 @@ class EfieldDataset(Dataset):
     
     def __getitem__(self, idx):
         iteration_id = self.iterations[idx]
-        data = np.load("/home/h5/vama551b/home/streamed-ml/StreamedML/Data/data_{}.npy".format(iteration_id * 100))
+        data = np.load(os.path.join(
+            self.data_dir, "data_{}.npy".format(iteration_id * 100)))
         if self.train_dim is not None:
             idx = DIMENSION_MAP[self.train_dim]
             data = data[idx]
@@ -98,7 +111,14 @@ AVAILABLE_TRANSFORMS = {
     ]
 }    
 
-def _get_dataset(name, train=True, download=True, permutation=None):
+
+def _get_dataset(
+        name,
+        datasets_dir,
+        train=True,
+        download=True,
+        permutation=None,
+):
     if 'mnist' in name:
         dataset_class = datasets.MNIST
         dataset_name = 'mnist'
@@ -135,19 +155,32 @@ def _get_dataset(name, train=True, download=True, permutation=None):
                 *AVAILABLE_TRANSFORMS[dataset_name],])
 
     else:
-        pass
+        raise UnknownDatasetError()
 
     return dataset_class(
-        './datasets/{name}'.format(name=dataset_name), train=train,
-        download=download, transform=dataset_transform)
+        os.path.join(datasets_dir, '{name}'.format(name=dataset_name)),
+        train=train, download=download, transform=dataset_transform)
 
-def get_tasks_datasets(name, classes, num_tasks, train = True, permutations = None):
+
+def get_tasks_datasets(
+        name,
+        datasets_dir,
+        classes,
+        num_tasks,
+        train=True,
+        permutations=None):
     out_datasets = []
     if permutations:
         for perm in permutations:
-            out_datasets.append(_get_dataset(name,train = train,download=True,permutation=perm, ))
+            out_datasets.append(_get_dataset(
+                name,
+                datasets_dir,
+                train=train,
+                download=True,
+                permutation=perm,
+            ))
         return out_datasets
-    og_dataset = _get_dataset(name, train, download=True)
+    og_dataset = _get_dataset(name, datasets_dir, train, download=True)
     classes_per_task = int(np.floor(classes / num_tasks))
     labels_per_task = [
                 list(np.array(range(classes_per_task)) + classes_per_task * task_id) for task_id in range(num_tasks)
