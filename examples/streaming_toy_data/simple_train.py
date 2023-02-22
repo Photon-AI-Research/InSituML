@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import importlib
 from typing import Sequence
 from multiprocessing import cpu_count
 
@@ -24,24 +23,15 @@ from FrEIA.framework import (
 from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
 
 try:
-    from nmbx.convergence import Convergence
-    conv_control = True
+    from nmbx.convergence import SlopeZero
+
+    conv_control_possible = True
 except ImportError:
-    conv_control = False
-    print("no convergence control active, we use max_epoch")
-
-    class Convergence:
-        def __init__(self, *args, **kwds):
-            pass
-
-        def check(self, *args, **kwds):
-            return False
-
+    conv_control_possible = False
+    print("no convergence control possible, we use max_epoch")
 
 from insituml.toy_data import generate
 
-# When used as %run -i this.py in ipython
-importlib.reload(generate)
 
 # Adapted from Nico_toy8_examples/train_cINN_distributed_toy8.py
 def build_model(
@@ -132,12 +122,18 @@ if __name__ == "__main__":
 
     T.set_num_threads(cpu_count() // 2)
 
-    nsteps = 2
+    # Manually switch on/off conv_control
+    conv_control = True
+
+    if conv_control:
+        assert conv_control_possible
+
+    nsteps = 3
     npoints = 512
-    batch_size_div = 2
+    batch_size_div = 4
     batch_size = max(npoints // batch_size_div, 1)
     print_every_epoch = 50
-    max_epoch = int(1e4) if conv_control else 50
+    max_epoch = int(1e4) if conv_control else int(1e3)
 
     ds = generate.TimeDependentTensorDataset(
         *generate.generate_toy8(label_kind="all", npoints=npoints, seed=123),
@@ -149,7 +145,7 @@ if __name__ == "__main__":
     )
 
     model = build_model(
-        ndim_x=2, ndim_y=8, n_coupling=1, hidden_width=512, n_hidden=1
+        ndim_x=2, ndim_y=8, n_coupling=2, hidden_width=512, n_hidden=1
     )
     trainable_parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = T.optim.AdamW(
@@ -170,9 +166,8 @@ if __name__ == "__main__":
         # train some epochs on this time step's data
         i_epoch = -1
         mean_epoch_loss_hist = []
-        conv = Convergence(
-            mode="fall", wlen=20, datol=5e-4, wait=5, reduction=np.median
-        )
+        if conv_control:
+            conv = SlopeZero(wlen=50, tol=1e-4, wait=5, reduction=np.mean)
         while True:
             i_epoch += 1
             loss_sum = 0.0
@@ -196,7 +191,7 @@ if __name__ == "__main__":
                 ic(i_step, i_epoch, mean_epoch_loss)
 
             # termination (reconstruction loss converged, etc)
-            if conv.check(mean_epoch_loss_hist):
+            if conv_control and conv.check(mean_epoch_loss_hist):
                 print(f"converged, last {mean_epoch_loss=}")
                 break
             elif (i_epoch + 1) == max_epoch:
