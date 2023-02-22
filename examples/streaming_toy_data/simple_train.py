@@ -30,7 +30,7 @@ except ImportError:
     conv_control_possible = False
     print("no convergence control possible, we use max_epoch")
 
-from insituml.toy_data import generate
+from insituml.toy_data import generate, memory
 
 
 # Adapted from Nico_toy8_examples/train_cINN_distributed_toy8.py
@@ -161,6 +161,9 @@ if __name__ == "__main__":
     loss_hist = []
     model.train()
 
+    er_mem = memory.ExperienceReplay(mem_size=npoints)
+    n_obs = 0
+
     # PIC time step
     for i_step in range(nsteps):
         # train some epochs on this time step's data
@@ -172,17 +175,29 @@ if __name__ == "__main__":
             i_epoch += 1
             loss_sum = 0.0
             for i_batch, (X_batch, Y_batch) in enumerate(train_dl):
-                ##ic(i_step, i_epoch, i_batch, ds.time, X_batch, Y_batch)
-                ##ic(i_step, i_epoch, i_batch, ds.time)
+
+                if len(er_mem.mem) == er_mem.mem_size:
+                    X_batch_mem, Y_batch_mem = er_mem.sample_batch(batch_size)
+                    Xb = T.vstack((X_batch, X_batch_mem))
+                    Yb = T.vstack((Y_batch, Y_batch_mem))
+                else:
+                    Xb, Yb = X_batch, Y_batch
 
                 optimizer.zero_grad()
-                z, log_j = model(X_batch, c=Y_batch)
-                ##rev_X, _ = model(z, c=Y_batch, rev=True)
+                z, log_j = model(Xb, c=Yb)
                 loss = (T.mean(z**2.0) - T.mean(log_j)) / 2.0
                 nn.utils.clip_grad_norm_(trainable_parameters, 10.0)
                 loss_sum += loss.data.item()
                 loss.backward()
                 optimizer.step()
+
+                ### update mem in every batch as in the ExperienceReplay paper
+                ##er_mem.update_memory(X_batch, Y_batch, n_obs)
+                ##n_obs += batch_size
+
+            # update mem in every epoch with last batch only
+            er_mem.update_memory(X_batch, Y_batch, n_obs)
+            n_obs += batch_size
 
             mean_epoch_loss = loss_sum / batch_size
             mean_epoch_loss_hist.append(mean_epoch_loss)
