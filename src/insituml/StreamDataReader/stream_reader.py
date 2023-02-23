@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import numpy as np
 import openpmd_api as io
@@ -12,7 +12,7 @@ class StreamData:
 
     def __init__(
             self,
-            data: Union[np.ndarray, List[np.ndarray]],
+            data: np.ndarray,
             np_shape: Tuple,
             pic_shape: Optional[int],
     ):
@@ -87,30 +87,36 @@ class StreamReader():
                     pic_shape = None
                 data = data[0]
                 np_shape = ()
+
+                result = StreamData(data, np_shape, pic_shape)
             else:
-                loadedChunks = []
-                np_shapes = []
+                result = {}
                 for dim in current_record:
                     rc = current_record[dim]
-                    loadedChunks.append(rc.load_chunk([0], rc.shape))
-                    np_shapes.append(rc.shape)
+                    data = rc.load_chunk([0], rc.shape)
+                    np_shape = rc.shape
 
-                # PIConGPU shape stays the same over all dimensions.
-                if np_shapes and 'shape' in rc.attributes:
-                    pic_shape = rc.get_attribute('shape')
-                else:
-                    pic_shape = None
+                    if isinstance(np_shape, int):
+                        np_shape = (1, np_shape)
+                    else:
+                        np_shape = (1,) + np_shape
 
-                data = loadedChunks
-                if isinstance(np_shapes[0], int):
-                    np_shape = (len(np_shapes), np_shapes[0])
-                else:
-                    np_shapes[0].insert(0, len(np_shapes))
-                    np_shape = tuple(np_shapes[0])
+                    # PIConGPU shape stays the same over all dimensions,
+                    # but we duplicate it anyway.
+                    if 'shape' in rc.attributes:
+                        pic_shape = rc.get_attribute('shape')
+                    else:
+                        pic_shape = None
+
+                    dim_result = StreamData(data, np_shape, pic_shape)
+                    result[dim] = dim_result
+                if not result:
+                    print('Got no per-entry data for', record_key)
+                    return None
         else:
             print("Didn't find", record_key)
             return None
-        return StreamData(data, np_shape, pic_shape)
+        return result
 
     def _get_data(self,current_iteration):
         data_dict = dict(iteration_index=current_iteration.iteration_index)
