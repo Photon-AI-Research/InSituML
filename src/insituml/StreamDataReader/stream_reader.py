@@ -8,17 +8,19 @@ import openpmd_api as io
 
 
 class StreamData:
-    __slots__ = ['data', 'np_shape', 'pic_shape']
+    __slots__ = ['data', 'np_shape', 'pic_shape', 'unit_si']
 
     def __init__(
             self,
             data: np.ndarray,
             np_shape: Tuple,
             pic_shape: Optional[int],
+            unit_si: Optional[float],
     ):
         self.data = data
         self.np_shape = np_shape
         self.pic_shape = pic_shape
+        self.unit_si = unit_si
 
     def __len__(self):
         return len(self.__slots__)
@@ -87,8 +89,12 @@ class StreamReader():
                     pic_shape = None
                 data = data[0]
                 np_shape = ()
+                if 'unitSI' in data.attributes:
+                    unit_si = data.get_attribute('unitSI')
+                else:
+                    unit_si = None
 
-                result = StreamData(data, np_shape, pic_shape)
+                result = StreamData(data, np_shape, pic_shape, unit_si)
             else:
                 result = {}
                 for dim in current_record:
@@ -108,7 +114,12 @@ class StreamReader():
                     else:
                         pic_shape = None
 
-                    dim_result = StreamData(data, np_shape, pic_shape)
+                    if 'unitSI' in rc.attributes:
+                        unit_si = rc.get_attribute('unitSI')
+                    else:
+                        unit_si = None
+
+                    dim_result = StreamData(data, np_shape, pic_shape, unit_si)
                     result[dim] = dim_result
                 if not result:
                     print('Got no per-entry data for', record_key)
