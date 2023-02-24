@@ -20,8 +20,8 @@ from torch import optim
 import wandb
 import matplotlib.pyplot as plt
 
-import data_preprocessing
-import loader
+from model.modules import data_preprocessing
+from model.modules import loader
 
 class PC_MAF(nn.Module):
     def __init__(self, 
