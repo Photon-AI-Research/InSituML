@@ -298,7 +298,6 @@ class PC_NF(nn.Module):
         sample a point cloud of "num_points" particles for given "cond" condition
         '''
         self.model.eval()
-        print(self.a, self.b, self.vmin_ps, self.vmax_ps)
         with torch.no_grad():
             z = torch.randn(num_points, self.dim_input).to(self.device)
             pc_pr, _ = self.model(z, c=cond, rev=True)
