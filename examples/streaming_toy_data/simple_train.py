@@ -122,8 +122,11 @@ if __name__ == "__main__":
 
     T.set_num_threads(cpu_count() // 2)
 
-    # Manually switch on/off conv_control
+    # Manually switch on/off convergence control
     conv_control = True
+
+    # Use memory mechanism to counteract "forgetting"
+    use_mem = True
 
     if conv_control:
         assert conv_control_possible
@@ -161,8 +164,9 @@ if __name__ == "__main__":
     loss_hist = []
     model.train()
 
-    er_mem = memory.ExperienceReplay(mem_size=npoints)
-    n_obs = 0
+    if use_mem:
+        er_mem = memory.ExperienceReplay(mem_size=npoints)
+        n_obs = 0
 
     # PIC time step
     for i_step in range(nsteps):
@@ -170,13 +174,15 @@ if __name__ == "__main__":
         i_epoch = -1
         mean_epoch_loss_hist = []
         if conv_control:
-            conv = SlopeZero(wlen=50, tol=1e-4, wait=5, reduction=np.mean)
+            conv = SlopeZero(wlen=25, tol=1e-4, wait=10, reduction=np.mean)
         while True:
             i_epoch += 1
             loss_sum = 0.0
             for i_batch, (X_batch, Y_batch) in enumerate(train_dl):
 
-                if len(er_mem.mem) == er_mem.mem_size:
+                # Don't use memory in first step since there is nothing to
+                # remember.
+                if use_mem and i_step > 0:
                     X_batch_mem, Y_batch_mem = er_mem.sample(batch_size)
                     Xb = T.vstack((X_batch, X_batch_mem))
                     Yb = T.vstack((Y_batch, Y_batch_mem))
@@ -191,13 +197,15 @@ if __name__ == "__main__":
                 loss.backward()
                 optimizer.step()
 
-                ### update mem in every batch as in the ExperienceReplay paper
-                ##er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
-                ##n_obs += batch_size
+                # update mem in every batch as in the ExperienceReplay paper
+                if use_mem:
+                    er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
+                    n_obs += batch_size
 
-            # update mem in every epoch with last batch only
-            er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
-            n_obs += batch_size
+            ### update mem in every epoch with last batch only
+            ##if use_mem:
+            ##    er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
+            ##    n_obs += batch_size
 
             mean_epoch_loss = loss_sum / batch_size
             mean_epoch_loss_hist.append(mean_epoch_loss)
@@ -207,7 +215,7 @@ if __name__ == "__main__":
 
             # termination (reconstruction loss converged, etc)
             if conv_control and conv.check(mean_epoch_loss_hist):
-                print(f"converged, last {mean_epoch_loss=}")
+                print(f"converged at {i_epoch=}, last {mean_epoch_loss=}")
                 break
             elif (i_epoch + 1) == max_epoch:
                 print(f"hit max_epoch, last {mean_epoch_loss=}")
@@ -215,7 +223,14 @@ if __name__ == "__main__":
 
         ds.step()
         loss_hist.append(np.array(mean_epoch_loss_hist))
-        ic(er_mem.status())
+
+        ### update mem in PIC step with last batch only
+        ##if use_mem:
+        ##    er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
+        ##    n_obs += batch_size
+
+        if use_mem:
+            ic(er_mem.status())
 
     ncols = 3
     fig, axs = plt.subplots(ncols=ncols, figsize=(5 * ncols, 5))
