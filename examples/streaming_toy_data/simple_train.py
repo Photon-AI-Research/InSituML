@@ -128,8 +128,8 @@ if __name__ == "__main__":
     if conv_control:
         assert conv_control_possible
 
-    nsteps = 3
-    npoints = 512
+    nsteps = 10
+    npoints = 2048
     batch_size_div = 4
     batch_size = max(npoints // batch_size_div, 1)
     print_every_epoch = 50
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
     ds = generate.TimeDependentTensorDataset(
         *generate.generate_toy8(label_kind="all", npoints=npoints, seed=123),
-        dt=5,
+        dt=0.3,
     )
 
     train_dl = DataLoader(
@@ -145,12 +145,12 @@ if __name__ == "__main__":
     )
 
     model = build_model(
-        ndim_x=2, ndim_y=8, n_coupling=2, hidden_width=512, n_hidden=1
+        ndim_x=2, ndim_y=8, n_coupling=4, hidden_width=512, n_hidden=1
     )
     trainable_parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = T.optim.AdamW(
         trainable_parameters,
-        lr=1e-3 / batch_size_div,
+        lr=1e-3 / batch_size_div / 2,
         ##betas=(0.8, 0.9),
         ##eps=1e-6,
         betas=(0.9, 0.999),
