@@ -177,7 +177,7 @@ if __name__ == "__main__":
             for i_batch, (X_batch, Y_batch) in enumerate(train_dl):
 
                 if len(er_mem.mem) == er_mem.mem_size:
-                    X_batch_mem, Y_batch_mem = er_mem.sample_batch(batch_size)
+                    X_batch_mem, Y_batch_mem = er_mem.sample(batch_size)
                     Xb = T.vstack((X_batch, X_batch_mem))
                     Yb = T.vstack((Y_batch, Y_batch_mem))
                 else:
@@ -192,11 +192,11 @@ if __name__ == "__main__":
                 optimizer.step()
 
                 ### update mem in every batch as in the ExperienceReplay paper
-                ##er_mem.update_memory(X_batch, Y_batch, n_obs)
+                ##er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
                 ##n_obs += batch_size
 
             # update mem in every epoch with last batch only
-            er_mem.update_memory(X_batch, Y_batch, n_obs)
+            er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
             n_obs += batch_size
 
             mean_epoch_loss = loss_sum / batch_size
@@ -215,6 +215,7 @@ if __name__ == "__main__":
 
         ds.step()
         loss_hist.append(np.array(mean_epoch_loss_hist))
+        ic(er_mem.status())
 
     ncols = 3
     fig, axs = plt.subplots(ncols=ncols, figsize=(5 * ncols, 5))
