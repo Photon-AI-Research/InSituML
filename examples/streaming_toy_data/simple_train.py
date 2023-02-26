@@ -233,7 +233,9 @@ if __name__ == "__main__":
             ic(er_mem.status())
 
     ncols = 3
-    fig, axs = plt.subplots(ncols=ncols, figsize=(5 * ncols, 5))
+    fig, axs = plt.subplots(
+        ncols=ncols, figsize=(5 * ncols, 5), tight_layout=True
+    )
 
     # Reset time, re-create train data for plotting
     ds.time = 0
@@ -253,5 +255,9 @@ if __name__ == "__main__":
         loss_hist_shifted = [x + np.abs(np.min(x)) + 1 for x in loss_hist]
         plot_chunks(axs[2], loss_hist_shifted, log_y=True)
         ##plot_chunks(axs[2], loss_hist, log_y=False)
+
+    axs[2].set_xlabel("epoch")
+    axs[2].set_ylabel("mean epoch loss")
+    axs[2].set_ylim(top=1.005)
 
     plt.show()
