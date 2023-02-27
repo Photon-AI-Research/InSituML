@@ -120,7 +120,7 @@ def plot_chunks(
 
 if __name__ == "__main__":
 
-    T.set_num_threads(cpu_count() // 2)
+    ##T.set_num_threads(cpu_count() // 2)
 
     # Manually switch on/off convergence control
     conv_control = True
