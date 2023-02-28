@@ -1,7 +1,12 @@
+# Define custom marker.
+#   https://docs.pytest.org/en/latest/example/simple.html#control-skipping-of-tests-according-to-command-line-option
+
+
 import pytest
 
 marker_str = "examples"
 option = f"--{marker_str}"
+
 
 def pytest_addoption(parser):
     parser.addoption(

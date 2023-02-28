@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import importlib
 from typing import Sequence
 from multiprocessing import cpu_count
 
@@ -24,24 +23,15 @@ from FrEIA.framework import (
 from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
 
 try:
-    from nmbx.convergence import Convergence
-    conv_control = True
+    from nmbx.convergence import SlopeZero
+
+    conv_control_possible = True
 except ImportError:
-    conv_control = False
-    print("no convergence control active, we use max_epoch")
+    conv_control_possible = False
+    print("no convergence control possible, we use max_epoch")
 
-    class Convergence:
-        def __init__(self, *args, **kwds):
-            pass
+from insituml.toy_data import generate, memory
 
-        def check(self, *args, **kwds):
-            return False
-
-
-from insituml.toy_data import generate
-
-# When used as %run -i this.py in ipython
-importlib.reload(generate)
 
 # Adapted from Nico_toy8_examples/train_cINN_distributed_toy8.py
 def build_model(
@@ -130,18 +120,27 @@ def plot_chunks(
 
 if __name__ == "__main__":
 
-    T.set_num_threads(cpu_count() // 2)
+    ##T.set_num_threads(cpu_count() // 2)
 
-    nsteps = 2
-    npoints = 512
-    batch_size_div = 2
+    # Manually switch on/off convergence control
+    conv_control = True
+
+    # Use memory mechanism to counteract "forgetting"
+    use_mem = True
+
+    if conv_control:
+        assert conv_control_possible
+
+    nsteps = 10
+    npoints = 2048
+    batch_size_div = 4
     batch_size = max(npoints // batch_size_div, 1)
     print_every_epoch = 50
-    max_epoch = int(1e4) if conv_control else 50
+    max_epoch = int(1e4) if conv_control else int(1e3)
 
     ds = generate.TimeDependentTensorDataset(
         *generate.generate_toy8(label_kind="all", npoints=npoints, seed=123),
-        dt=5,
+        dt=0.3,
     )
 
     train_dl = DataLoader(
@@ -149,12 +148,12 @@ if __name__ == "__main__":
     )
 
     model = build_model(
-        ndim_x=2, ndim_y=8, n_coupling=1, hidden_width=512, n_hidden=1
+        ndim_x=2, ndim_y=8, n_coupling=4, hidden_width=512, n_hidden=1
     )
     trainable_parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = T.optim.AdamW(
         trainable_parameters,
-        lr=1e-3 / batch_size_div,
+        lr=1e-3 / batch_size_div / 2,
         ##betas=(0.8, 0.9),
         ##eps=1e-6,
         betas=(0.9, 0.999),
@@ -165,29 +164,48 @@ if __name__ == "__main__":
     loss_hist = []
     model.train()
 
+    if use_mem:
+        er_mem = memory.ExperienceReplay(mem_size=npoints)
+        n_obs = 0
+
     # PIC time step
     for i_step in range(nsteps):
         # train some epochs on this time step's data
         i_epoch = -1
         mean_epoch_loss_hist = []
-        conv = Convergence(
-            mode="fall", wlen=20, datol=5e-4, wait=5, reduction=np.median
-        )
+        if conv_control:
+            conv = SlopeZero(wlen=25, tol=1e-4, wait=10, reduction=np.mean)
         while True:
             i_epoch += 1
             loss_sum = 0.0
             for i_batch, (X_batch, Y_batch) in enumerate(train_dl):
-                ##ic(i_step, i_epoch, i_batch, ds.time, X_batch, Y_batch)
-                ##ic(i_step, i_epoch, i_batch, ds.time)
+
+                # Don't use memory in first step since there is nothing to
+                # remember.
+                if use_mem and i_step > 0:
+                    X_batch_mem, Y_batch_mem = er_mem.sample(batch_size)
+                    Xb = T.vstack((X_batch, X_batch_mem))
+                    Yb = T.vstack((Y_batch, Y_batch_mem))
+                else:
+                    Xb, Yb = X_batch, Y_batch
 
                 optimizer.zero_grad()
-                z, log_j = model(X_batch, c=Y_batch)
-                ##rev_X, _ = model(z, c=Y_batch, rev=True)
+                z, log_j = model(Xb, c=Yb)
                 loss = (T.mean(z**2.0) - T.mean(log_j)) / 2.0
                 nn.utils.clip_grad_norm_(trainable_parameters, 10.0)
                 loss_sum += loss.data.item()
                 loss.backward()
                 optimizer.step()
+
+                # update mem in every batch as in the ExperienceReplay paper
+                if use_mem:
+                    er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
+                    n_obs += batch_size
+
+            ### update mem in every epoch with last batch only
+            ##if use_mem:
+            ##    er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
+            ##    n_obs += batch_size
 
             mean_epoch_loss = loss_sum / batch_size
             mean_epoch_loss_hist.append(mean_epoch_loss)
@@ -196,8 +214,8 @@ if __name__ == "__main__":
                 ic(i_step, i_epoch, mean_epoch_loss)
 
             # termination (reconstruction loss converged, etc)
-            if conv.check(mean_epoch_loss_hist):
-                print(f"converged, last {mean_epoch_loss=}")
+            if conv_control and conv.check(mean_epoch_loss_hist):
+                print(f"converged at {i_epoch=}, last {mean_epoch_loss=}")
                 break
             elif (i_epoch + 1) == max_epoch:
                 print(f"hit max_epoch, last {mean_epoch_loss=}")
@@ -206,8 +224,18 @@ if __name__ == "__main__":
         ds.step()
         loss_hist.append(np.array(mean_epoch_loss_hist))
 
+        ### update mem in PIC step with last batch only
+        ##if use_mem:
+        ##    er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
+        ##    n_obs += batch_size
+
+        if use_mem:
+            ic(er_mem.status())
+
     ncols = 3
-    fig, axs = plt.subplots(ncols=ncols, figsize=(5 * ncols, 5))
+    fig, axs = plt.subplots(
+        ncols=ncols, figsize=(5 * ncols, 5), tight_layout=True
+    )
 
     # Reset time, re-create train data for plotting
     ds.time = 0
@@ -227,5 +255,9 @@ if __name__ == "__main__":
         loss_hist_shifted = [x + np.abs(np.min(x)) + 1 for x in loss_hist]
         plot_chunks(axs[2], loss_hist_shifted, log_y=True)
         ##plot_chunks(axs[2], loss_hist, log_y=False)
+
+    axs[2].set_xlabel("epoch")
+    axs[2].set_ylabel("mean epoch loss")
+    axs[2].set_ylim(top=1.005)
 
     plt.show()

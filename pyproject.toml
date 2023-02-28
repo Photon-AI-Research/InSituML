@@ -33,6 +33,9 @@ test = ["pytest"]
 examples = [
     "icecream",
     "matplotlib",
+
+    # Steve's experimental convergence control code.
+    "nmbx @ git+https://github.com/elcorto/nmbx@d2afdb37753653cfeaeb2001ee231434a7927677",
     ]
 
 # Default.
@@ -41,6 +44,13 @@ examples = [
 
 [tool.black]
 line-length = 79
+
+
+# https://mypy.readthedocs.io/en/latest/config_file.html#using-a-pyproject-toml-file
+[tool.mypy]
+ignore_missing_imports = true
+implicit_optional = true
+
 
 [build-system]
 requires = ["setuptools>=66.1", "wheel"]

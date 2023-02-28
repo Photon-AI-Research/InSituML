@@ -54,6 +54,16 @@ All source code is located in `src/insituml`. See also `pyproject.toml`.
 ```sh
 $ git clone ...
 $ cd /path/to/InSituML
+```
+
+Then one of these. We recommend a dev (a.k.a. "editable") install
+(`pip install -e .`).
+
+```sh
+# Dev install to default location, e.g. in a venv
+#   ~/.virtualenvs/awesome_venv/lib/python3.11/site-packages/insituml-0.0.0.dist-info/
+$ python3 -m venv awesome_venv && . ./awesome_venv/bin/activate
+awesome_venv $ pip install -e .
 
 # Dev install in $HOME
 $ pip install --user -e .
@@ -83,7 +93,7 @@ plots.
 $ pytest
 ```
 
-Also run examples.
+Also run examples. The "examples" marker is defined in `conftest.py`.
 
 ```sh
 $ pytest --examples
