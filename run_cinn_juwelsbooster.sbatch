@@ -60,10 +60,10 @@ srun python3 -m torch.distributed.run \
         --rdzv_id="$SLURM_JOB_ID" \
         --rdzv_endpoint="$master_addr:$master_port" \
         --rdzv_backend=c10d \
-        main/Application.py \
+        src/insituml/Application.py \
         --modelPath "$cp_dir" \
         --datasetName pc_field \
         --nTasks 1 \
         --batchSize 1 \
         --lr "$lr" \
-        --datasetPath main/ModelHelpers/cINN/test_cfg.txt
+        --datasetPath src/insituml/ModelHelpers/cINN/test_cfg.txt
