@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+import pandas as pd
+import socket
+import argparse
 from typing import Sequence
 from multiprocessing import cpu_count
 import time
@@ -119,7 +121,15 @@ def plot_chunks(
 
 
 if __name__ == "__main__":
-    print("CPUs", cpu_count())
+
+    parser = argparse.ArgumentParser(description='Scaling benchmark of NF training')
+    parser.add_argument('--features', dest='features', type=int, default=128)
+    parser.add_argument('--coupling_blocks', dest='couplingBlocks', type=int, default=6)
+    parser.add_argument('--use_mem', dest='use_mem', action='store_true')
+    parser.set_defaults(use_mem=False)
+    args = parser.parse_args()
+    print(args)
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     torch.set_num_threads(cpu_count() // 2)
 
@@ -129,7 +139,7 @@ if __name__ == "__main__":
     conv_control = False
 
     # Use memory mechanism to counteract "forgetting"
-    use_mem = False
+    use_mem = args.use_mem
     
     nsteps = 500
     npoints = 2**20 # 1M particles as to be expected from PIC
@@ -158,7 +168,7 @@ if __name__ == "__main__":
     
 
     model = build_model(
-        ndim_x=dimension_problem, ndim_y=8, n_coupling=6, hidden_width=128, n_hidden=1
+        ndim_x=dimension_problem, ndim_y=8, n_coupling=args.couplingBlocks, hidden_width=args.features, n_hidden=1
     )
     
     model = model.to(device)
@@ -252,8 +262,22 @@ if __name__ == "__main__":
         if use_mem:
             ic(er_mem.status())
 
-    print("==== CONVERGENCE ====")
-    ic(i_step, mean_epoch_loss, runtime)
+    #print("==== CONVERGENCE ====")
+    #ic(i_step, mean_epoch_loss, runtime)
+
+    runtime = time.time() - start_time
+    device = torch.cuda.get_device_name(0)
+    no_coupling_blocks = args.couplingBlocks
+    no_features = args.features
+    use_mem = args.use_mem
+    hostname = socket.gethostname()
+    nll = mean_epoch_loss
+    
+
+    data = {'host': [hostname], 'device': [device], 'host': [hostname], 'coupling blocks': [no_coupling_blocks], 'features': [no_features], 'CL': [use_mem], 'NLL': [nll] }
+    df = pd.DataFrame(data)
+    df.to_csv('perf_log.csv', mode='a')
+    print(df)
 
     #print(p.key_averages().table(
     #    sort_by="self_cuda_time_total", row_limit=-1))
