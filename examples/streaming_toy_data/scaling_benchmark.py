@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     # PIC time step
     start_time = time.time()
-    #with torch.profiler.profile(
+    #with torch.profiler.profile()
     #activities=[
     #    torch.profiler.ProfilerActivity.CPU,
     #    torch.profiler.ProfilerActivity.CUDA,
@@ -272,11 +272,11 @@ if __name__ == "__main__":
     use_mem = args.use_mem
     hostname = socket.gethostname()
     nll = mean_epoch_loss
-    
+    particles_sec = 1 / (runtime / nsteps) ## assuming 1M particles/epoch
 
-    data = {'host': [hostname], 'device': [device], 'host': [hostname], 'coupling blocks': [no_coupling_blocks], 'features': [no_features], 'CL': [use_mem], 'NLL': [nll] }
+    data = {'host': [hostname], 'device': [device], 'coupling blocks': [no_coupling_blocks], 'features': [no_features], 'CL': [use_mem], 'NLL': [nll], 'runtime': [runtime], 'particles/s': [particles_sec] }
     df = pd.DataFrame(data)
-    df.to_csv('perf_log.csv', mode='a')
+    df.to_csv('perf_log.csv', mode='a', header=False)
     print(df)
 
     #print(p.key_averages().table(
