@@ -1,7 +1,6 @@
 from functools import wraps
 import itertools
-from typing import Callable, Generator, Iterator, Union
-
+from typing import Callable, Generator, Iterator, Union, Tuple
 import numpy as np
 
 import torch as T
@@ -33,7 +32,7 @@ def points_on_circle(radius, npoints):
     )
 
 
-def generate_fake_toy(npoints=5):
+def generate_fake_toy(npoints:int = 5, device: str = "cuda"):
     """
     Deterministic toy data for testing.
 
@@ -42,8 +41,9 @@ def generate_fake_toy(npoints=5):
     X : (npoints, 3)
     Y : (npoints, 3)
     """
-    X = T.ones((npoints, 3)) * T.arange(npoints)[:, None]
-    return X, X * 10
+    X = T.ones((npoints, 2), device=device)
+    Y = T.ones((npoints, 8), device=device)
+    return X, Y
 
 
 def generate_toy8(
@@ -51,7 +51,8 @@ def generate_toy8(
     npoints: int,
     scale: float = 0.2**2.0,
     seed: int = None,
-) -> tuple[T.Tensor, T.Tensor]:
+    device: str = "cuda"
+) -> Tuple[T.Tensor, T.Tensor]:
     """
     One toy8 dataset in 2d: 8 clusters of points with varying labels per
     cluster. npoints points in total, so npoints / 8 per cluster.
@@ -85,7 +86,7 @@ def generate_toy8(
     if seed is not None:
         T.manual_seed(seed)
 
-    verts = [
+    verts = T.tensor([
         (-2.4142, 1.0),
         (-1.0, 2.4142),
         (1.0, 2.4142),
@@ -94,7 +95,7 @@ def generate_toy8(
         (1.0, -2.4142),
         (-1.0, -2.4142),
         (-2.4142, -1.0),
-    ]
+    ], device=device)
 
     # label_maps[label_kind][ic] = one-hot position index per cluster ic
     label_maps = {
@@ -105,14 +106,16 @@ def generate_toy8(
 
     mapping = label_maps[label_kind]
 
-    X = T.empty((npoints, ndim_x))
-    Y = T.zeros((npoints, ndim_y))
+    X = T.empty((npoints, ndim_x), device = device)
+    Y = T.zeros((npoints, ndim_y), device = device)
     # npoints per cluster (mode)
     nc = npoints // ndim_y
 
+    cov_mat = scale * T.eye(ndim_x, device = device)
+    
     for ic, v in enumerate(verts):
         mvn = MultivariateNormal(
-            loc=T.tensor(v), covariance_matrix=scale * T.eye(ndim_x)
+            loc=v, covariance_matrix=cov_mat
         )
         X[ic * nc : (ic + 1) * nc, :] = mvn.sample([nc])
         Y[ic * nc : (ic + 1) * nc, mapping[ic]] = 1.0
@@ -316,6 +319,4 @@ def label2color_toyN(Yt_2d: Union[T.Tensor, np.ndarray]):
     colors : (nsteps * npoints,)
     """
     assert Yt_2d.ndim == 2
-    nz_i, nz_j = np.nonzero(Yt_2d)
-    nz_val = Yt_2d[(nz_i, nz_j)]
-    return nz_j + nz_val
+    return np.nonzero(Yt_2d)[:,1]

@@ -121,28 +121,31 @@ def plot_chunks(
 if __name__ == "__main__":
 
     ##T.set_num_threads(cpu_count() // 2)
+    device = 'cuda' if T.cuda.is_available() else 'cpu'
 
+    
     # Manually switch on/off convergence control
-    conv_control = True
+    conv_control = False
 
     # Use memory mechanism to counteract "forgetting"
-    use_mem = True
+    use_mem = False
 
     if conv_control:
         assert conv_control_possible
 
     nsteps = 10
-    npoints = 2048
+    npoints = 2**17 # 11
     batch_size_div = 4
     batch_size = max(npoints // batch_size_div, 1)
+    batch_size = 2**12
     print_every_epoch = 50
     max_epoch = int(1e4) if conv_control else int(1e3)
 
     ds = generate.TimeDependentTensorDataset(
-        *generate.generate_toy8(label_kind="all", npoints=npoints, seed=123),
+        *generate.generate_fake_toy(label_kind="all", npoints=npoints, seed=123, device = "cpu"),
         dt=0.3,
     )
-
+    
     train_dl = DataLoader(
         ds, batch_size=batch_size, shuffle=True, drop_last=True
     )
@@ -150,6 +153,9 @@ if __name__ == "__main__":
     model = build_model(
         ndim_x=2, ndim_y=8, n_coupling=4, hidden_width=512, n_hidden=1
     )
+    
+    model = model.to(device)
+    
     trainable_parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = T.optim.AdamW(
         trainable_parameters,
@@ -180,6 +186,10 @@ if __name__ == "__main__":
             loss_sum = 0.0
             for i_batch, (X_batch, Y_batch) in enumerate(train_dl):
 
+                # Make sure data is copied to correct device
+                X_batch = X_batch.to(device)
+                Y_batch = Y_batch.to(device)
+                
                 # Don't use memory in first step since there is nothing to
                 # remember.
                 if use_mem and i_step > 0:
