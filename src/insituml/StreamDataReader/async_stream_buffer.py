@@ -3,8 +3,6 @@ from queue import Empty, Queue
 from threading import Thread
 import time
 
-import numpy as np
-
 from .stream_reader import StreamReader
 from .StreamBuffer import get_data_locally
 
