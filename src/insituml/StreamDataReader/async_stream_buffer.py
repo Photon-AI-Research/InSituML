@@ -122,7 +122,7 @@ class AsyncStreamBuffer:
             if len(self.elp_time) >= self._elp_time_max_size:
                 # Reduce size of infinitely growing list.
                 self.elp_time = [sum(self.elp_time) / len(self.elp_time)]
-            self._buffer_data.put(data_dicts)
+            self._buffer_data.put(data_dict)
 
     def close(self):
         if self._is_closed:
