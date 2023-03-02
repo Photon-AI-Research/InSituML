@@ -154,9 +154,14 @@ class StreamReader():
                 # Add more remaining nodes, descend tree.
                 for (key, stream_cfg_child) in stream_cfg_node.items():
                     child_found = False
+                    # If we have an empty list, assume the key is the leaf.
+                    if not stream_cfg_child:
+                        stream_cfg_child = [key]
+                        child_record = current_record
+                        child_found = True
                     # Access outer-most values by attribute, after that
                     # only use `getitem`.
-                    if current_record is current_iteration:
+                    elif current_record is current_iteration:
                         if hasattr(current_record, key):
                             child_record = getattr(current_record, key)
                             child_found = True
