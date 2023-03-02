@@ -5,8 +5,8 @@ import time
 
 import numpy as np
 
-from StreamDataReader.stream_reader import StreamReader
-from StreamDataReader.StreamBuffer import get_data_locally
+from .stream_reader import StreamReader
+from .StreamBuffer import get_data_locally
 
 
 class AsyncStreamBuffer:
