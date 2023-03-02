@@ -81,7 +81,13 @@ class StreamReader():
     def _get_data_from_key(self, record, record_key):
         if record_key in record:
             current_record = record[record_key]
-            if len(current_record) == 1:
+            if (
+                    len(current_record) == 1
+                    and (
+                        list(current_record)[0]
+                        == io.Mesh_Record_Component.SCALAR
+                    )
+            ):
                 rc = current_record[io.Mesh_Record_Component.SCALAR]
                 data = rc[0]
                 np_shape = ()
