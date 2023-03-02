@@ -32,10 +32,6 @@ class AsyncStreamBuffer:
         self._buffer_size = buffer_size
         self._buffer_data = Queue(self._buffer_size)
         self.use_local_data = use_local_data
-        if use_local_data:
-            self._iteration_id = 0
-        else:
-            self._stream = StreamReader(stream_path, stream_config_json)
         self.elp_time = []
         self._elp_time_max_size = elp_time_max_size
         self._max_step_duration_sec = max_step_duration_sec
@@ -43,7 +39,10 @@ class AsyncStreamBuffer:
         self._last_data = None
         self._is_finished = False
         self._is_closed = False
-        self._fill_buffer_thread = Thread(target=self._fill_buffer)
+        self._fill_buffer_thread = Thread(
+            target=self._fill_buffer,
+            args=(stream_path, stream_config_json),
+        )
         self._fill_buffer_thread.start()
 
     def __iter__(self):
@@ -101,9 +100,18 @@ class AsyncStreamBuffer:
             buf_data.append(data)
         return buf_data
 
-    def _fill_buffer(self):
+    def _fill_buffer(
+            self,
+            stream_path,
+            stream_config_json,
+    ):
         """Fill the buffer."""
         print("Filling buffer")
+        if self.use_local_data:
+            self._iteration_id = 0
+        else:
+            self._stream = StreamReader(stream_path, stream_config_json)
+
         while not self._is_closed:
             start = time.time()
 
