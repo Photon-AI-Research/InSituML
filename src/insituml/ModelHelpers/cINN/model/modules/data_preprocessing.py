@@ -86,7 +86,7 @@ def get_data_phase_space_streamed(iteration, num_particles=-1, species='e'):
         species(string): name of particle species to be loaded from the
             openPMD format
     '''
-    particles = iteration["particles"]["e"]
+    particles = iteration["particles"][species]
     particle_tensor = _get_data_phase_space(particles, num_particles, None)
     return particle_tensor
 
