@@ -1,6 +1,6 @@
 import json
 import os
-import sys
+import time
 from typing import Optional, Tuple
 
 import numpy as np
@@ -53,11 +53,31 @@ class StreamReader():
         self._series_iterator = self._init_series_iterator()
 
     def _init_stream(self):
-        print("initialized stream")
-        return io.Series(self._stream_path, io.Access_Type.read_only)
-    
+        print("initializing stream")
+        sleep_duration = 2
+        sleep_limit = 60
+
+        sleeped_secs = 0
+        while not os.path.isfile(self._stream_path):
+            time.sleep(sleep_duration)
+            sleeped_secs += sleep_duration
+            if sleeped_secs >= sleep_limit:
+                raise OSError(
+                    f'stream file did not appear after {sleep_limit} seconds')
+
+        max_tries = 10
+        sleep_duration = 10
+        for i in range(max_tries):
+            try:
+                return io.Series(self._stream_path, io.Access_Type.read_only)
+            except RuntimeError as ex:
+                prev_msg = str(ex)
+                print('opening', self._stream_path, 'failed...')
+                time.sleep(10)
+        raise RuntimeError(prev_msg)
+
     def _init_series_iterator(self):
-        print("initialized iterator")
+        print("initializing iterator")
         return iter(self._series.read_iterations())
 
     def __iter__(self):
