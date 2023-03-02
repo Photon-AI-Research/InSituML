@@ -82,15 +82,16 @@ class StreamReader():
         if record_key in record:
             current_record = record[record_key]
             if len(current_record) == 1:
-                data = current_record[io.Mesh_Record_Component.SCALAR]
-                if 'shape' in data.attributes:
-                    pic_shape = data.get_attribute('shape')
+                rc = current_record[io.Mesh_Record_Component.SCALAR]
+                data = rc[0]
+                np_shape = ()
+
+                if 'shape' in rc.attributes:
+                    pic_shape = rc.get_attribute('shape')
                 else:
                     pic_shape = None
-                data = data[0]
-                np_shape = ()
-                if 'unitSI' in data.attributes:
-                    unit_si = data.get_attribute('unitSI')
+                if 'unitSI' in rc.attributes:
+                    unit_si = rc.get_attribute('unitSI')
                 else:
                     unit_si = None
 
