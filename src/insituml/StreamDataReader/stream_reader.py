@@ -112,7 +112,7 @@ class StreamReader():
                     if isinstance(np_shape, int):
                         np_shape = (1, np_shape)
                     else:
-                        np_shape = (1,) + np_shape
+                        np_shape = (1,) + tuple(np_shape)
 
                     # PIConGPU shape stays the same over all dimensions,
                     # but we duplicate it anyway.
