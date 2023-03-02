@@ -1,0 +1,12 @@
+wandb_apikey: 
+wandb_project: 
+wandb_entity: 
+chunk_size: 20
+num_coupling_layers: 1
+num_linear_layers_in_subnetworks: 1
+hidden_size_of_layers_in_subnetworks: 32
+learning_rate: 1e-3
+enable_wandb: 
+species: e
+path_to_particle_data: /p/project/hai_sciml/ebert1/picongpu/openPMD/simData.sst
+path_to_radiation_data: /p/project/hai_sciml/ebert1/picongpu/radiationOpenPMD/e_radAmplitudes.sst

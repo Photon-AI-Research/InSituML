@@ -8,6 +8,49 @@ import openpmd_api as io
 from . import radiation
 
 
+def _get_data_phase_space(particles, num_particles, series):
+    """Load phase space data from the desired particles of an iteration.
+    `series` is an optional `openpmd_api.Series` that will be `flush`ed
+    to obtain the data from it.
+    """
+    x_pos = particles["position"]["x"]
+    y_pos = particles["position"]["y"]
+    z_pos = particles["position"]["z"]
+    x_pos_offset = particles["positionOffset"]["x"]
+    y_pos_offset = particles["positionOffset"]["y"]
+    z_pos_offset = particles["positionOffset"]["z"]
+
+    x_momentum = particles["momentum"]["x"]
+    y_momentum = particles["momentum"]["y"]
+    z_momentum = particles["momentum"]["z"]
+
+    if series is not None:
+        series.flush()
+    else:
+        x_pos = x_pos.data
+        y_pos = y_pos.data
+        z_pos = z_pos.data
+        x_pos_offset = x_pos_offset.data
+        y_pos_offset = y_pos_offset.data
+        z_pos_offset = z_pos_offset.data
+        x_momentum = x_momentum.data
+        y_momentum = y_momentum.data
+        z_momentum = z_momentum.data
+
+    particle_tensor = np.stack((x_pos+x_pos_offset,
+                                y_pos+y_pos_offset,
+                                z_pos+z_pos_offset,
+                                x_momentum,
+                                y_momentum,
+                                z_momentum), axis=-1)
+
+    if num_particles == -1:
+        return particle_tensor
+    else:
+        inds = random.sample(list(range(0, particle_tensor.shape[0])), num_particles)
+        return torch.from_numpy(particle_tensor[inds, :]).float()
+
+
 def get_data_phase_space(ind, 
                          items,
                          num_particles=-1,
@@ -28,33 +71,26 @@ def get_data_phase_space(ind,
     i = series.iterations[int(items[ind].split('.bp')[0].split('_')[-1])].open()
     
     particles = i.particles["b_all"]
+    particle_tensor = _get_data_phase_space(particles, num_particles, series)
+    return particle_tensor
 
-    x_pos = particles["position"]["x"]
-    y_pos = particles["position"]["y"]
-    z_pos = particles["position"]["z"]
-    x_pos_offset = particles["positionOffset"]["x"]
-    y_pos_offset = particles["positionOffset"]["y"]
-    z_pos_offset = particles["positionOffset"]["z"]
 
-    x_momentum = particles["momentum"]["x"]
-    y_momentum = particles["momentum"]["y"]
-    z_momentum = particles["momentum"]["z"]
+def get_data_phase_space_streamed(iteration, num_particles=-1, species='e'):
+    '''
+    Load 1 particle cloud from a streamed iteration.
+    Args:
+        iteration(Dict): number of path in list of paths to files
+        items(list of string): list of paths to files
+        num_particles(integer): number of particles to sample from an
+            electron cloud, if -1 then take electron cloud completely
+        species(string): name of particle species to be loaded from the
+            openPMD format
+    '''
+    particles = iteration["particles"]["e"]
+    particle_tensor = _get_data_phase_space(particles, num_particles, None)
+    return particle_tensor
 
-    series.flush()
 
-    particle_tensor = np.stack((x_pos+x_pos_offset,
-                                y_pos+y_pos_offset,
-                                z_pos+z_pos_offset,
-                                x_momentum,
-                                y_momentum,
-                                z_momentum), axis=-1)
-
-    if num_particles == -1:
-        return particle_tensor
-    else:
-        inds = random.sample(list(range(0, particle_tensor.shape[0])), num_particles)
-        return torch.from_numpy(particle_tensor[inds, :]).float()
-    
 def get_phase_space_by_chunks(ind, 
                               items,
                               chunk_size=100,
@@ -225,6 +261,20 @@ def get_radiation_spectra_2_projections(ind,
     spectra = (radiation.RadiationData(items[ind])).get_Spectra()
     concatenated_projections = torch.from_numpy(np.concatenate((np.sum(spectra, axis=0), np.sum(spectra, axis=1)))).float()
     return concatenated_projections.repeat(chunk_size, 1)[:,:2]
+    #return concatenated_projections.repeat(chunk_size, 1)
+
+def get_radiation_spectra_2_projections_streamed(radiation_stream):
+    '''
+    Load radiation the spectra, integrated over directions and the spectra, integrated over frequencies
+        and concatenate them into 1 tensor.
+    Important: use only if confident, that there is the same mesh in radiation simulations
+    '''
+    spectra = radiation_stream.get_Spectra()
+    concatenated_projections = torch.from_numpy(np.concatenate((
+        np.sum(spectra, axis=0),
+        np.sum(spectra, axis=1),
+    ))).float()
+    return concatenated_projections.reshape(-1, 1)[:,:2]
     #return concatenated_projections.repeat(chunk_size, 1)
 
 def normalize_point(point, vmin, vmax, a=0., b=1.):

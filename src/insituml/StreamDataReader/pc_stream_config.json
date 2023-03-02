@@ -1,0 +1,18 @@
+{
+   "meshes": [
+      "E"
+   ],
+   "particles": {
+      "b": [
+         "position",
+         "positionOffset",
+         "momentum"
+      ],
+      "e": [
+         "position",
+         "positionOffset",
+         "momentum"
+      ],
+      "charge": []
+   }
+}
