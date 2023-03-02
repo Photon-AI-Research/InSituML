@@ -29,7 +29,8 @@ class AsyncStreamBuffer:
             The amount of data iterations the buffer holds before
             reading the stream again
         """
-        self._buffer_data = Queue(buffer_size)
+        self._buffer_size = buffer_size
+        self._buffer_data = Queue(self._buffer_size)
         self.use_local_data = use_local_data
         if use_local_data:
             self._iteration_id = 0
@@ -44,10 +45,6 @@ class AsyncStreamBuffer:
         self._is_closed = False
         self._fill_buffer_thread = Thread(target=self._fill_buffer)
         self._fill_buffer_thread.start()
-
-    @property
-    def _buffer_size(self):
-        return self._buffer_data.maxsize
 
     def __iter__(self):
         while True:
