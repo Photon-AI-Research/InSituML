@@ -161,13 +161,15 @@ class StreamReader():
                         child_found = True
                     # Access outer-most values by attribute, after that
                     # only use `getitem`.
-                    elif current_record is current_iteration:
-                        if hasattr(current_record, key):
-                            child_record = getattr(current_record, key)
-                            child_found = True
+                    elif (
+                            current_record is current_iteration
+                            and hasattr(current_record, key)
+                    ):
+                        child_record = getattr(current_record, key)
+                        child_found = True
                     elif key in current_record:
-                            child_record = current_record[key]
-                            child_found = True
+                        child_record = current_record[key]
+                        child_found = True
 
                     if child_found:
                         data_dict_child = {}
