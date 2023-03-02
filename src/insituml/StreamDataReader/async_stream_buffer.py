@@ -143,4 +143,3 @@ class AsyncStreamBuffer:
             self.close()
         except AttributeError:
             pass
-        super().__del__()
