@@ -58,7 +58,10 @@ class StreamReader():
         sleep_limit = 60
 
         sleeped_secs = 0
-        while not os.path.isfile(self._stream_path):
+
+        directory = os.path.dirname(self._stream_path)
+        print("Waiting for dir", directory)
+        while not os.path.isdir(directory):
             time.sleep(sleep_duration)
             sleeped_secs += sleep_duration
             if sleeped_secs >= sleep_limit:
@@ -99,54 +102,44 @@ class StreamReader():
             return None
 
     def _get_data_from_key(self, record, record_key):
-        if record_key in record:
-            current_record = record[record_key]
-            if (
-                    len(current_record) == 1
-                    and (
-                        list(current_record)[0]
-                        == io.Mesh_Record_Component.SCALAR
-                    )
-            ):
-                rc = current_record[io.Mesh_Record_Component.SCALAR]
+        def constant_or_array(rc):
+            if rc.constant:
                 data = rc[0]
                 np_shape = ()
 
+                pic_shape = rc.shape
+                unit_si = rc.unit_SI
+
+                return StreamData(data, np_shape, pic_shape, unit_si)
+            else:
+                data = rc.load_chunk([0], rc.shape)
+                np_shape = rc.shape
+
+                if isinstance(np_shape, int):
+                    np_shape = (1, np_shape)
+                else:
+                    np_shape = (1,) + tuple(np_shape)
+
+                # PIConGPU shape stays the same over all dimensions,
+                # but we duplicate it anyway.
                 if 'shape' in rc.attributes:
                     pic_shape = rc.get_attribute('shape')
                 else:
                     pic_shape = None
-                if 'unitSI' in rc.attributes:
-                    unit_si = rc.get_attribute('unitSI')
-                else:
-                    unit_si = None
+                unit_si = rc.unit_SI
 
-                result = StreamData(data, np_shape, pic_shape, unit_si)
+                return StreamData(data, np_shape, pic_shape, unit_si)
+
+        if record_key in record:
+            current_record = record[record_key]
+            if current_record.scalar:
+                rc = current_record[io.Mesh_Record_Component.SCALAR]
+                result = constant_or_array(rc)
             else:
                 result = {}
                 for dim in current_record:
                     rc = current_record[dim]
-                    data = rc.load_chunk([0], rc.shape)
-                    np_shape = rc.shape
-
-                    if isinstance(np_shape, int):
-                        np_shape = (1, np_shape)
-                    else:
-                        np_shape = (1,) + tuple(np_shape)
-
-                    # PIConGPU shape stays the same over all dimensions,
-                    # but we duplicate it anyway.
-                    if 'shape' in rc.attributes:
-                        pic_shape = rc.get_attribute('shape')
-                    else:
-                        pic_shape = None
-
-                    if 'unitSI' in rc.attributes:
-                        unit_si = rc.get_attribute('unitSI')
-                    else:
-                        unit_si = None
-
-                    dim_result = StreamData(data, np_shape, pic_shape, unit_si)
+                    dim_result = constant_or_array(rc)
                     result[dim] = dim_result
                 if not result:
                     print('Got no per-entry data for', record_key)
