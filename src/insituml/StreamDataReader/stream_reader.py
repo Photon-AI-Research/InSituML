@@ -46,6 +46,41 @@ class StreamReader():
         self.__init_from_config_file(stream_config_json)
         self._last_data = None
 
+    def __chunk_distribution_strategy(strategy_identifier=None):
+        if strategy_identifier is None or not strategy_identifier:
+            # if 'OPENPMD_CHUNK_DISTRIBUTION' in os.environ:
+            #     strategy_identifier = os.environ[
+            #         'OPENPMD_CHUNK_DISTRIBUTION'].lower()
+            # else:
+            #     strategy_identifier = 'hostname_roundrobin_discard'  # default
+
+            # hardcoding this strategy for now
+            strategy_identifier = 'hostname_roundrobin_discard'  # default
+        import re
+        match = re.search('hostname_(.*)_(.*)', strategy_identifier)
+        if match is not None:
+            inside_node = StreamReader.__chunk_distribution_strategy(
+                strategy_identifier=match.group(1))
+            second_phase = StreamReader.__chunk_distribution_strategy(
+                strategy_identifier=match.group(2))
+            return io.FromPartialStrategy(io.ByHostname(inside_node),
+                                          second_phase)
+        elif strategy_identifier == 'roundrobin':
+            return io.RoundRobin()
+        elif strategy_identifier == 'binpacking':
+            return io.BinPacking()
+        elif strategy_identifier == 'discard':
+            return io.DiscardingStrategy()
+        # elif strategy_identifier == 'slicedataset':
+        #     return io.ByCuboidSlice(io.OneDimensionalBlockSlicer(),
+        #                             dataset_extent, mpi_rank, mpi_size)
+        elif strategy_identifier == 'fail':
+            return io.FailingStrategy()
+        else:
+            raise RuntimeError("Unknown distribution strategy: " +
+                               strategy_identifier)
+
+
     def __init_from_config_file(self, stream_config_json):
         with open(stream_config_json) as stream_config:
             self._stream_cfg = json.load(stream_config)
@@ -102,17 +137,57 @@ class StreamReader():
             return None
 
     def _get_data_from_key(self, record, record_key):
-        def constant_or_array(rc):
+
+        chunk_assignment = None
+
+        def get_chunk_assignment(rc, chunk_assignment):
+            if chunk_assignment:
+                return chunk_assignment
+            available_chunks = rc.available_chunks()
+            # @todo: for other chunk distribution strategies, we would need to
+            # somehow emulate the other hostnames here too
+            # This is a dictionary "MPI Rank" -> "hostname that it runs on"
+            # The distribution strategy that is hardcoded right now
+            # (see __chunk_distribution_strategy) works with
+            # only this information specified below, for other distributions
+            # we would need the other hostnames here, too
+            # (It does not matter if this is not really an MPI application,
+            # the ranks just need to be consistently emulated for the
+            # distribution algorithms to work)
+            target_hostnames = {0: io.HostInfo.HOSTNAME.get()}
+            source_hostnames = self._series.mpi_ranks_meta_info
+            if not source_hostnames:
+                print("[Warning] Data source contains no host_table."
+                    " Chunk distribution will not work as expected.")
+                offset = [0 for _ in rc.shape]
+                return io.ChunkInfo(offset, rc.shape)
+            distribution_algorithm =\
+                StreamReader.__chunk_distribution_strategy()
+            chunk_assignment = distribution_algorithm.assign(available_chunks,
+                                                    source_hostnames,
+                                                    target_hostnames)
+            # Get chunks that were assigned to our rank
+            chunk_assignment = chunk_assignment[0]
+            chunk_assignment.merge_chunks()
+            if len(chunk_assignment) > 1:
+                raise RuntimeError("Need contiguous chunks!")
+            return chunk_assignment[0]
+
+        def constant_or_array(rc, chunk_assignment):
             if rc.constant:
-                data = rc[0]
+                data = np.zeros(rc.shape) + rc.get_attribute('value')
                 np_shape = ()
 
                 pic_shape = rc.shape
                 unit_si = rc.unit_SI
 
-                return StreamData(data, np_shape, pic_shape, unit_si)
+                return StreamData(data, np_shape, pic_shape, unit_si), chunk_assignment
             else:
-                data = rc.load_chunk([0], rc.shape)
+                chunk_assignment = \
+                    get_chunk_assignment(rc, chunk_assignment) \
+                    if chunk_assignment is None else chunk_assignment
+                data = rc.load_chunk(
+                    chunk_assignment.offset, chunk_assignment.extent)
                 np_shape = rc.shape
 
                 if isinstance(np_shape, int):
@@ -128,18 +203,20 @@ class StreamReader():
                     pic_shape = None
                 unit_si = rc.unit_SI
 
-                return StreamData(data, np_shape, pic_shape, unit_si)
+                return StreamData(data, np_shape, pic_shape, unit_si), chunk_assignment
 
         if record_key in record:
             current_record = record[record_key]
             if current_record.scalar:
                 rc = current_record[io.Mesh_Record_Component.SCALAR]
-                result = constant_or_array(rc)
+                result, chunk_assignment =\
+                    constant_or_array(rc, chunk_assignment)
             else:
                 result = {}
                 for dim in current_record:
                     rc = current_record[dim]
-                    dim_result = constant_or_array(rc)
+                    dim_result, chunk_assignment =\
+                        constant_or_array(rc, chunk_assignment)
                     result[dim] = dim_result
                 if not result:
                     print('Got no per-entry data for', record_key)
