@@ -101,7 +101,8 @@ def train(use_mem=False):
     """
     Parameters
     ----------
-    use_mem : Use memory mechanism to counteract "forgetting"
+    use_mem
+        Use memory mechanism to counteract "forgetting"
     """
 
     data_file = f"toy_cl_mem_{use_mem}.pk"
