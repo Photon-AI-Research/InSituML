@@ -179,7 +179,7 @@ def train(use_mem=False):
         i_epoch = -1
         mean_epoch_loss_hist = []
         if conv_control:
-            conv = SlopeZero(wlen=25, tol=1e-4, wait=20, reduction=np.mean)
+            conv = SlopeZero(wlen=25, tol=1e-2, wait=20, reduction=np.mean)
         while True:
             i_epoch += 1
             loss_sum = 0.0
@@ -218,7 +218,7 @@ def train(use_mem=False):
             ##    er_mem.update_memory(X_batch, Y_batch, n_obs, i_step)
             ##    n_obs += batch_size
 
-            mean_epoch_loss = loss_sum / batch_size
+            mean_epoch_loss = loss_sum / (i_batch + 1)
             mean_epoch_loss_hist.append(mean_epoch_loss)
 
             if (i_epoch + 1) % print_every_epoch == 0:
