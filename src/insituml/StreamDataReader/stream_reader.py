@@ -136,9 +136,7 @@ class StreamReader():
         except StopIteration:
             return None
 
-    def _get_data_from_key(self, record, record_key):
-
-        chunk_assignment = None
+    def _get_data_from_key(self, record, record_key, chunk_assignment):
 
         def get_chunk_assignment(rc, chunk_assignment):
             if chunk_assignment:
@@ -220,19 +218,25 @@ class StreamReader():
                     result[dim] = dim_result
                 if not result:
                     print('Got no per-entry data for', record_key)
-                    return None
+                    return None, chunk_assignment
         else:
             print("Didn't find", record_key)
-            return None
-        return result
+            return None, chunk_assignment
+        return result, chunk_assignment
 
     def _get_data(self,current_iteration):
         data_dict = dict(iteration_index=current_iteration.iteration_index)
+        chunk_assignment = None
 
         # Each element in here contains a 3-tuple with the contents:
         # - `self._stream_cfg` node under which to look for keys.
         # - `data_dict` node under which to store results for each key.
         # - The associated record that is supposed to contain the keys.
+
+        # This loop is a somewhat weird depth-first traversal of the openPMD
+        # hierarchy. Since the hierarchy of the particle markup is one layer
+        # deeper, the traversal of one particle species works different from
+        # the traversal of one field type.
         remaining_nodes = [(self._stream_cfg, data_dict, current_iteration)]
         while remaining_nodes:
             (
@@ -241,10 +245,36 @@ class StreamReader():
                 current_record,
             ) = remaining_nodes.pop()
 
+
             if isinstance(stream_cfg_node, list):
                 # Process all leaf keys.
+
+                # If we are here, then `current_record` is:
+                #
+                # 1. Either a container of field types
+                # 2. Or a single particle species
+                #
+                # The chunk assignment for loading data must be consistent
+                # across all datasets in a field type or particle species.
+                # Due to the somewhat weird way that this loop works, the reset
+                # of the chunk_assignment back to None must happen at different
+                # places.
+
+                # Need to reset the chunk assignment here when starting
+                # with a new particle species
+                if isinstance(current_record, io.ParticleSpecies):
+                    chunk_assignment = None
+
                 for key in stream_cfg_node:
-                    data = self._get_data_from_key(current_record, key)
+                    # We need to save the chunk assignment in order to use it
+                    # again for different components of the same species.
+                    # If `current_record[key]` is field however, then one call
+                    # to _get_data_from_key() loads the entire mesh and we must
+                    # not use a predefined chunk assignment
+                    if isinstance(current_record, io.Mesh_Container):
+                        chunk_assignment = None
+                    data, chunk_assignment = \
+                        self._get_data_from_key(current_record, key, chunk_assignment)
                     if data is not None:
                         data_dict_node[key] = data
             else:
@@ -262,6 +292,8 @@ class StreamReader():
                             current_record is current_iteration
                             and hasattr(current_record, key)
                     ):
+                        # Equivalent to calling either `current_record.meshes`
+                        # or `current_record.particles`
                         child_record = getattr(current_record, key)
                         child_found = True
                     elif key in current_record:
