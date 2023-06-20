@@ -1,6 +1,7 @@
 {
    "meshes":[
       "Amplitude",
+      "Amplitude_distributed",
       "DetectorDirection",
       "DetectorFrequency"
    ]
