@@ -1,16 +1,13 @@
-import sys
-sys.path.append('./model')
-sys.path.append('./model/modules')
 import os
 
 import torch
 import wandb
 
-import dataset
-import loader
-import model_MAF 
-import data_preprocessing
-import visualizations
+from model.modules import dataset
+from model.modules import loader
+from model import model_MAF 
+from model.modules import data_preprocessing
+from model.modules import visualizations
 
 run_settings = {}
 
@@ -59,7 +56,7 @@ print(paths_to_radiation)
 
 dataset_tr = dataset.PCDataset(items_phase_space=paths_to_PS[:1],
                                items_radiation=paths_to_radiation[:1],
-                               num_points=-1,
+                               num_points=100,
                                num_files=-1,
                                chunk_size=int(run_settings['chunk_size']),
                                species=run_settings['species'],
@@ -67,7 +64,7 @@ dataset_tr = dataset.PCDataset(items_phase_space=paths_to_PS[:1],
 
 dataset_val = dataset.PCDataset(items_phase_space=paths_to_PS[:1],
                                 items_radiation=paths_to_radiation[:1],
-                                num_points=-1,
+                                num_points=100,
                                 num_files=-1,
                                 chunk_size=int(run_settings['chunk_size']),
                                 species=run_settings['species'],

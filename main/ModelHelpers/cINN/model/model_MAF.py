@@ -30,7 +30,8 @@ class PC_MAF(nn.Module):
                  num_coupling_layers=1,
                  hidden_size=128,
                  device='cpu',
-                 enable_wandb=False):
+                 enable_wandb=False,
+                 weight_particles=False):
         
         '''
         Masked autoregressive flows model from https://papers.nips.cc/paper/2017/hash/6c1da886822c67822bcf3679d04369fa-Abstract.html
@@ -61,6 +62,7 @@ class PC_MAF(nn.Module):
         self.b = None
         
         self.enable_wandb = enable_wandb
+        self.weight_particles = weight_particles
     
     def init_model(self):
         base_dist = nflows.distributions.normal.StandardNormal(shape=[self.dim_input])
@@ -87,7 +89,7 @@ class PC_MAF(nn.Module):
                batch_size=2,
                test_epoch=25,
                test_pointcloud=None, test_radiation=None, log_plots=None,
-               path_to_models='./RESmodels_freia/'):
+               path_to_models=None):
         '''
         Train model
         Args:
@@ -108,9 +110,8 @@ class PC_MAF(nn.Module):
         self.a = dataset_tr.a
         self.b = dataset_tr.b
 
-        self.model.train()
-
         loader_tr = loader.get_loader(dataset_tr, batch_size=batch_size)
+        self.model.train()
 
         for i_epoch in range(epochs):
             loss_avg = []
@@ -122,14 +123,17 @@ class PC_MAF(nn.Module):
                     
                     phase_space = data_preprocessing.normalize_point(phase_space, dataset_tr.vmin_ps, dataset_tr.vmax_ps, dataset_tr.a, dataset_tr.b)
                     radiation = data_preprocessing.normalize_point(radiation, dataset_tr.vmin_rad, dataset_tr.vmax_rad, dataset_tr.a, dataset_tr.b)
+                    #print(radiation)
 
                 #erase particle with nan values and a corresponding radiation
-                radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
-                phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
+                #radiation = radiation[~torch.any(phase_space.isnan(), dim=1)]
+                #phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
                 for param in self.model.parameters():
                     param.grad = None
-                loss = - self.model.log_prob(inputs=phase_space.to(self.device),
-                                            context=radiation.to(self.device)).mean()
+                loss = - self.model.log_prob(inputs=phase_space.to(self.device),context=radiation.to(self.device))
+                if self.weight_particles:
+                    loss = loss*phase_space[:,-1]
+                loss = loss.mean()
                 loss_avg.append(loss.item())
                 loss.backward()
                 optimizer.step()
@@ -145,7 +149,7 @@ class PC_MAF(nn.Module):
                     log_plots(test_pointcloud, test_radiation, self)
 
                 if path_to_models != None:
-                    print('Save model to '+path_to_models)
+                    #print('Save model to '+path_to_models)
                     if not os.path.exists(path_to_models):
                         os.makedirs(path_to_models)
                     self.save_checkpoint(self.model, optimizer, path_to_models, i_epoch)
@@ -154,7 +158,7 @@ class PC_MAF(nn.Module):
                       .format(i_epoch + 1, epochs, 
                               sum(loss_avg)/len(loss_avg)))
                 #self.validation(dataset_val, dataset_tr.vmin, dataset_tr.vmax, batch_size)
-                self.model.train()
+                #self.model.train()
 
     def validation(self, dataset_val, batch_size, normalize):
         loader_val = loader.get_loader(dataset_val, batch_size=batch_size)
@@ -194,7 +198,7 @@ class PC_MAF(nn.Module):
 
             torch.save(state, path + 'model_' + str(epoch))
 
-    def sample_pointcloud(self, cond, num_points):
+    def sample_pointcloud(self, cond):
         self.model.eval()
         with torch.no_grad():
             pc_pr = (self.model.sample(1, cond)).squeeze(1)

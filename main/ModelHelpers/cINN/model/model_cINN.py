@@ -119,7 +119,7 @@ class PC_NF(nn.Module):
                batch_size=2,
                test_epoch=25,
                test_pointcloud=None, test_radiation=None, log_plots=None,
-               path_to_models='./RESmodels_freia/'):
+               path_to_models=None):
         '''
         Train model
         Args:
@@ -169,7 +169,7 @@ class PC_NF(nn.Module):
                 phase_space = phase_space[~torch.any(phase_space.isnan(), dim=1)]
                 for param in self.model.parameters():
                     param.grad = None
-                #optimizer.zero_grad()
+                optimizer.zero_grad()
                 z, log_j = self(phase_space.to(self.device),
                                 radiation.to(self.device))
                 loss = 0.

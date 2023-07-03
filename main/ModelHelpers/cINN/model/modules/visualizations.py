@@ -150,9 +150,9 @@ def plot_2D(pc, comp_x, comp_y, axs, label_x, label_y):
     #axs.legend(prop={'size': 20})
 #fix labels
 def plot_2D_GTandRec(pc, pc_pred, comp_x, comp_y, axs, label_x, label_y):
-    axs.scatter(pc[:,comp_x], pc[:,comp_y], s=15, alpha=0.2)
+    axs.scatter(pc[:,comp_x], pc[:,comp_y], s=15, alpha=0.75)
     if pc_pred is not None:
-        axs.scatter(pc_pred[:,comp_x], pc_pred[:,comp_y], s=15, alpha=0.2)
+        axs.scatter(pc_pred[:,comp_x], pc_pred[:,comp_y], s=20, alpha=0.75)
     axs.tick_params(axis='y', which='major', rotation=45)
     axs.grid(True)
     axs.set_xlabel(label_x)
@@ -259,7 +259,7 @@ def log_min_max(test_pointcloud, test_radiation, model):
     num_supercells_to_merge = 10
     supercell = [int(k) for k in test_pointcloud.split('/')[-1].split('.')[0].split('_')[1:]]
     iteration = test_pointcloud.split('/')[-1].split('.')[0].split('_')[0]
-
+    
     radiation_tensor = data_preprocessing.get_radiation_spectra_2_projections(0, [test_radiation], num_particles)
     vmin_rad, vmax_rad = np.load(path_to_minmax+'vmin_rad.npy'),np.load(path_to_minmax+'vmax_rad.npy')
 
@@ -377,6 +377,62 @@ def log_each_plot(test_pointcloud, test_radiation, model):
         pred_pointcloud = pred_pointcloud_full[my_filter]
     else:
         pred_pointcloud = None
+    
+    fig = plot_3D_GTandRec(pointcloud_tensor, pred_pointcloud)
+    image = wandb.Image(fig)
+    wandb.log({"PC, Iteration "+iteration+", supercell: "+' '.join([str(k) for k in supercell]): image})
+    plt.close()
+
+    slice_along = 2 #z: 2
+    num_slices = 100
+    comp_of_interest = -3
+    figsize1 = 60
+    figsize2 = 12
+    
+    fig, axs = plt.subplots(1, 4, figsize=(figsize1,figsize2))
+    plot_per_slice_GTandRec(pointcloud_tensor, pred_pointcloud,
+                            slice_along, num_slices, comp_of_interest,
+                            axs[0], label='Number of particles')
+
+    for i in range(1,4,1):
+        plot_per_slice_GTandRec(pointcloud_tensor, pred_pointcloud,
+                            slice_along, num_slices, comp_of_interest=-1*i,
+                            axs=axs[i], label='Mean ' + labels_y[-1*i])
+    image = wandb.Image(fig)
+    wandb.log({"Slicewise, Iteration "+iteration+", supercell: "+' '.join([str(k) for k in supercell]): image})
+    plt.close()
+    
+    figsize1 = 50
+    figsize2 = 12
+    fig, axs = plt.subplots(1, 3, figsize=(figsize1,figsize2))
+
+    for i in range(3):
+        plot_2D_GTandRec(pointcloud_tensor, pred_pointcloud,
+                         comp_x=i, comp_y=i+3, axs=axs[i],
+                         label_x=labels_x[i], label_y=labels_y[i])
+
+    image = wandb.Image(fig)
+    wandb.log({"2D Projections, Iteration "+iteration+", supercell: "+' '.join([str(k) for k in supercell]): image})
+    plt.close()
+
+
+def log_one_plot(test_pointcloud, test_radiation, model):
+    supercell = [int(k) for k in test_pointcloud.split('/')[-1].split('.')[0].split('_')[1:]]
+    iteration = test_pointcloud.split('/')[-1].split('.')[0].split('_')[0]
+    #pointcloud_tensor = data_preprocessing.get_particles_for_plot(test_pointcloud, num_particles)
+    pointcloud_tensor = np.load(test_pointcloud)
+    
+    num_particles = 500
+    idx = np.random.randint(pointcloud_tensor.shape[0], size=num_particles)
+    pointcloud_tensor = pointcloud_tensor[idx, :]
+    #radiation_tensor = torch.from_numpy(np.load(test_radiation)).float()
+    radiation_tensor = torch.Tensor([0.5,0.5]).float().repeat(pointcloud_tensor.shape[0], 1)
+
+    labels_x = ['x', 'y', 'z']
+    labels_y = ['xp', 'yp', 'zp']
+
+    pred_pointcloud_full = model.sample_pointcloud(radiation_tensor.to(model.device), radiation_tensor.shape[0])
+    pred_pointcloud = pred_pointcloud_full.detach().cpu().numpy()
     
     fig = plot_3D_GTandRec(pointcloud_tensor, pred_pointcloud)
     image = wandb.Image(fig)

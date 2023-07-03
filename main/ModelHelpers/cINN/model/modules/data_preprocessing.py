@@ -5,7 +5,10 @@ import torch
 import h5py as h5
 import openpmd_api as io
 
-from . import radiation
+try:
+    from . import radiation
+except: 
+    import radiation
 
 
 def get_data_phase_space(ind, 
@@ -173,7 +176,7 @@ def get_radiation_spectra(ind,
     '''
 
     spectra = torch.from_numpy((radiation.RadiationData(items[ind])).get_Spectra()).float()
-    return spectra.repeat(chunk_size, 1, 1)
+    return torch.flatten(spectra.repeat(chunk_size, 1, 1), start_dim=1)
     
 def get_radiation_spectra_intergrated_over_directions(ind, 
                                                      items,
@@ -224,14 +227,15 @@ def get_radiation_spectra_2_projections(ind,
     '''
     spectra = (radiation.RadiationData(items[ind])).get_Spectra()
     concatenated_projections = torch.from_numpy(np.concatenate((np.sum(spectra, axis=0), np.sum(spectra, axis=1)))).float()
-    return concatenated_projections.repeat(chunk_size, 1)[:,:2]
-    #return concatenated_projections.repeat(chunk_size, 1)
+    #return concatenated_projections.repeat(chunk_size, 1)[:,:2]
+    return concatenated_projections.repeat(chunk_size, 1)
 
 def normalize_point(point, vmin, vmax, a=0., b=1.):
     '''
     Normalize point from a set of points with vmin(minimum) and vmax(maximum)
     to be in a range [a, b]
     '''
+    #print(point.shape, vmin.shape, vmax.shape, a, b)
     return (a + (point - vmin) * (b - a) / ( vmax - vmin))
 
 def denormalize_point(point, vmin, vmax, a=0., b=1.):
@@ -266,6 +270,33 @@ def get_vmin_vmax_radiation(items,
             vmin = min(np.min(arr), vmin)
             vmax = max(np.max(arr), vmax)
     return  torch.torch.full(arr.shape, vmin),  torch.torch.full(arr.shape, vmax)
+
+def get_vmin_vmax_radiation_np(items,
+                            chunk_size,
+                            get_radiation_data):
+    '''
+    Find minima/maxima in all radiation simulations for normalization
+    Args:
+        items(list of string): list of paths to all electron clouds
+        chunk_size(int): number of particles in 1 batch, is needed to dublicate amplitudes for each particle
+        get_radiation_data(function): function to load and preprocess radiation data
+    
+    returns torch tensors with minima and maxima
+    '''
+    for ind,item in enumerate(items):
+        arr = get_radiation_data(ind, 
+                                 items,
+                                 chunk_size)
+        arr = arr.detach().cpu().numpy()
+    
+        if item == items[0]:
+            vmin = np.min(arr)
+            vmax = np.max(arr)
+        else:
+            vmin = min(np.min(arr), vmin)
+            vmax = max(np.max(arr), vmax)
+    #return  torch.torch.full(arr.shape, vmin),  torch.torch.full(arr.shape, vmax)
+    return vmin, vmax
 
 def get_shape(item, species):
     series = io.Series(item,
@@ -309,3 +340,11 @@ def get_particles_for_plot(filename, num_particles=10000):
                                 z_momentum), axis=-1)
 
     return particle_tensor
+
+def time_to_hotvec(time, timesteps):
+    hotvec = np.zeros((len(timesteps)))
+    hotvec[timesteps.index(time)] += 1
+    return hotvec
+
+def get_timestep(path_to_phase_space):
+    return path_to_phase_space.split('/')[-1].split('.')[0].split('_')[0]
