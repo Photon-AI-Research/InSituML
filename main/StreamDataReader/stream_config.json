@@ -1,0 +1,14 @@
+{
+   "meshes":[
+      "E",
+      "J"
+   ],
+   "particles":{
+      "e":[
+         "position",
+          "id",
+          "momentum",
+          "weighting"
+      ]
+   }
+}
