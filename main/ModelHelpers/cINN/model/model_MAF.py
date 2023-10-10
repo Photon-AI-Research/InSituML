@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 
 from model.modules import data_preprocessing
 from model.modules import loader
+from torch.nn import functional as F
 
 class PC_MAF(nn.Module):
     def __init__(self, 
@@ -31,7 +32,10 @@ class PC_MAF(nn.Module):
                  hidden_size=128,
                  device='cpu',
                  enable_wandb=False,
-                 weight_particles=False):
+                 weight_particles=False,
+                 num_blocks_mat = 2,     
+                 activation = 'relu',
+                 random_mask = False):
         
         '''
         Masked autoregressive flows model from https://papers.nips.cc/paper/2017/hash/6c1da886822c67822bcf3679d04369fa-Abstract.html
@@ -53,6 +57,28 @@ class PC_MAF(nn.Module):
 
         self.dim_input = dim_input
         self.dim_condition = dim_condition
+        
+        self.num_blocks_mat = num_blocks_mat
+        self.random_mask = random_mask
+        
+        if activation == 'relu':
+            self.activation = F.relu
+        elif activation == 'sigmoid':
+            self.activation = F.sigmoid
+        elif activation == 'tanh':
+            self.activation = F.tanh
+        elif activation == 'elu':
+            self.activation = F.elu
+        elif activation == 'silu':
+            self.activation = F.silu
+        elif activation == 'leaky_relu':
+            self.activation = F.leaky_relu
+        elif activation == 'gelu':
+            self.activation = F.gelu
+        else:
+            raise ValueError("Unsupported activation function")
+            
+            
         self.model = self.init_model().to(self.device)
         self.vmin_ps = None
         self.vmax_ps = None
@@ -66,13 +92,17 @@ class PC_MAF(nn.Module):
     
     def init_model(self):
         base_dist = nflows.distributions.normal.StandardNormal(shape=[self.dim_input])
+        
         transforms = []
         for _ in range(self.num_coupling_layers):
             transforms.append(ReversePermutation(features=self.dim_input))
             transforms.append(MaskedAffineAutoregressiveTransform(features=self.dim_input, 
                                                                   hidden_features=self.hidden_size, 
                                                                   context_features=self.dim_condition,
-                                                                  use_residual_blocks=True))
+                                                                  use_residual_blocks=True,  
+                                                                  num_blocks = self.num_blocks_mat,
+                                                                  activation = self.activation,
+                                                                  random_mask = self.random_mask))
         transform = CompositeTransform(transforms)
 
         return Flow(transform, base_dist).to(self.device)
