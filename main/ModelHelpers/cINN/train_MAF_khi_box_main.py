@@ -189,7 +189,7 @@ if __name__ == "__main__":
     
     print('New session...')
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults, project="KHI")
+    wandb.init(config=hyperparameter_defaults, project="khi_public")
     start_epoch = 0
     min_valid_loss = np.inf
     

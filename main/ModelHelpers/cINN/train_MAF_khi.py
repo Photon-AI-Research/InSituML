@@ -180,11 +180,11 @@ if __name__ == "__main__":
         optimizer.load_state_dict(checkpoint['optimizer'])
 
         # Pass your defaults to wandb.init
-        wandb.init(config=hyperparameter_defaults, project="KHI", resume=wandb_run_id)
+        wandb.init(config=hyperparameter_defaults, project="khi_public", resume=wandb_run_id)
     else:
         print('New session...')
         # Pass your defaults to wandb.init
-        wandb.init(config=hyperparameter_defaults, project="KHI")
+        wandb.init(config=hyperparameter_defaults, project="khi_public")
         start_epoch = 0
         min_valid_loss = np.inf
 
