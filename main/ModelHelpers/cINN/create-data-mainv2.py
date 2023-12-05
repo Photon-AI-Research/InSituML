@@ -19,11 +19,7 @@ path_to_all_simulations = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI
 
 paths_to_simulation_files = [path_to_all_simulations + directory for directory in os.listdir(path_to_all_simulations)]
 
-# for f in paths_to_simulation_files:
-    # print(f)
-
 paths_to_simulation_files = sorted(paths_to_simulation_files, key=lambda x: os.path.basename(x))
-# print(paths_to_simulation_files)
 
 all_series = []
 for f in paths_to_simulation_files:
@@ -97,18 +93,11 @@ for ind, series in enumerate(all_series):
         y_momentumPrev1 = particles["momentumPrev1"]["y"][numParticlesOffset[id_gpu] : numParticlesOffset[id_gpu] + numParticles[id_gpu]]
         z_momentumPrev1 = particles["momentumPrev1"]["z"][numParticlesOffset[id_gpu] : numParticlesOffset[id_gpu] + numParticles[id_gpu]]
 
-        #added
         series.flush()
 
         x_force = x_momentum - x_momentumPrev1
         y_force = y_momentum - y_momentumPrev1
         z_force = z_momentum - z_momentumPrev1
-
-        # print('x_force', x_force.max())
-        # print('x_force', x_force.min())
-
-        #series.flush()
-
 
         particle_tensor = np.stack((x_pos+x_pos_offset,
                                     y_pos+y_pos_offset,
@@ -120,35 +109,11 @@ for ind, series in enumerate(all_series):
                                     y_force,
                                     z_force), axis=-1)
 
-        # particle_tensor = np.stack((x_pos+x_pos_offset,
-        #                             y_pos+y_pos_offset,
-        #                             z_pos+z_pos_offset,
-        #                             x_momentum[0],
-        #                             y_momentum[0],
-        #                             z_momentum[0]), axis=-1)
     
         particle_tensor = particle_tensor[~np.isnan(particle_tensor).any(axis=1)]
         print(f"Number of particles with non NaN values: {particle_tensor.shape[0]}")
 
-        print('particle_tensor',particle_tensor.shape)
-
-
-        #particles_new = []
-        #    for i in range (extent_x.shape[0]):
-
-        #xmin = offset_x[i]
-        #xmax = offset_x[i] + extent_x[i]
-        #ymin = offset_y[i]
-        #ymax = offset_y[i] + extent_y[i]
-        #zmin = offset_z[i]
-        #zmax = offset_z[i] + extent_z[i]
-
-        # Filter particles that fall within the specified box boundaries
-        #particles_in_box = particle_tensor[
-        #    (particle_tensor[:, 0] >= xmin) & (particle_tensor[:, 0] <= xmax) &
-        #    (particle_tensor[:, 1] >= ymin) & (particle_tensor[:, 1] <= ymax) &
-        #    (particle_tensor[:, 2] >= zmin) & (particle_tensor[:, 2] <= zmax)
-        #]
+        # print('particle_tensor',particle_tensor.shape)
 
         particles_new.append(particle_tensor)
     
@@ -161,7 +126,5 @@ for ind, series in enumerate(all_series):
         # File does not exist, create the dataset and save it
         np.save(file_path, particles_new)
         print("Dataset saved successfully.")
-
-print('FINISHED')
 
 
