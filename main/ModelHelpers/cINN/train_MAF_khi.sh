@@ -31,4 +31,4 @@ TERM ()
 trap "TERM" SIGTERM
 
 
-python train_MAF_khi.py checkpoint
+python train_MAF_khi_radiation.py

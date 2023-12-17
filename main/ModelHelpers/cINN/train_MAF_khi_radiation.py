@@ -10,7 +10,7 @@ import sys
 import matplotlib.pyplot as plt
 
     
-def sample_pointcloud(model, p_gt, num_samples, cond):
+def sample_pointcloud(model, num_samples, cond):
     model.model.eval()
     with torch.no_grad():
         pc_pr = (model.model.sample(num_samples, cond))
@@ -155,46 +155,50 @@ if __name__ == "__main__":
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy"
     )
     
-    print('New session...')
-    # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults, project="khi_public")
+    
+    enable_wandb = False
     start_epoch = 0
     min_valid_loss = np.inf
     
-    # Access all hyperparameter values through wandb.config
-    config = wandb.config
+    if enable_wandb:
+        print('New session...')
+        # Pass your defaults to wandb.init
+        wandb.init(entity="jeyhun", config=hyperparameter_defaults, project="khi_public")
     
-    pathpattern1 = config["pathpattern1"]
-    pathpattern2 = config["pathpattern2"]
+        # Access all hyperparameter values through wandb.config
+        config = wandb.config
     
-    l = Loader(pathpattern1=pathpattern1, pathpattern2=pathpattern2, t0=config["t0"], t1=config["t1"], timebatchsize=config["timebatchsize"], particlebatchsize=config["particlebatchsize"])
+    l = Loader(pathpattern1 = hyperparameter_defaults["pathpattern1"],
+               pathpattern2 = hyperparameter_defaults["pathpattern2"],
+               t0 = hyperparameter_defaults["t0"],
+               t1 = hyperparameter_defaults["t1"],
+               timebatchsize = hyperparameter_defaults["timebatchsize"],
+               particlebatchsize = hyperparameter_defaults["particlebatchsize"])
     
-    model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
-                               dim_input=90000,
-                               num_coupling_layers=config["num_coupling_layers"],
-                               hidden_size=config["hidden_size"],
-                               device='cuda',
-                               enable_wandb=False,
-                               weight_particles=False,
-                               num_blocks_mat = config["num_blocks_mat"],
-                               activation = config["activation"]
+    model = (model_MAF.PC_MAF(dim_condition = hyperparameter_defaults["dim_condition"],
+                               dim_input = 90000,
+                               num_coupling_layers = hyperparameter_defaults["num_coupling_layers"],
+                               hidden_size = hyperparameter_defaults["hidden_size"],
+                               device = 'cuda',
+                               num_blocks_mat = hyperparameter_defaults["num_blocks_mat"],
+                               activation = hyperparameter_defaults["activation"]
                              ))
     
     # Calculate the total number of parameters
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Total number of parameters: {total_params}")
     
-    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+    optimizer = optim.Adam(model.parameters(), lr=hyperparameter_defaults["lr"])
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.9)
 
+    if enable_wandb:
+        directory ='/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/'+str(wandb.run.id)
     
-    directory ='/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/'+str(wandb.run.id)
-    
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-        print(f"Directory '{directory}' created.")
-    else:
-        print(f"Directory '{directory}' already exists.")
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Directory '{directory}' created.")
+        else:
+            print(f"Directory '{directory}' already exists.")
     
     
     epoch = l[0]
@@ -205,8 +209,7 @@ if __name__ == "__main__":
     slow_improvement_count = 0
 
     start_time = time.time()
-    for i_epoch in range(start_epoch, config["num_epochs"]):   
-        #print('i_epoch:', i_epoch)
+    for i_epoch in range(start_epoch, hyperparameter_defaults["num_epochs"]):   
         loss_overall = []
         for tb in range(len(epoch)):
             loss_avg = []
@@ -215,11 +218,7 @@ if __name__ == "__main__":
             start_timebatch = time.time()
             for b in range(len(timebatch)):
                 optimizer.zero_grad()
-                #print('b',b)
                 phase_space, radiation = timebatch[b]
-                
-                print('phase_space', phase_space.shape)
-                print('radiation', radiation.shape)
                 
                 loss = - model.model.log_prob(inputs=phase_space.to(model.device),context=radiation.to(model.device))
 
@@ -243,24 +242,25 @@ if __name__ == "__main__":
             no_improvement_count = 0
             slow_improvement_count = 0
             # Saving State Dict
-            torch.save(model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
+            # torch.save(model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
         else:
             no_improvement_count += 1
             if loss_overall_avg - min_valid_loss <= 0.001:  # Adjust this threshold as needed
                 slow_improvement_count += 1
             
+        if (i_epoch + 1) % 10 == 0 and enable_wandb:
             save_checkpoint(model, optimizer, directory, loss, min_valid_loss, i_epoch, wandb.run.id)
         
         scheduler.step()
         
-        # Log the loss and accuracy values at the end of each epoch
-        wandb.log({
-            "Epoch": i_epoch,
-            #"last time batch loss":loss.item(),
-            "loss_timebatch_avg_loss": loss_timebatch_avg,
-            "loss_overall_avg": loss_overall_avg,
-            "min_valid_loss": min_valid_loss,
-        })
+        if enable_wandb:
+            # Log the loss and accuracy values at the end of each epoch
+            wandb.log({
+                "Epoch": i_epoch,
+                "loss_timebatch_avg_loss": loss_timebatch_avg,
+                "loss_overall_avg": loss_overall_avg,
+                "min_valid_loss": min_valid_loss,
+            })
             
         
         # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
