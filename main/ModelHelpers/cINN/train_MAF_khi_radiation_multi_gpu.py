@@ -228,70 +228,92 @@ if __name__ == "__main__":
     slow_improvement_count = 0
 
     start_time = time.time()
-    for i_epoch in range(start_epoch, config["num_epochs"]):   
-        print('i_epoch:', i_epoch)
-        loss_overall = []
-        for tb in range(len(epoch)):
-            loss_avg = []
-            timebatch = epoch[tb]
-            
-            start_timebatch = time.time()
-            for b in range(len(timebatch)):
-                optimizer.zero_grad()
-                #print('b',b)
-                phase_space, radiation = timebatch[b]
-                
-                #print('phase_space', phase_space.shape)
-                #print('radiation', radiation.shape)
-                
-                #loss = - ddp_model.model.log_prob(inputs=phase_space.to(ddp_model.device),context=radiation.to(ddp_model.device))
-                loss = - ddp_model.module.model.log_prob(inputs=phase_space.to(local_rank),context=radiation.to(local_rank))
 
-                loss = loss.mean()
-                loss_avg.append(loss.item())
-                loss.backward()
-                optimizer.step()
-                
-            end_timebatch = time.time()
-            elapsed_timebatch = end_timebatch - start_timebatch
-            
-            loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
-            loss_overall.append(loss_timebatch_avg)
-            #print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
-    
-        loss_overall_avg = sum(loss_overall)/len(loss_overall)  
-    
-        if min_valid_loss > loss_overall_avg:     
-            print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model')
-            min_valid_loss = loss_overall_avg
-            no_improvement_count = 0
-            slow_improvement_count = 0
-            # Saving State Dict
-            torch.save(ddp_model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
-        else:
-            no_improvement_count += 1
-            if loss_overall_avg - min_valid_loss <= 0.001:  # Adjust this threshold as needed
-                slow_improvement_count += 1
-            
-            save_checkpoint(model, optimizer, directory, loss, min_valid_loss, i_epoch, wandb.run.id)
-        
-        scheduler.step()
-        
-        # Log the loss and accuracy values at the end of each epoch
-        wandb.log({
-            "Epoch": i_epoch,
-            #"last time batch loss":loss.item(),
-            "loss_timebatch_avg_loss": loss_timebatch_avg,
-            "loss_overall_avg": loss_overall_avg,
-            "min_valid_loss": min_valid_loss,
-        })
-            
-        # Synchronize at the end of each epoch
-        dist.barrier()
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                #schedule=torch.profiler.schedule(wait=1,warmup=1,active=3,repeat=1), 
+                on_trace_ready=torch.profiler.tensorboard_trace_handler("./log/trace.json"),
+                #with_flops=True,
+                #with_modules=True,
+                with_stack=True,
+                profile_memory=True,
+                use_cuda=True,
+                record_shapes=True) as prof:
 
-        # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
-        #     break  # Stop training
+        for i_epoch in range(start_epoch, config["num_epochs"]):   
+            print('i_epoch:', i_epoch)
+            loss_overall = []
+            for tb in range(len(epoch)):
+                loss_avg = []
+                timebatch = epoch[tb]
+                
+                start_timebatch = time.time()
+                for b in range(len(timebatch)):
+                    optimizer.zero_grad()
+                    #print('b',b)
+                    phase_space, radiation = timebatch[b]
+                    
+                    #print('phase_space', phase_space.shape)
+                    #print('radiation', radiation.shape)
+                    
+                    #loss = - ddp_model.model.log_prob(inputs=phase_space.to(ddp_model.device),context=radiation.to(ddp_model.device))
+                    loss = - ddp_model.module.model.log_prob(inputs=phase_space.to(local_rank),context=radiation.to(local_rank))
+
+                    loss = loss.mean()
+                    loss_avg.append(loss.item())
+                    loss.backward()
+                    optimizer.step()
+                    
+                end_timebatch = time.time()
+                elapsed_timebatch = end_timebatch - start_timebatch
+                
+                loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
+                loss_overall.append(loss_timebatch_avg)
+                #print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
         
+            loss_overall_avg = sum(loss_overall)/len(loss_overall)  
+        
+            if min_valid_loss > loss_overall_avg:     
+                print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model')
+                min_valid_loss = loss_overall_avg
+                no_improvement_count = 0
+                slow_improvement_count = 0
+                # Saving State Dict
+                torch.save(ddp_model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
+            else:
+                no_improvement_count += 1
+                if loss_overall_avg - min_valid_loss <= 0.001:  # Adjust this threshold as needed
+                    slow_improvement_count += 1
+                
+                save_checkpoint(model, optimizer, directory, loss, min_valid_loss, i_epoch, wandb.run.id)
+            
+            scheduler.step()
+            
+            # Log the loss and accuracy values at the end of each epoch
+            wandb.log({
+                "Epoch": i_epoch,
+                #"last time batch loss":loss.item(),
+                "loss_timebatch_avg_loss": loss_timebatch_avg,
+                "loss_overall_avg": loss_overall_avg,
+                "min_valid_loss": min_valid_loss,
+            })
+            
+
+            # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
+            #     break  # Stop training
+
+    try:
+        prof.export_chrome_trace("./trace1epoch.json")
+    except RuntimeError:
+        print("Runtime error: Trace saving")
+        
+
+    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cuda_time_total", row_limit=20))
+    #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
+
+    print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=20))
+
+    prof.export_stacks("./profiler_stacks.txt", "self_cuda_time_total")
+            
     dist.barrier()
     dist.destroy_process_group()
 
