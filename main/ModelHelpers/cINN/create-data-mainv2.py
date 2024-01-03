@@ -15,11 +15,13 @@ print("openPMD-api backend variants: {}"
       .format(io.variants))
 
 #path_to_all_simulations = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/001_KHI_withRad/simOutput/openPMD/"
-path_to_all_simulations = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/openPMD/"
+path_to_all_simulations = "/lustre/orion/csc380/world-shared/rpausch/002_KHI_withRad_randomInit/simOutput/openPMD/"
 
 paths_to_simulation_files = [path_to_all_simulations + directory for directory in os.listdir(path_to_all_simulations)]
 
 paths_to_simulation_files = sorted(paths_to_simulation_files, key=lambda x: os.path.basename(x))
+
+#paths_to_simulation_files = paths_to_simulation_files[772:]
 
 all_series = []
 for f in paths_to_simulation_files:
@@ -116,8 +118,12 @@ for ind, series in enumerate(all_series):
         # print('particle_tensor',particle_tensor.shape)
 
         particles_new.append(particle_tensor)
+
     
-    file_path = '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/' +str(iteration)+'.npy'
+    
+    file_path = '/lustre/orion/csc372/proj-shared/vineethg/khi/part_rad/particle_002/' +str(iteration)+'.npy'
+
+    print(file_path)
 
     if os.path.exists(file_path):
         # File exists, do nothing
@@ -128,3 +134,4 @@ for ind, series in enumerate(all_series):
         print("Dataset saved successfully.")
 
 
+    series.close()

@@ -6,7 +6,7 @@ import os
 from radiation import RadiationData
 
 
-filename2= "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/openPMD/simData_000000.bp"
+filename2= "/lustre/orion/csc380/world-shared/rpausch/002_KHI_withRad_randomInit/simOutput/openPMD/simData_000000.bp"
 series2 = io.Series(filename2, io.Access_Type.read_only)
 
 ii = series2.iterations[0]
@@ -32,10 +32,11 @@ r_offset[:, 0] = offset_x * ii.get_attribute("cell_width")
 r_offset[:, 1] = offset_y * ii.get_attribute("cell_height")
 r_offset[:, 2] = offset_z * ii.get_attribute("cell_depth")
 
-filename = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp"
+filename = "/lustre/orion/csc380/world-shared/rpausch/002_KHI_withRad_randomInit/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp"
 series = io.Series(filename, io.Access_Type.read_only)
 
 for iteration in range(2,2001):
+#for iteration in range(1817, 2001):
     print(iteration)
     i = series.iterations[iteration]
 
@@ -75,7 +76,7 @@ for iteration in range(2,2001):
     # Concatenate along the second axis
     amplitude_concat = np.stack((amplitude_x, amplitude_y, amplitude_z), axis=1)
         
-    file_rad_new = '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_002_ex/' + str(iteration)+'.npy'
+    file_rad_new = '/lustre/orion/csc372/proj-shared/vineethg/khi/part_rad/radiation_002_ex/' + str(iteration)+'.npy'
 
     if os.path.exists(file_rad_new):
         # File exists, do nothing
@@ -84,3 +85,7 @@ for iteration in range(2,2001):
         # File does not exist, create the dataset and save it
         np.save(file_rad_new, amplitude_concat)
         print("Dataset saved successfully.")
+
+    if iteration % 100 == 0:
+        series.close()
+        series = io.Series(filename, io.Access_Type.read_only)
