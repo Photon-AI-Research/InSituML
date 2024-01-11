@@ -305,9 +305,9 @@ if __name__ == "__main__":
     # Plotting results
 #     create_position_density_plots(x, y, z, x_pr, y_pr, z_pr, bins=100, t=t_index)
 
-#     create_momentum_density_plots(x, y, z, x_pr, y_pr, z_pr, bins=100, t=t_index)
+#     create_momentum_density_plots(px, py, pz, px_pr, py_pr, pz_pr, bins=100, t=t_index)
 
-#     create_force_density_plots(x, y, z, x_pr, y_pr, z_pr, bins=100, t=t_index)
+#     create_force_density_plots(fx, fy, fz, fx_pr, fy_pr, fz_pr, bins=100, t=t_index)
 
 
 
