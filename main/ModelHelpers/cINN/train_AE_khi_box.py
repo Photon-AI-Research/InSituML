@@ -8,47 +8,7 @@ import time
 import wandb
 import sys
 import matplotlib.pyplot as plt
-
-
-def random_sample(data, sample_size):
-    # Check if the sample size is greater than the number of points in the data
-    if sample_size > data.shape[0]:
-        raise ValueError("Sample size exceeds the number of points in the data")
-
-    # Randomly sample 10,000 points
-    random_indices = np.random.choice(data.shape[0], sample_size, replace=False)
-    sampled_data = data[random_indices]
-
-    return sampled_data
-
-
-def normalize_columns(original_array):
-    xyz_columns = original_array[:, :3]
-    x_min, x_max = xyz_columns[:, 0].min(), xyz_columns[:, 0].max()
-    y_min, y_max = xyz_columns[:, 1].min(), xyz_columns[:, 1].max()
-    z_min, z_max = xyz_columns[:, 2].min(), xyz_columns[:, 2].max()
-
-    xyz_columns[:, 0] = (xyz_columns[:, 0] - x_min) / (x_max - x_min)
-    xyz_columns[:, 1] = (xyz_columns[:, 1] - y_min) / (y_max - y_min)
-    xyz_columns[:, 2] = (xyz_columns[:, 2] - z_min) / (z_max - z_min)
-
-    normalized_array = np.concatenate((xyz_columns, original_array[:, 3:]), axis=1)
-    return normalized_array
-
-def denormalize_columns(normalized_array, gt):
-    
-    x_min, x_max = gt[:, 0].min(), gt[:, 0].max()
-    y_min, y_max = gt[:, 1].min(), gt[:, 1].max()
-    z_min, z_max = gt[:, 2].min(), gt[:, 2].max()
-
-    xyz_columns = normalized_array[:, :3]
-
-    xyz_columns[:, 0] = xyz_columns[:, 0] * (x_max - x_min) + x_min
-    xyz_columns[:, 1] = xyz_columns[:, 1] * (y_max - y_min) + y_min
-    xyz_columns[:, 2] = xyz_columns[:, 2] * (z_max - z_min) + z_min
-
-    denormalized_array = np.concatenate((xyz_columns, normalized_array[:, 3:]), axis=1)
-    return denormalized_array
+from utilities import *
 
  
 def save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id):
@@ -341,6 +301,14 @@ if __name__ == "__main__":
     
     elapsed_time = end_time - start_time
     print(f"Total elapsed time: {elapsed_time:.6f} seconds")
+    
+    # Plotting results
+#     create_position_density_plots(x, y, z, x_pr, y_pr, z_pr, bins=100, t=t_index)
+
+#     create_momentum_density_plots(x, y, z, x_pr, y_pr, z_pr, bins=100, t=t_index)
+
+#     create_force_density_plots(x, y, z, x_pr, y_pr, z_pr, bins=100, t=t_index)
+
 
 
 
