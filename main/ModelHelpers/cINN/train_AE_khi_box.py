@@ -25,7 +25,7 @@ def save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wa
 
 def chamfersDist(a, b):
     d = torch.cdist(a, b, p=2)
-    return torch.sum(torch.min(d, -1).values + torch.min(d, -2).values)
+    return torch.sum(torch.min(d, -1).values) + torch.sum(torch.min(d, -2).values)
 
 
 class Loader:
@@ -133,10 +133,8 @@ if __name__ == "__main__":
     t1 = 2001,
     timebatchsize = 4,
     particlebatchsize = 4,
-    hidden_size = 64,
+    hidden_size = 1024,
     dim_pool = 1,
-    tmp_dim = 4,
-    dim_bottleneck = 1024,
     lr = 0.001,
     num_epochs = 20000,
     activation = 'relu',
@@ -174,26 +172,30 @@ if __name__ == "__main__":
 
             # Encoder
             self.encoder = nn.Sequential(
-                nn.Conv1d(9, config["hidden_size"], kernel_size=1),
+                nn.Conv1d(9, 16, kernel_size=1),
                 nn.ReLU(),
-                nn.Conv1d(config["hidden_size"], config["hidden_size"], kernel_size=1),
+                nn.Conv1d(16, 32, kernel_size=1),
                 nn.ReLU(),
-                nn.Conv1d(config["hidden_size"], config["tmp_dim"], kernel_size=1),
+                nn.Conv1d(32, 64, kernel_size=1),
                 nn.ReLU(),
-                nn.AdaptiveMaxPool1d(config["dim_pool"]),  # Global max pooling
-                nn.Flatten(),
-                nn.Linear(config["tmp_dim"]*config["dim_pool"], config["dim_bottleneck"])
+                nn.Conv1d(64, 128, kernel_size=1),
+                nn.ReLU(),
+                nn.Conv1d(128, 256, kernel_size=1),
+                nn.ReLU(),
+                nn.Conv1d(256, 512, kernel_size=1),
+                nn.ReLU(),
+                nn.Conv1d(512, config["hidden_size"], kernel_size=1),
+                nn.AdaptiveMaxPool1d(config["dim_pool"]), 
+                nn.Flatten()
             )
 
             # Decoder
             self.decoder = nn.Sequential(
-                nn.Linear(config["dim_bottleneck"], config["tmp_dim"]*150000),
-                Reshape(-1,config["tmp_dim"], 150000),
-                nn.ConvTranspose1d(config["tmp_dim"], config["hidden_size"], kernel_size=1),
+                nn.Unflatten(1, (16,4,4,4)),
+                nn.ConvTranspose3d(16, 4,kernel_size=2, stride=1),
                 nn.ReLU(),
-                nn.ConvTranspose1d(config["hidden_size"], config["hidden_size"], kernel_size=1),
-                nn.ReLU(),
-                nn.ConvTranspose1d(config["hidden_size"], 9, kernel_size=1),
+                nn.ConvTranspose3d(4, 9,kernel_size=2, stride=2),
+                nn.Flatten(2),
             )
 
         def forward(self, x):
@@ -252,9 +254,7 @@ if __name__ == "__main__":
                 
                 output = model(phase_space)
                 
-                # loss = criterion(output, phase_space)
-                
-                loss = chamfersDist(output, phase_space)
+                loss = chamfersDist(output.transpose(2,1), phase_space.transpose(2,1))
 
                 loss = loss.mean()
                 loss_avg.append(loss.item())

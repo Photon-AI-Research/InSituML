@@ -4,10 +4,9 @@
 #SBATCH --partition=hlab
 #SBATCH -t 47:59:59
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
 #SBATCH --gres=gpu:1
-#SBATCH --mem-per-cpu=47443
 #SBATCH -o maf_%j.out
 
 ## tell slurm to append to the output file if it exists so restarts do not
@@ -31,4 +30,4 @@ TERM ()
 trap "TERM" SIGTERM
 
 
-python train_MAF_khi_radiation.py
+python train_AE_khi_box.py
