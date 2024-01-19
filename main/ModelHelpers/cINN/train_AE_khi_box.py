@@ -71,22 +71,23 @@ class Loader:
             def __getitem__(self, timebatch):
                 i = self.timebatchsize*timebatch
                 bi = self.perm[i:i+self.timebatchsize]
-                times = []
+                radiation = []
                 particles = []
                 for time in bi:
                     index = time + self.t0
                     
+                    # Load particle data
                     p = np.load(self.loader.pathpattern1.format(index), allow_pickle = True)
                     
-                    # Normalize the tensor
+                    # Normalize particle data for all boxes
                     p = [normalize_columns(element) for element in p]
                     p = np.array(p, dtype=object)
                     
-                    # random sample the tensor
+                    # random sample N points from each box
                     p = [random_sample(element, sample_size=150000) for element in p]
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
                     
-                    #radiation
+                    # Load radiation data
                     r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat) )
                     r = r[:, 1:, :]
                     r = r.view(r.shape[0], -1)
@@ -98,30 +99,31 @@ class Loader:
                     amplitude = torch.abs(r)
                     r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
 
-                    particles.append( p )
-                    times.append(r)
+                    particles.append(p)
+                    radiation.append(r)
                 
+                # concatenate particle and radiation data across randomly chosen timesteps
                 particles = torch.cat(particles)
-                times = torch.cat(times)
+                radiation = torch.cat(radiation)
                 
                 class Timebatch:
-                    def __init__(self, particles, times, batchsize):
+                    def __init__(self, particles, radiation, batchsize):
                         self.batchsize = batchsize
                         self.particles = particles
-                        self.times = times
+                        self.radiation = radiation
                         
-                        self.perm = torch.randperm(self.times.shape[0])
+                        self.perm = torch.randperm(self.radiation.shape[0])
                         
                     def __len__(self):
-                        return self.times.shape[0] // self.batchsize
+                        return self.radiation.shape[0] // self.batchsize
 
                     def __getitem__(self, batch):
                         i = self.batchsize*batch
                         bi = self.perm[i:i+self.batchsize]
                     
-                        return self.particles[bi], self.times[bi]
+                        return self.particles[bi], self.radiation[bi]
                 
-                return Timebatch(particles, times, self.particlebatchsize)
+                return Timebatch(particles, radiation, self.particlebatchsize)
                     
         return Epoch(self, self.t0, self.t1, self.timebatchsize, self.particlebatchsize)
 
