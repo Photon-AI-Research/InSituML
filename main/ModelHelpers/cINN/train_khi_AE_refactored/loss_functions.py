@@ -11,7 +11,8 @@ class ChamfersLoss(nn.Module):
         p(float): value for the p - norm distance to calculate between 
         each vector pair. See also torch.cdist.
     """
-    def __init__(reduction='mean',
+    def __init__(self, 
+                 reduction='mean',
                  p=2):
         
         super().__init__()
@@ -26,7 +27,7 @@ class ChamfersLoss(nn.Module):
             x(Tensor): Output of the model.
             y(Tensor): Ground truth values
         """
-        relative_distances = torch.cdist(x, y, p=p_norm)
+        relative_distances = torch.cdist(x, y, p=self.p)
         return self.chamfers_distance(relative_distances)
 
     def chamfers_distance(self, relative_distances):
@@ -37,8 +38,8 @@ class ChamfersLoss(nn.Module):
         relative_distances: A tensor containing relative distances between
         the particles.
         """
-        loss_per_batch = torch.sum(torch.min(d, -1).values +
-                                   torch.min(d, -2).values)
+        loss_per_batch = torch.sum(torch.min(relative_distances, -1).values) + \
+                         torch.sum(torch.min(relative_distances, -2).values))
 
         reduced_loss = getattr(loss_per_batch, self.reduction)()
 

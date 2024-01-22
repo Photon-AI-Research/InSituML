@@ -61,7 +61,8 @@ def train_AE(model, criterion, optimizer, scheduler, epoch, wandb):
                 
                 output = model(phase_space)
                 
-                loss = criterion(output.transpose(2,1).contiguous(), phase_space.transpose(2,1).contiguous())
+                loss = criterion(output.transpose(2,1).contiguous(),
+                                 phase_space.transpose(2,1).contiguous())
 
                 loss_avg.append(loss.item())
                 loss.backward()
