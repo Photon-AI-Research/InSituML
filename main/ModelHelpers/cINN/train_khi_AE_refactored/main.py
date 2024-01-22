@@ -14,8 +14,8 @@ MAPPING_TO_LOSS = {
     "mse":nn.MSELoss
     }
 
-if __name__ == "__main__":
-
+def train_with_wandb():
+    
     hyperparameter_defaults = dict(
     t0 = 1000,
     t1 = 2001,
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     
     print('New session...')
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults, project="khi_public")
+    wandb.init(config=hyperparameter_defaults)
     start_epoch = 0
     
     # Access all hyperparameter values through wandb.config
@@ -70,3 +70,21 @@ if __name__ == "__main__":
         print(f"Directory '{directory}' already exists.")
     
     train_AE(model, criterion, optimizer, scheduler, epoch, wandb) 
+    
+if __name__ == "__main__":
+    
+    sweep_config = {
+        'method': 'random', #grid, random
+        'parameters': {
+            'epochs': {
+                'values': [10, 50]
+                },
+            'learning_rate': {
+                'values': [1e-3, 1e-4,1e-5]
+                }
+            }
+        }
+            
+    sweep_id = wandb.sweep(sweep_config, entity="ankush7890", project="khi_public")
+    
+    wandb.agent(sweep_id, train_with_wandb)

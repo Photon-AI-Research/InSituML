@@ -62,7 +62,6 @@ def train_AE(model, criterion, optimizer, scheduler, epoch, wandb):
                 output = model(phase_space)
                 
                 loss = criterion(output.transpose(2,1).contiguous(), phase_space.transpose(2,1).contiguous())
-                print("passed one loss")
 
                 loss_avg.append(loss.item())
                 loss.backward()
@@ -73,7 +72,7 @@ def train_AE(model, criterion, optimizer, scheduler, epoch, wandb):
             
             loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
-            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
+            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch), flush=True)
     
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
