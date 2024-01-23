@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+from encoder_decoder import Encoder as encoder
+fron encoder_decoder import MLP_Decoder as decoder
+
 
 class Reshape(nn.Module):
     def __init__(self, *args):
@@ -46,3 +49,76 @@ class ConvAutoencoder(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
+
+
+class VAE(nn.Module):
+    def __init__(self, loss_function = None):
+        super(VAE, self).__init__()
+        self.n_point = 1
+        self.point_dim = 9
+        self.z_dim = 4
+        self.loss_function = loss_function
+        self.use_deterministic_encoder = True
+        self.use_encoding_in_decoder = True
+        self.encoder = encoder(self.z_dim,
+                               self.point_dim,
+                               self.use_deterministic_encoder)
+        
+        if not self.use_deterministic_encoder and self.use_encoding_in_decoder:
+            self.decoder = decoder(2 *self.z_dim,self.n_point,self.point_dim)
+        else:
+            self.decoder = decoder(self.z_dim,self.n_point,self.point_dim)
+        #set prior parameters of the vae model p(z) with 0 mean and 1 variance.
+        self.z_prior_m = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
+        self.z_prior_v = torch.nn.Parameter(torch.ones(1), requires_grad=False)
+        self.z_prior = (self.z_prior_m, self.z_prior_v)
+        self.type = 'VAE'
+    
+    def forward(self, inputs):
+        x = inputs['x']
+        m, v = self.encoder(x)
+        if self.use_deterministic_encoder:
+            y = self.decoder(m)
+            kl_loss = torch.zeros(1)
+        else:
+            z =  ut.sample_gaussian(m,v)
+            decoder_input = z if not self.use_encoding_in_decoder else \
+            torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
+            y = self.decoder(decoder_input)
+            #compute KL divergence loss :
+            p_m = self.z_prior[0].expand(m.size())
+            p_v = self.z_prior[1].expand(v.size())
+            kl_loss = ut.kl_normal(m,v,p_m,p_v)
+        #compute reconstruction loss 
+        if self.loss_function is not None:
+            x_reconst = self.loss_function(y,x)
+        # mean or sum
+        x_reconst = x_reconst.mean()
+        kl_loss = kl_loss.mean()
+
+        nelbo = x_reconst + kl_loss
+        
+        ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
+        return ret['nelbo']
+    
+
+    def sample_point(self,batch):
+        p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)
+        p_v = self.z_prior[1].expand(batch,self.z_dim).to(device)
+        z =  ut.sample_gaussian(p_m,p_v)
+        decoder_input = z if not self.use_encoding_in_decoder else \
+        torch.cat((z,p_m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
+        y = self.decoder(decoder_input)
+        return y
+
+    def reconstruct_input(self,x):
+        m, v = self.encoder(x)
+        if self.use_deterministic_encoder:
+            y = self.decoder(m)
+        else:
+            z =  ut.sample_gaussian(m,v)
+            decoder_input = z if not self.use_encoding_in_decoder else \
+            torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
+            y = self.decoder(decoder_input)
+        return y
+

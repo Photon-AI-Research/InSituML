@@ -1,6 +1,6 @@
 import wandb
 from data_loaders import Loader
-from networks import ConvAutoencoder
+from networks import ConvAutoencoder, VAE
 from loss_functions import EarthMoversLoss, ChamfersLoss
 import torch
 import torch.nn as nn
@@ -12,6 +12,11 @@ MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
     "chamfersloss":ChamfersLoss,
     "mse":nn.MSELoss
+    }
+
+MAPPING_TO_NETWORK = {
+    "convAE":ConvAutoencoder,
+    "VAE":VAE
     }
 
 def train_with_wandb():
@@ -29,7 +34,8 @@ def train_with_wandb():
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     loss_function = "earthmovers",
-    loss_function_params = {'reduction':'mean', 'p': 2}
+    loss_function_params = {'reduction':'mean', 'p': 2},
+    network ="VAE"
     )
     
     print('New session...')
@@ -50,11 +56,12 @@ def train_with_wandb():
                          timebatchsize=config["timebatchsize"],
                          particlebatchsize=config["particlebatchsize"])
     
-    # Initialize the convolutional autoencoder
-    model = ConvAutoencoder(config)
         
     criterion = MAPPING_TO_LOSS[config["loss_function"]](**config["loss_function_params"])
     
+    # Initialize the convolutional autoencoder
+    model = MAPPING_TO_NETWORK[config["network"]](criterion)
+
     epoch = data_loader[0]
     
     optimizer = optim.Adam(model.parameters(), lr=config["lr"])
