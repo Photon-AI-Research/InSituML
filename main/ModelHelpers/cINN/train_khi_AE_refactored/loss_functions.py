@@ -39,7 +39,7 @@ class ChamfersLoss(nn.Module):
         the particles.
         """
         loss_per_batch = torch.sum(torch.min(relative_distances, -1).values) + \
-                         torch.sum(torch.min(relative_distances, -2).values))
+                         torch.sum(torch.min(relative_distances, -2).values)
 
         reduced_loss = getattr(loss_per_batch, self.reduction)()
 
