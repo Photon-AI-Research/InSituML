@@ -28,10 +28,19 @@ def chamfersDist(a, b):
     return torch.sum(torch.min(d, -1).values) + torch.sum(torch.min(d, -2).values)
 
 
-class Loader:
-    def __init__(self, pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/40_80_80_160_0_2/{}.npy", pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex/{}.npy", t0=0, t1=100, timebatchsize=20, particlebatchsize=10240):
+class TrainLoader:
+    def __init__(self, 
+                 pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/40_80_80_160_0_2/{}.npy",
+                 pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex/{}.npy",
+                 t0=0,
+                 t1=100,
+                 timebatchsize=20,
+                 particlebatchsize=10240,
+                 blacklist_box=None):
+        
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
+        self.blacklist_box = blacklist_box
         
         # TODO check if all files are there
         
@@ -57,13 +66,21 @@ class Loader:
     def __getitem__(self, idx):
         
         class Epoch:
-            def __init__(self, loader, t0, t1, timebatchsize=20, particlebatchsize=10240):
+            def __init__(self, 
+                         loader,
+                         t0,
+                         t1,
+                         timebatchsize=20,
+                         particlebatchsize=10240,
+                         blacklist_box=None):
+                
                 self.perm = torch.randperm(len(loader))
                 self.loader = loader
                 self.t0 = t0
                 self.t1 = t1
                 self.timebatchsize = timebatchsize
                 self.particlebatchsize = particlebatchsize
+                self.blacklist_box = blacklist_box
 
             def __len__(self):
                 return len(self.loader) // self.timebatchsize
@@ -79,6 +96,14 @@ class Loader:
                     # Load particle data
                     p = np.load(self.loader.pathpattern1.format(index), allow_pickle = True)
                     
+                    # Load radiation data
+                    r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat))
+                    
+                    # Exclude the blacklisted box if specified
+                    if self.blacklist_box is not None:
+                        p = np.delete(p, self.blacklist_box, axis=0)
+                        r = np.delete(r, self.blacklist_box, axis=0)
+                        
                     # Normalize particle data for all boxes
                     p = [normalize_columns(element) for element in p]
                     p = np.array(p, dtype=object)
@@ -87,8 +112,7 @@ class Loader:
                     p = [random_sample(element, sample_size=150000) for element in p]
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
                     
-                    # Load radiation data
-                    r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat) )
+                    # choose relevant directions
                     r = r[:, 1:, :]
                     r = r.view(r.shape[0], -1)
                     
@@ -125,13 +149,61 @@ class Loader:
                 
                 return Timebatch(particles, radiation, self.particlebatchsize)
                     
-        return Epoch(self, self.t0, self.t1, self.timebatchsize, self.particlebatchsize)
+        return Epoch(self, self.t0, self.t1, self.timebatchsize, self.particlebatchsize, self.blacklist_box)
+    
+class ValidationDataset:
+    def __init__(self, 
+                 pathpattern1,
+                 pathpattern2,
+                 validation_boxes,
+                 t0=0,
+                 t1=100,
+                 timebatchsize=20,
+                 particlebatchsize=10240):
+        self.pathpattern1 = pathpattern1
+        self.pathpattern2 = pathpattern2
+        self.validation_boxes = validation_boxes
+        self.t0 = t0
+        self.t1 = t1
+        self.timebatchsize = timebatchsize
+        self.particlebatchsize = particlebatchsize
+
+    def __len__(self):
+        return self.t1 - self.t0
+
+    def __getitem__(self, idx):
+
+        timestep_index = self.t0 + idx
+
+        # Load particle data for the validation boxes
+        p_loaded = np.load(self.pathpattern1.format(timestep_index), allow_pickle=True)
+        p = [p_loaded[box_index] for box_index in self.validation_boxes]
+        
+        p = [normalize_columns(element) for element in p]
+        p = np.array(p, dtype=object)
+                
+        p = [random_sample(element, sample_size=150000) for element in p]
+        p = torch.from_numpy(np.array(p, dtype = np.float32))        
+
+        # Load radiation data for the validation boxes
+        r_loaded = torch.from_numpy(np.load(self.pathpattern2.format(timestep_index)).astype(np.cfloat))
+        r =  r_loaded[self.validation_boxes, 1:, :]
+        r = r.view(r.shape[0], -1)
+        
+        # Compute the phase (angle) of the complex number in radians
+        phase = torch.angle(r)
+
+        # Compute the amplitude (magnitude) of the complex number
+        amplitude = torch.abs(r)
+        r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
+
+        return timestep_index, self.validation_boxes, p, r
 
 
 if __name__ == "__main__":
 
     hyperparameter_defaults = dict(
-    t0 = 1000,
+    t0 = 1990,
     t1 = 2001,
     timebatchsize = 4,
     particlebatchsize = 4,
@@ -139,6 +211,7 @@ if __name__ == "__main__":
     dim_pool = 1,
     lr = 0.001,
     num_epochs = 20000,
+    val_boxes = [19,5,3],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy"
@@ -157,7 +230,20 @@ if __name__ == "__main__":
     pathpattern2 = config["pathpattern2"]
 
     
-    l = Loader(pathpattern1=pathpattern1, pathpattern2=pathpattern2, t0=config["t0"], t1=config["t1"], timebatchsize=config["timebatchsize"], particlebatchsize=config["particlebatchsize"])
+    l = TrainLoader(pathpattern1=pathpattern1,
+                    pathpattern2=pathpattern2,
+                    t0=config["t0"],
+                    t1=config["t1"],
+                    timebatchsize=config["timebatchsize"],
+                    particlebatchsize=config["particlebatchsize"],
+                    blacklist_box = config["val_boxes"])
+    
+    validation_dataset = ValidationDataset(pathpattern1,
+                                           pathpattern2,
+                                           config["val_boxes"],
+                                           t0=config["t0"],
+                                           t1=config["t1"])
+
     
     class Reshape(nn.Module):
         def __init__(self, *args):
@@ -236,10 +322,10 @@ if __name__ == "__main__":
     slow_improvement_patience = 10
     no_improvement_count = 0
     slow_improvement_count = 0
-
+    batch_tot_idx = 0
+    
     start_time = time.time()
     for i_epoch in range(start_epoch, config["num_epochs"]):   
-        #print('i_epoch:', i_epoch)
         loss_overall = []
         for tb in range(len(epoch)):
             loss_avg = []
@@ -249,6 +335,7 @@ if __name__ == "__main__":
             start_timebatch = time.time()
             for b in range(len(timebatch)):
                 batch_idx += 1
+                batch_tot_idx +=1
                 optimizer.zero_grad()
                 phase_space, _ = timebatch[b]
                 
@@ -260,6 +347,13 @@ if __name__ == "__main__":
 
                 loss = loss.mean()
                 loss_avg.append(loss.item())
+                
+                # Log batch loss to wandb
+                wandb.log({
+                    "Batch": batch_tot_idx,
+                    "Batch Loss": loss.item(),
+                })
+                
                 loss.backward()
                 optimizer.step()
                 
@@ -270,11 +364,26 @@ if __name__ == "__main__":
             loss_overall.append(loss_timebatch_avg)
             print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
     
-        loss_overall_avg = sum(loss_overall)/len(loss_overall)  
+        loss_overall_avg = sum(loss_overall)/len(loss_overall)
+        
+        # Calculate validation loss
+        model.eval()
+        val_loss_avg = []
+        with torch.no_grad():
+            for idx in range(len(validation_dataset)):
+                timestep_index, validation_boxes, p, _ = validation_dataset[idx]
+                
+                p = p.permute(0, 2, 1).to(device)
+                pc_pr_t = model(p)
+                
+                val_loss = chamfersDist(pc_pr_t.transpose(2,1), p.transpose(2,1))
+                # emd = emd_loss(pc_pr_t.transpose(2,1).contiguous(), p.transpose(2,1).contiguous())
+                val_loss_avg.append(val_loss.mean().item())
+            val_loss_overall_avg = sum(val_loss_avg) / len(val_loss_avg)
     
-        if min_valid_loss > loss_overall_avg:     
-            print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model')
-            min_valid_loss = loss_overall_avg
+        if min_valid_loss > val_loss_overall_avg:     
+            print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{val_loss_overall_avg:.6f}) \t Saving The Model')
+            min_valid_loss = val_loss_overall_avg
             no_improvement_count = 0
             slow_improvement_count = 0
             # Saving State Dict
