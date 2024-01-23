@@ -79,19 +79,4 @@ def train_with_wandb():
     train_AE(model, criterion, optimizer, scheduler, epoch, wandb) 
     
 if __name__ == "__main__":
-    
-    sweep_config = {
-        'method': 'random', #grid, random
-        'parameters': {
-            'epochs': {
-                'values': [10, 50]
-                },
-            'learning_rate': {
-                'values': [1e-3, 1e-4,1e-5]
-                }
-            }
-        }
-            
-    sweep_id = wandb.sweep(sweep_config, entity="ankush7890", project="khi_public")
-    
-    wandb.agent(sweep_id, train_with_wandb)
+    train_with_wandb()

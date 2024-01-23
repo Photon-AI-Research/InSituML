@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from encoder_decoder import Encoder as encoder
-fron encoder_decoder import MLP_Decoder as decoder
+from encoder_decoder import MLP_Decoder as decoder
 
 
 class Reshape(nn.Module):
