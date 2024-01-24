@@ -102,11 +102,12 @@ def train_AE(model, criterion, optimizer,
                                                                                                flush=True)
                                                                                                
             if tb%log_visual_report_every_tb==0:
-
+                #avoiding turning on model.eval
                 random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
                 random_input = filter_dims(random_input).transpose(2,1)
-                _, random_output = model(random_input.to(device))
+                random_output = model.reconstruct_input(random_input.to(device))
                 all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
+                
                 if property_ == "positions":
                     create_position_density_plots(*all_var_to_plot,path='.',wandb=wandb)
                 elif property_ == "momentum":
