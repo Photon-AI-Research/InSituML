@@ -54,10 +54,10 @@ class ConvAutoencoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self, loss_function = None):
+    def __init__(self, loss_function = None, point_dim=3):
         super(VAE, self).__init__()
         self.n_point = 150000
-        self.point_dim = 9
+        self.point_dim = 3
         self.z_dim = 4
         self.loss_function = loss_function
         self.use_deterministic_encoder = True
@@ -101,7 +101,7 @@ class VAE(nn.Module):
         nelbo = x_reconst + kl_loss
         #might be useful for later.
         #ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
-        return ret['nelbo'], y
+        return nelbo, y
     
 
     def sample_point(self, batch):

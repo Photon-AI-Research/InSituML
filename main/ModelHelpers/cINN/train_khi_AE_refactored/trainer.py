@@ -39,7 +39,7 @@ def save_checkpoint(model,
 
 def train_AE(model, criterion, optimizer,
              scheduler, epoch, wandb,
-             property_ = "positions"
+             property_ = "positions",
              log_visual_report_every_tb = 30):
     
     config = wandb.config
