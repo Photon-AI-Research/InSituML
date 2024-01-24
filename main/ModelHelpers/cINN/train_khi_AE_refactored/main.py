@@ -41,7 +41,7 @@ def train_with_wandb():
     
     print('New session...')
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults)
+    wandb.init(config=hyperparameter_defaults, project="khi_vae")
     start_epoch = 0
     
     # Access all hyperparameter values through wandb.config

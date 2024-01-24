@@ -100,19 +100,20 @@ def train_AE(model, criterion, optimizer,
                                                                                                loss_timebatch_avg, 
                                                                                                elapsed_timebatch),
                                                                                                flush=True)
+                                                                                               
             if tb%log_visual_report_every_tb==0:
-                
-                random_input, _ = np.random.choice(timebatch)[0]
-                random_input = filter_dims(random_input)
-                random_output = model(random_input.permute(0, 2, 1).to(device))
-                all_var_to_plot = random_input + random_output
-                
+
+                random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
+                random_input = filter_dims(random_input).transpose(2,1)
+                _, random_output = model(random_input.to(device))
+                all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
                 if property_ == "positions":
-                    create_force_density_plots(*all_var_to_plot, wandb=wandb)
+                    create_position_density_plots(*all_var_to_plot,path='.',wandb=wandb)
                 elif property_ == "momentum":
-                    create_momentum_density_plots(*all_var_to_plot, wandb=wandb)
+                    create_momentum_density_plots(*all_var_to_plot,path='.', wandb=wandb)
                 else:
-                    create_force_density_plots(*all_var_to_plot, wandb=wandb)
+                    create_force_density_plots(*all_var_to_plot,path='.',wandb=wandb)
+
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
