@@ -65,7 +65,9 @@ def train_with_wandb():
     epoch = data_loader[0]
     
     optimizer = optim.Adam(model.parameters(), lr=config["lr"])
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.9)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                step_size=1000,
+                                                gamma=0.9)
 
     
     directory ='./checkpoints/'+str(wandb.run.id)

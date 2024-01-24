@@ -22,7 +22,7 @@ def kl_normal(qm,qv,pm,pv):
 def create_position_density_plots(x, y, z,
                                   x_pr, y_pr, z_pr,
                                   bins=100, t=1000, path='',
-                                  enable_wandb = False):
+                                  wandb = None):
     
     # Specify the number of bins for each axis
     bins_x = np.linspace(min(x), max(x), bins)
@@ -86,7 +86,7 @@ def create_position_density_plots(x, y, z,
     if path:
         plt.savefig(path + '/density_plots_{}.png'.format(t))
         
-    if enable_wandb == True:
+    if wandb is not None:
         # Log the overlapping histogram plot
         wandb.log({"XY vs XZ vs YZ histograms": wandb.Image(plt)})
 
@@ -97,7 +97,7 @@ def create_position_density_plots(x, y, z,
 def create_momentum_density_plots(px, py, pz,
                                   px_pr, py_pr, pz_pr,
                                   bins=100, t=1000, path='',
-                                  enable_wandb = False):
+                                  wandb = None):
     
     # Specify the number of bins for each axis
     bins_px = np.linspace(min(px), max(px), bins)
@@ -161,7 +161,7 @@ def create_momentum_density_plots(px, py, pz,
     if path:
         plt.savefig(path + '/momentum_density_plots_{}.png'.format(t))
     
-    if enable_wandb == True:
+    if wandb is not None:
         # Log the overlapping histogram plot
         wandb.log({"Px vs Py vs Pz histograms": wandb.Image(plt)})
 
@@ -173,7 +173,7 @@ def create_momentum_density_plots(px, py, pz,
 def create_force_density_plots(fx, fy, fz,
                                fx_pr, fy_pr, fz_pr,
                                bins=100, t=1000, path='',
-                               enable_wandb = False):
+                               wandb = None):
     
     # Specify the number of bins for each axis
     bins_fx = np.linspace(min(fx), max(fx), bins)
@@ -237,7 +237,7 @@ def create_force_density_plots(fx, fy, fz,
     if path:
         plt.savefig(path + '/force_density_plots_{}.png'.format(t))
     
-    if enable_wandb == True:
+    if wandb is not None:
         # Log the overlapping histogram plot
         wandb.log({"Fx vs Fy vs FZ histograms": wandb.Image(plt)})
 

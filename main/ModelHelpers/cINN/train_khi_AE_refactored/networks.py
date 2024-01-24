@@ -48,7 +48,9 @@ class ConvAutoencoder(nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
-        return x
+        #Adding None for compatibility
+        #TODO: calculate loss here. 
+        return None, x
 
 
 class VAE(nn.Module):
@@ -83,7 +85,7 @@ class VAE(nn.Module):
         else:
             z =  sample_gaussian(m,v)
             decoder_input = z if not self.use_encoding_in_decoder else \
-            torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
+            torch.cat((z,m),dim=-1) 
             y = self.decoder(decoder_input)
             #compute KL divergence loss :
             p_m = self.z_prior[0].expand(m.size())
@@ -97,12 +99,12 @@ class VAE(nn.Module):
         kl_loss = kl_loss.mean()
 
         nelbo = x_reconst + kl_loss
-
-        ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
-        return ret['nelbo']
+        #might be useful for later.
+        #ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
+        return ret['nelbo'], y
     
 
-    def sample_point(self,batch):
+    def sample_point(self, batch):
         p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)
         p_v = self.z_prior[1].expand(batch,self.z_dim).to(device)
         z =  sample_gaussian(p_m,p_v)
@@ -111,7 +113,7 @@ class VAE(nn.Module):
         y = self.decoder(decoder_input)
         return y
 
-    def reconstruct_input(self,x):
+    def reconstruct_input(self, x):
         m, v = self.encoder(x)
         if self.use_deterministic_encoder:
             y = self.decoder(m)

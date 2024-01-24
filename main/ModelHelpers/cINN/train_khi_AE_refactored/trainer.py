@@ -1,8 +1,22 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import time 
+import time
+import random
+from utilities import ( create_position_density_plots,
+                        create_momentum_density_plots,
+                        create_force_density_plots)
 
+
+def filter_dims(phase_space, property_="positions"):
+    
+    if property_ == "positions":
+        return phase_space[:,:,:3]
+    elif property_ == "momentum":
+        return phase_space[:,:,3:6]
+    else:
+        return phase_space[:,:,6:]
+    
 def save_checkpoint(model,
                     optimizer,
                     path, 
@@ -23,7 +37,10 @@ def save_checkpoint(model,
         torch.save(state, path + '/model_' + str(epoch))
 
 
-def train_AE(model, criterion, optimizer, scheduler, epoch, wandb):
+def train_AE(model, criterion, optimizer,
+             scheduler, epoch, wandb,
+             property_ = "positions"
+             log_visual_report_every_tb = 30):
     
     config = wandb.config
     
@@ -55,16 +72,19 @@ def train_AE(model, criterion, optimizer, scheduler, epoch, wandb):
             for b in range(len(timebatch)):
                 batch_idx += 1
                 optimizer.zero_grad()
+                
                 phase_space, _ = timebatch[b]
+                
+                #TODO do this in the loader. Saves double code.
+                phase_space = filter_dims(phase_space, property_)
                 
                 phase_space = phase_space.permute(0, 2, 1).to(device)
                 
-                loss = model(phase_space)
-               
-                #print("training_loop", phase_space.shape, output.shape)
+                loss, output = model(phase_space)
                 
-                #loss = criterion(output.transpose(2,1).contiguous(),
-                #                 phase_space.transpose(2,1).contiguous())
+                if loss is None:
+                    loss = criterion(output.transpose(2,1).contiguous(),
+                                     phase_space.transpose(2,1).contiguous())
 
                 loss_avg.append(loss.item())
                 loss.backward()
@@ -75,8 +95,25 @@ def train_AE(model, criterion, optimizer, scheduler, epoch, wandb):
             
             loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
-            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch), flush=True)
-    
+            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch, tb,
+                                                                                               loss.item(), 
+                                                                                               loss_timebatch_avg, 
+                                                                                               elapsed_timebatch),
+                                                                                               flush=True)
+            if tb%log_visual_report_every_tb==0:
+                
+                random_input, _ = np.random.choice(timebatch)[0]
+                random_input = filter_dims(random_input)
+                random_output = model(random_input.permute(0, 2, 1).to(device))
+                all_var_to_plot = random_input + random_output
+                
+                if property_ == "positions":
+                    create_force_density_plots(*all_var_to_plot, wandb=wandb)
+                elif property_ == "momentum":
+                    create_momentum_density_plots(*all_var_to_plot, wandb=wandb)
+                else:
+                    create_force_density_plots(*all_var_to_plot, wandb=wandb)
+            
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
         if min_valid_loss > loss_overall_avg:     
