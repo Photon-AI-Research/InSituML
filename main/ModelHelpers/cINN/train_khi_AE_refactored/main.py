@@ -35,7 +35,8 @@ def train_with_wandb():
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     loss_function = "chamfersloss",
     loss_function_params = {},
-    network ="VAE"
+    network ="VAE",
+    property_="position"
     )
     
     print('New session...')
