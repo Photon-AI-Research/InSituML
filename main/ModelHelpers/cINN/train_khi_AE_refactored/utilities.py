@@ -1,8 +1,23 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from math import log, pi
+import torch
+import random
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+def sample_gaussian(m, v):
+    epsilon = torch.normal(torch.zeros(m.size()),torch.ones(m.size())).to(device)
+    z = m + torch.sqrt(v) * epsilon
+    return z
 
+def kl_normal(qm,qv,pm,pv):
+    #checking how different is it from guassian distribution with
+    # zero mean and 1 standard deviation. 
+    # tensor shape (Batch,dim)
+    element_wise = 0.5 * (torch.log(pv) - torch.log(qv) + qv / pv + (qm - pm).pow(2) / pv - 1)
+    kl = element_wise.sum(-1)
+    return kl
 
 def create_position_density_plots(x, y, z,
                                   x_pr, y_pr, z_pr,

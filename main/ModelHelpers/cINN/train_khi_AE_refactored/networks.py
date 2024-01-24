@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from encoder_decoder import Encoder as encoder
 from encoder_decoder import MLP_Decoder as decoder
-
+from utilities import sample_gaussian, kl_normal
 
 class Reshape(nn.Module):
     def __init__(self, *args):
@@ -81,14 +81,14 @@ class VAE(nn.Module):
             y = self.decoder(m)
             kl_loss = torch.zeros(1)
         else:
-            z =  ut.sample_gaussian(m,v)
+            z =  sample_gaussian(m,v)
             decoder_input = z if not self.use_encoding_in_decoder else \
             torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
             y = self.decoder(decoder_input)
             #compute KL divergence loss :
             p_m = self.z_prior[0].expand(m.size())
             p_v = self.z_prior[1].expand(v.size())
-            kl_loss = ut.kl_normal(m,v,p_m,p_v)
+            kl_loss = kl_normal(m,v,p_m,p_v)
         #compute reconstruction loss 
         if self.loss_function is not None:
             x_reconst = self.loss_function(y.contiguous(),x.contiguous())
@@ -105,7 +105,7 @@ class VAE(nn.Module):
     def sample_point(self,batch):
         p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)
         p_v = self.z_prior[1].expand(batch,self.z_dim).to(device)
-        z =  ut.sample_gaussian(p_m,p_v)
+        z =  sample_gaussian(p_m,p_v)
         decoder_input = z if not self.use_encoding_in_decoder else \
         torch.cat((z,p_m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
         y = self.decoder(decoder_input)
@@ -116,7 +116,7 @@ class VAE(nn.Module):
         if self.use_deterministic_encoder:
             y = self.decoder(m)
         else:
-            z =  ut.sample_gaussian(m,v)
+            z =  sample_gaussian(m,v)
             decoder_input = z if not self.use_encoding_in_decoder else \
             torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
             y = self.decoder(decoder_input)
