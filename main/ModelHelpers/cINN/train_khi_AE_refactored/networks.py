@@ -91,14 +91,13 @@ class VAE(nn.Module):
             kl_loss = ut.kl_normal(m,v,p_m,p_v)
         #compute reconstruction loss 
         if self.loss_function is not None:
-            print(x.shape, y.shape)
             x_reconst = self.loss_function(y.contiguous(),x.contiguous())
         # mean or sum
         x_reconst = x_reconst.mean()
         kl_loss = kl_loss.mean()
 
         nelbo = x_reconst + kl_loss
-        print(nelbo)
+
         ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
         return ret['nelbo']
     
