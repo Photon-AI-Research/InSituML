@@ -33,8 +33,8 @@ def train_with_wandb():
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
-    loss_function = "earthmovers",
-    loss_function_params = {'reduction':'mean', 'p': 2},
+    loss_function = "chamfersloss",
+    loss_function_params = {},
     network ="VAE"
     )
     

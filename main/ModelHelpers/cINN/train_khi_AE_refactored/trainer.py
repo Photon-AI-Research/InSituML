@@ -59,10 +59,12 @@ def train_AE(model, criterion, optimizer, scheduler, epoch, wandb):
                 
                 phase_space = phase_space.permute(0, 2, 1).to(device)
                 
-                output = model(phase_space)
+                loss = model(phase_space)
+               
+                #print("training_loop", phase_space.shape, output.shape)
                 
-                loss = criterion(output.transpose(2,1).contiguous(),
-                                 phase_space.transpose(2,1).contiguous())
+                #loss = criterion(output.transpose(2,1).contiguous(),
+                #                 phase_space.transpose(2,1).contiguous())
 
                 loss_avg.append(loss.item())
                 loss.backward()

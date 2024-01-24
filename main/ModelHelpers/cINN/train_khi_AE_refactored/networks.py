@@ -54,7 +54,7 @@ class ConvAutoencoder(nn.Module):
 class VAE(nn.Module):
     def __init__(self, loss_function = None):
         super(VAE, self).__init__()
-        self.n_point = 1
+        self.n_point = 150000
         self.point_dim = 9
         self.z_dim = 4
         self.loss_function = loss_function
@@ -75,7 +75,7 @@ class VAE(nn.Module):
         self.type = 'VAE'
     
     def forward(self, inputs):
-        x = inputs['x']
+        x = inputs
         m, v = self.encoder(x)
         if self.use_deterministic_encoder:
             y = self.decoder(m)
@@ -91,13 +91,14 @@ class VAE(nn.Module):
             kl_loss = ut.kl_normal(m,v,p_m,p_v)
         #compute reconstruction loss 
         if self.loss_function is not None:
-            x_reconst = self.loss_function(y,x)
+            print(x.shape, y.shape)
+            x_reconst = self.loss_function(y.contiguous(),x.contiguous())
         # mean or sum
         x_reconst = x_reconst.mean()
         kl_loss = kl_loss.mean()
 
         nelbo = x_reconst + kl_loss
-        
+        print(nelbo)
         ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
         return ret['nelbo']
     
