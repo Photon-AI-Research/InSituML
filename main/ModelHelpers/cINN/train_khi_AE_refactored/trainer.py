@@ -61,7 +61,7 @@ def train_AE(model, criterion, optimizer,
             
             loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
-            timeInfo = f"epoch:{i_epoch}, timeBatchIndex:{timeBatchIndex}"
+            timeInfo = f"e: {i_epoch}, tb:{timeBatchIndex}, "
             print(timeInfo +' last timebatch loss: {}, avg_loss: {}, time: {}'.format(loss.item(), 
                                                                                       loss_timebatch_avg, 
                                                                                       elapsed_timebatch),
