@@ -20,16 +20,27 @@ def filter_dims(phase_space, property_="positions"):
     
 def save_visual_all(*args):
     
-    deque(save_visual(*args, property_) for property_ in ["positions", 
+    deque(save_visual(*args, property_, running_all=True) for property_ in ["positions", 
                                                           "momentum", 
                                                           "force"])
     
-def save_visual(model, timebatch, wandb, timeInfo, property_):
+def save_visual(model, timebatch, wandb, timeInfo, property_, running_all=False):
     
     #avoiding turning on model.eval
     random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
-    random_input = filter_dims(random_input).transpose(2,1)
-    random_output = model.reconstruct_input(random_input.to(device))
+    random_input = random_input.transpose(2, 1)
+    
+    #if model is being trained on all the dimensions, it changes the order filtering
+    # and inference.
+    if running_all:
+        random_output = model.reconstruct_input(random_input.to(device))
+        random_input = filter_dims(random_input, property_)
+        random_output = filter_dims(random_output, property_)
+        
+    else:
+        random_input = filter_dims(random_input, property_)
+        random_output = model.reconstruct_input(random_input.to(device))
+    
     all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
     
     if property_ == "positions":
