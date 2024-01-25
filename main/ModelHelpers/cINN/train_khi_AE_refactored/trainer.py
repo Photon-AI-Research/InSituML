@@ -69,7 +69,7 @@ def train_AE(model, criterion, optimizer,
                                                                                                elapsed_timebatch),
                                                                                                flush=True)
             if tb%log_visual_report_every_tb==0:
-                save_visual(timebatch, property_)
+                save_visual(timebatch, property_, tb)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
