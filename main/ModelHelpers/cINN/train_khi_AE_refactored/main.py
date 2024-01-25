@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 from trainer import train_AE
+import argparse
+
 
 MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
@@ -19,7 +21,7 @@ MAPPING_TO_NETWORK = {
     "VAE":VAE
     }
 
-def train_with_wandb():
+def train_with_wandb(property_):
     
     hyperparameter_defaults = dict(
     t0 = 1000,
@@ -35,13 +37,12 @@ def train_with_wandb():
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     loss_function = "chamfersloss",
     loss_function_params = {},
-    network ="VAE",
-    property_="position"
+    network ="VAE"
     )
     
     print('New session...')
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults, project="khi_vae")
+    wandb.init(config=hyperparameter_defaults, project=f"khi_vae_{property_}")
     start_epoch = 0
     
     # Access all hyperparameter values through wandb.config
@@ -79,7 +80,20 @@ def train_with_wandb():
     else:
         print(f"Directory '{directory}' already exists.")
     
-    train_AE(model, criterion, optimizer, scheduler, epoch, wandb, directory) 
+    train_AE(model, criterion, optimizer, scheduler, epoch, wandb, directory,
+             property_= property_) 
     
 if __name__ == "__main__":
-    train_with_wandb()
+    
+    parser = argparse.ArgumentParser(
+        description="""For running Autoencoders on khi data"""
+    )
+    
+    parser.add_argument('--property_',
+                        type=str,
+                        default='positions',
+                        help="Whether to train on positions, momentum, forces or all")
+    
+    args = parser.parse_args()
+    
+    train_with_wandb(args.property_)
