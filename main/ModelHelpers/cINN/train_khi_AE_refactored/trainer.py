@@ -3,42 +3,10 @@ import torch.nn as nn
 import numpy as np
 import time
 import random
-from utilities import ( create_position_density_plots,
-                        create_momentum_density_plots,
-                        create_force_density_plots)
-
-
-def filter_dims(phase_space, property_="positions"):
-    
-    if property_ == "positions":
-        return phase_space[:,:,:3]
-    elif property_ == "momentum":
-        return phase_space[:,:,3:6]
-    else:
-        return phase_space[:,:,6:]
-    
-def save_checkpoint(model,
-                    optimizer,
-                    path, 
-                    last_loss,
-                    min_valid_loss,
-                    epoch,
-                    wandb_run_id):
-        
-        state = {
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'last_loss': last_loss.item(),
-            'epoch': epoch,
-            'min_valid_loss': min_valid_loss,
-            'wandb_run_id': wandb_run_id,
-        }
-
-        torch.save(state, path + '/model_' + str(epoch))
-
+from utilities import save_visual
 
 def train_AE(model, criterion, optimizer,
-             scheduler, epoch, wandb,
+             scheduler, epoch, wandb, directory,
              property_ = "positions",
              log_visual_report_every_tb = 30):
     
@@ -100,21 +68,8 @@ def train_AE(model, criterion, optimizer,
                                                                                                loss_timebatch_avg, 
                                                                                                elapsed_timebatch),
                                                                                                flush=True)
-                                                                                               
             if tb%log_visual_report_every_tb==0:
-                #avoiding turning on model.eval
-                random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
-                random_input = filter_dims(random_input).transpose(2,1)
-                random_output = model.reconstruct_input(random_input.to(device))
-                all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
-                
-                if property_ == "positions":
-                    create_position_density_plots(*all_var_to_plot,path='.',wandb=wandb)
-                elif property_ == "momentum":
-                    create_momentum_density_plots(*all_var_to_plot,path='.', wandb=wandb)
-                else:
-                    create_force_density_plots(*all_var_to_plot,path='.',wandb=wandb)
-
+                save_visual(timebatch, property_)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
@@ -124,7 +79,9 @@ def train_AE(model, criterion, optimizer,
             no_improvement_count = 0
             slow_improvement_count = 0
             # Saving State Dict
-            torch.save(model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
+            torch.save(model.state_dict(), 
+                       directory + '/best_model_',
+                       _use_new_zipfile_serialization=False)
         else:
             no_improvement_count += 1
             if loss_overall_avg - min_valid_loss <= 0.001:  # Adjust this threshold as needed

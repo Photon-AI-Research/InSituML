@@ -79,7 +79,7 @@ def train_with_wandb():
     else:
         print(f"Directory '{directory}' already exists.")
     
-    train_AE(model, criterion, optimizer, scheduler, epoch, wandb) 
+    train_AE(model, criterion, optimizer, scheduler, epoch, wandb, directory) 
     
 if __name__ == "__main__":
     train_with_wandb()

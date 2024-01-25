@@ -6,6 +6,31 @@ import torch
 import random
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+def filter_dims(phase_space, property_="positions"):
+    
+    if property_ == "positions":
+        return phase_space[:,:,:3]
+    elif property_ == "momentum":
+        return phase_space[:,:,3:6]
+    else:
+        return phase_space[:,:,6:]
+
+
+def save_visual(timebatch, property_):
+    
+    #avoiding turning on model.eval
+    random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
+    random_input = filter_dims(random_input).transpose(2,1)
+    random_output = model.reconstruct_input(random_input.to(device))
+    all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
+    
+    if property_ == "positions":
+        create_position_density_plots(*all_var_to_plot,path='.',wandb=wandb)
+    elif property_ == "momentum":
+        create_momentum_density_plots(*all_var_to_plot,path='.', wandb=wandb)
+    else:
+        create_force_density_plots(*all_var_to_plot,path='.',wandb=wandb)
+
 def sample_gaussian(m, v):
     epsilon = torch.normal(torch.zeros(m.size()),torch.ones(m.size())).to(device)
     z = m + torch.sqrt(v) * epsilon
