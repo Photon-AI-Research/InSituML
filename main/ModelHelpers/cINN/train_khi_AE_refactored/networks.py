@@ -57,7 +57,7 @@ class VAE(nn.Module):
     def __init__(self, loss_function = None, point_dim=3):
         super(VAE, self).__init__()
         self.n_point = 150000
-        self.point_dim = 3
+        self.point_dim = point_dim
         self.z_dim = 4
         self.loss_function = loss_function
         self.use_deterministic_encoder = True

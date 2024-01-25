@@ -40,6 +40,8 @@ def train_with_wandb(property_):
     network ="VAE"
     )
     
+    point_dim = 9 if property_ == "all" else 3
+    
     print('New session...')
     # Pass your defaults to wandb.init
     wandb.init(config=hyperparameter_defaults, project=f"khi_vae_{property_}")
@@ -62,7 +64,7 @@ def train_with_wandb(property_):
     criterion = MAPPING_TO_LOSS[config["loss_function"]](**config["loss_function_params"])
     
     # Initialize the convolutional autoencoder
-    model = MAPPING_TO_NETWORK[config["network"]](criterion)
+    model = MAPPING_TO_NETWORK[config["network"]](criterion, point_dim)
 
     epoch = data_loader[0]
     
