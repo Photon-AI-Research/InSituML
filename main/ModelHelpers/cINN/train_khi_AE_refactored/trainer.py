@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import time
 import random
-from utilities import save_visual, filter_dims
+from utilities import save_visual, save_visual_all, filter_dims
 
 def train_AE(model, criterion, optimizer,
              scheduler, epoch, wandb, directory,
@@ -61,15 +61,15 @@ def train_AE(model, criterion, optimizer,
             
             loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
-            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch, timeBatchIndex,
-                                                                                               loss.item(), 
-                                                                                               loss_timebatch_avg, 
-                                                                                               elapsed_timebatch),
-                                                                                               flush=True)
+            timeInfo = f"epoch:{i_epoch}, timeBatchIndex:{timeBatchIndex}"
+            print(timeInfo +' last timebatch loss: {}, avg_loss: {}, time: {}'.format(loss.item(), 
+                                                                                      loss_timebatch_avg, 
+                                                                                      elapsed_timebatch),
+                                                                                      flush=True)
             if timeBatchIndex%log_visual_report_every_tb==0 and property_ != "all":
-                save_visual(model, timeBatch, wandb, timeBatchIndex, property_)
+                save_visual(model, timeBatch, wandb, timeInfo, property_)
             elif timeBatchIndex%log_visual_report_every_tb==0:
-                save_visual_all(model, timeBatch, wandb, timeBatchIndex)
+                save_visual_all(model, timeBatch, wandb, timeInfo)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
