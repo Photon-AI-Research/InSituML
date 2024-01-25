@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from math import log, pi
 import torch
 import random
+from collections import deque
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def filter_dims(phase_space, property_="positions"):
@@ -12,11 +13,18 @@ def filter_dims(phase_space, property_="positions"):
         return phase_space[:,:,:3]
     elif property_ == "momentum":
         return phase_space[:,:,3:6]
-    else:
+    elif property_ == "force":
         return phase_space[:,:,6:]
-
-
-def save_visual(model ,timebatch, property_, wandb, timebatchIndex):
+    else:
+        return phase_space
+    
+def save_visual_all(*args):
+    
+    deque(save_visual(*args, property_) for property_ in ["positions", 
+                                                          "momentum", 
+                                                          "force"])
+    
+def save_visual(model ,timebatch, wandb, timebatchIndex, property_):
     
     #avoiding turning on model.eval
     random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
@@ -30,7 +38,7 @@ def save_visual(model ,timebatch, property_, wandb, timebatchIndex):
     elif property_ == "momentum":
         create_momentum_density_plots(*all_var_to_plot, path='.',
                                       t=timebatchIndex, wandb=wandb)
-    else:
+    elif property_ == "force":
         create_force_density_plots(*all_var_to_plot, path='.',
                                    t=timebatchIndex,wandb=wandb)
 

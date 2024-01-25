@@ -31,17 +31,15 @@ def train_AE(model, criterion, optimizer,
     for i_epoch in range(start_epoch, config["num_epochs"]):   
 
         loss_overall = []
-        for tb in range(len(epoch)):
+        for timeBatchIndex in range(len(epoch)):
             loss_avg = []
-            timebatch = epoch[tb]
+            timeBatch = epoch[timeBatchIndex]
             
-            batch_idx = 0
             start_timebatch = time.time()
-            for b in range(len(timebatch)):
-                batch_idx += 1
+            for particleBatchIndex in range(len(timeBatch)):
                 optimizer.zero_grad()
                 
-                phase_space, _ = timebatch[b]
+                phase_space, _ = timeBatch[particleBatchIndex]
                 
                 #TODO do this in the loader. Saves double code.
                 phase_space = filter_dims(phase_space, property_)
@@ -68,8 +66,10 @@ def train_AE(model, criterion, optimizer,
                                                                                                loss_timebatch_avg, 
                                                                                                elapsed_timebatch),
                                                                                                flush=True)
-            if tb%log_visual_report_every_tb==0:
-                save_visual(model, timebatch, property_, wandb, tb)
+            if tb%log_visual_report_every_tb==0 and property_ is not "all":
+                save_visual(model, timeBatch, wandb, timeBatchIndex, property_)
+            elif tb%log_visual_report_every_tb==0:
+                save_visual_all(model, timeBatch, wandb, timeBatchIndex)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
