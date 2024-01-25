@@ -16,7 +16,7 @@ def filter_dims(phase_space, property_="positions"):
         return phase_space[:,:,6:]
 
 
-def save_visual(timebatch, property_, timebatchIndex):
+def save_visual(model ,timebatch, property_, wandb, timebatchIndex):
     
     #avoiding turning on model.eval
     random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]

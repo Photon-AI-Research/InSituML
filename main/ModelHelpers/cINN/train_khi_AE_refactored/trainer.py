@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import time
 import random
-from utilities import save_visual
+from utilities import save_visual, filter_dims
 
 def train_AE(model, criterion, optimizer,
              scheduler, epoch, wandb, directory,
@@ -69,7 +69,7 @@ def train_AE(model, criterion, optimizer,
                                                                                                elapsed_timebatch),
                                                                                                flush=True)
             if tb%log_visual_report_every_tb==0:
-                save_visual(timebatch, property_, tb)
+                save_visual(model, timebatch, property_, wandb, tb)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
