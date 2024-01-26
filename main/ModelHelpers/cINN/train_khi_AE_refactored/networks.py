@@ -54,11 +54,11 @@ class ConvAutoencoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self, loss_function = None, point_dim=3):
+    def __init__(self, loss_function = None, point_dim=3, z_dim=4):
         super(VAE, self).__init__()
         self.n_point = 150000
         self.point_dim = point_dim
-        self.z_dim = 4
+        self.z_dim = z_dim
         self.loss_function = loss_function
         self.use_deterministic_encoder = True
         self.use_encoding_in_decoder = True

@@ -7,6 +7,7 @@ from utilities import save_visual, save_visual_all, filter_dims
 
 def train_AE(model, criterion, optimizer,
              scheduler, epoch, wandb, directory,
+             info_image_path=".",
              property_ = "positions",
              log_visual_report_every_tb = 30):
     
@@ -67,9 +68,9 @@ def train_AE(model, criterion, optimizer,
                                                                                       elapsed_timebatch),
                                                                                       flush=True)
             if timeBatchIndex%log_visual_report_every_tb==0 and property_ != "all":
-                save_visual(model, timeBatch, wandb, timeInfo, property_)
+                save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
             elif timeBatchIndex%log_visual_report_every_tb==0:
-                save_visual_all(model, timeBatch, wandb, timeInfo)
+                save_visual_all(model, timeBatch, wandb, timeInfo, info_image_path)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     

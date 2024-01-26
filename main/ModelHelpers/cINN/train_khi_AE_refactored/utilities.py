@@ -24,7 +24,7 @@ def save_visual_all(*args):
                                                           "momentum", 
                                                           "force"])
     
-def save_visual(model, timebatch, wandb, timeInfo, property_, running_all=False):
+def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, running_all=False):
     
     #avoiding turning on model.eval
     random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
@@ -45,13 +45,13 @@ def save_visual(model, timebatch, wandb, timeInfo, property_, running_all=False)
     all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
     
     if property_ == "positions":
-        create_position_density_plots(*all_var_to_plot, path='.',
+        create_position_density_plots(*all_var_to_plot, path=info_image_path,
                                       t=timeInfo, wandb=wandb)
     elif property_ == "momentum":
-        create_momentum_density_plots(*all_var_to_plot, path='.',
+        create_momentum_density_plots(*all_var_to_plot, path=info_image_path,
                                       t=timeInfo, wandb=wandb)
     elif property_ == "force":
-        create_force_density_plots(*all_var_to_plot, path='.',
+        create_force_density_plots(*all_var_to_plot, path=info_image_path,
                                    t=timeInfo,wandb=wandb)
 
 def sample_gaussian(m, v):
