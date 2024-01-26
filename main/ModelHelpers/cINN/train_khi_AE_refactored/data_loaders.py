@@ -3,10 +3,19 @@ import torch
 from utilities import random_sample, normalize_columns
 import os
 
-class Loader:
-    def __init__(self, pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/40_80_80_160_0_2/{}.npy", pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex/{}.npy", t0=0, t1=100, timebatchsize=20, particlebatchsize=10240):
+class TrainLoader:
+    def __init__(self,
+                 pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/40_80_80_160_0_2/{}.npy",
+                 pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex/{}.npy",
+                 t0=0,
+                 t1=100,
+                 timebatchsize=20,
+                 particlebatchsize=10240,
+                 blacklist_box=None):
+        
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
+        self.blacklist_box = blacklist_box
         
         # TODO check if all files are there
         
@@ -32,13 +41,21 @@ class Loader:
     def __getitem__(self, idx):
         
         class Epoch:
-            def __init__(self, loader, t0, t1, timebatchsize=20, particlebatchsize=10240):
+            def __init__(self,
+                         loader,
+                         t0,
+                         t1,
+                         timebatchsize=20,
+                         particlebatchsize=10240,
+                         blacklist_box=None):
+                
                 self.perm = torch.randperm(len(loader))
                 self.loader = loader
                 self.t0 = t0
                 self.t1 = t1
                 self.timebatchsize = timebatchsize
                 self.particlebatchsize = particlebatchsize
+                self.blacklist_box = blacklist_box
 
             def __len__(self):
                 return len(self.loader) // self.timebatchsize
@@ -54,6 +71,14 @@ class Loader:
                     # Load particle data
                     p = np.load(self.loader.pathpattern1.format(index), allow_pickle = True)
                     
+                    # Load radiation data
+                    r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat))
+                    
+                    # Exclude the blacklisted box if specified
+                    if self.blacklist_box is not None:
+                        p = np.delete(p, self.blacklist_box, axis=0)
+                        r = np.delete(r, self.blacklist_box, axis=0)
+                        
                     # Normalize particle data for all boxes
                     p = [normalize_columns(element) for element in p]
                     p = np.array(p, dtype=object)
@@ -62,8 +87,7 @@ class Loader:
                     p = [random_sample(element, sample_size=150000) for element in p]
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
                     
-                    # Load radiation data
-                    r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat) )
+                    # choose relevant detection directions
                     r = r[:, 1:, :]
                     r = r.view(r.shape[0], -1)
                     
@@ -100,5 +124,52 @@ class Loader:
                 
                 return Timebatch(particles, radiation, self.particlebatchsize)
                     
-        return Epoch(self, self.t0, self.t1, self.timebatchsize, self.particlebatchsize)
+        return Epoch(self, self.t0, self.t1, self.timebatchsize, self.particlebatchsize, self.blacklist_box)
+    
+
+class ValidationFixedBoxLoader:
+    def __init__(self, 
+                 pathpattern1,
+                 pathpattern2,
+                 validation_boxes,
+                 t0=0,
+                 t1=100):
+        
+        self.pathpattern1 = pathpattern1
+        self.pathpattern2 = pathpattern2
+        self.validation_boxes = validation_boxes
+        self.t0 = t0
+        self.t1 = t1
+
+    def __len__(self):
+        return self.t1 - self.t0
+
+    def __getitem__(self, idx):
+
+        timestep_index = self.t0 + idx
+
+        # Load particle data for the validation boxes
+        p_loaded = np.load(self.pathpattern1.format(timestep_index), allow_pickle=True)
+        p = [p_loaded[box_index] for box_index in self.validation_boxes]
+        
+        p = [normalize_columns(element) for element in p]
+        p = np.array(p, dtype=object)
+                
+        p = [random_sample(element, sample_size=150000) for element in p]
+        p = torch.from_numpy(np.array(p, dtype = np.float32))        
+
+        # Load radiation data for the validation boxes
+        r_loaded = torch.from_numpy(np.load(self.pathpattern2.format(timestep_index)).astype(np.cfloat))
+        r =  r_loaded[self.validation_boxes, 1:, :]
+        r = r.view(r.shape[0], -1)
+        
+        # Compute the phase (angle) of the complex number in radians
+        phase = torch.angle(r)
+
+        # Compute the amplitude (magnitude) of the complex number
+        amplitude = torch.abs(r)
+        r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
+
+        return timestep_index, self.validation_boxes, p, r
+
 
