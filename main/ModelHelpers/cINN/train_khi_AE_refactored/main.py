@@ -30,22 +30,26 @@ def train_with_wandb():
     particlebatchsize = 4,
     hidden_size = 1024,
     dim_pool = 1,
-    learning_rate = 0.001,
-    num_epochs = 1,
+    learning_rate = args.learning_rate,
+    num_epochs = 3,
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
-    loss_function = "chamfersloss",
+    loss_function = args.lossfunction,
     loss_function_params = {},
     network ="VAE",
-    z_dim = 4
+    z_dim = args.z_dim
     )
     
-    point_dim = 9 if property_ == "all" else 3
+    point_dim = 9 if args.property_ == "all" else 3
     
     print('New session...')
+    
+    info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_lf_{args.loss_function}"
+    
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults)
+    run = wandb.init(config=hyperparameter_defaults)
+    run.name = info_image_path
     start_epoch = 0
     
     # Access all hyperparameter values through wandb.config
@@ -61,8 +65,6 @@ def train_with_wandb():
                          timebatchsize=config["timebatchsize"],
                          particlebatchsize=config["particlebatchsize"])
 
-    info_image_path = f"lr_{config['learning_rate']}_z_{config['z_dim']}_lf_{config['loss_function']}"
-    os.mkdir(info_image_path)
         
     criterion = MAPPING_TO_LOSS[config["loss_function"]](**config["loss_function_params"])
     
@@ -86,7 +88,7 @@ def train_with_wandb():
         print(f"Directory '{directory}' already exists.")
     
     train_AE(model, criterion, optimizer, scheduler, epoch, wandb, directory,
-             property_= property_, info_image_path=info_image_path) 
+             property_= args.property_) 
     
 if __name__ == "__main__":
     
@@ -98,26 +100,22 @@ if __name__ == "__main__":
                         type=str,
                         default='positions',
                         help="Whether to train on positions, momentum, forces or all")
-    
-    property_ = parser.parse_args().property_
-    
-    sweep_config = {
-    'method': 'random',
-    'parameters':{
-        'loss_function': {
-            'values': ["earthmovers", "chamfersloss"]
-            },
-        'learning_rate': {
-            'values': [1e-2, 1e-5]
-            },
-        'z_dim': {
-            'values': [5, 10, 15]
-            }
-        }
-        }
 
-    time_now = datetime.now().strftime("%H:%M").replace(":","_")
-            
-    sweep_id = wandb.sweep(sweep_config, project=f"khi_vae_{property_}_{time_now}")
+    parser.add_argument('--learning_rate',
+                        type=float,
+                        default='1e-3',
+                        help="Set the learning rate")
+
+    parser.add_argument('--z_dim',
+                        type=int,
+                        default='5',
+                        help="Set the latent space dimensions")
     
-    wandb.agent(sweep_id, train_with_wandb)
+    parser.add_argument('--lossfunction',
+                        type=str,
+                        default='chamfersloss',
+                        help="Choose the loss function")
+    
+    args = parser.parse_args()
+    
+    train_with_wandb()
