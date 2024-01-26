@@ -70,10 +70,8 @@ def train_AE(model, criterion, optimizer,
                                                                           flush=True)
             wandb.log({
                 "Epoch": i_epoch,
-                "tb":timeBatchIndex,
+                "tb":(i_epoch+1)*timeBatchIndex,
                 "loss_timebatch_avg_loss": loss_timebatch_avg,
-                "loss_overall_avg": loss_overall_avg,
-                "min_valid_loss": min_valid_loss,
             })
 
             if timeBatchIndex%log_visual_report_every_tb==0 and property_ != "all":
