@@ -1,5 +1,5 @@
 import wandb
-from data_loaders import Loader
+from data_loaders import TrainLoader, ValidationFixedBoxLoader
 from networks import ConvAutoencoder, VAE
 from loss_functions import EarthMoversLoss, ChamfersLoss
 import torch
@@ -32,6 +32,7 @@ def train_with_wandb():
     dim_pool = 1,
     learning_rate = args.learning_rate,
     num_epochs = 3,
+    val_boxes = [19,5,3],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
@@ -62,13 +63,20 @@ def train_with_wandb():
     pathpattern2 = config["pathpattern2"]
 
     
-    data_loader = Loader(pathpattern1=pathpattern1,
-                         pathpattern2=pathpattern2,
-                         t0=config["t0"], t1=config["t1"],
-                         timebatchsize=config["timebatchsize"],
-                         particlebatchsize=config["particlebatchsize"])
 
-        
+    data_loader = TrainLoader(pathpattern1=pathpattern1,
+                              pathpattern2=pathpattern2,
+                              t0=config["t0"], t1=config["t1"],
+                              timebatchsize=config["timebatchsize"],
+                              particlebatchsize=config["particlebatchsize"],
+                              blacklist_box = config["val_boxes"])
+    
+    valid_data_loader = ValidationFixedBoxLoader(pathpattern1,
+                                                 pathpattern2,
+                                                 config["val_boxes"],
+                                                 t0=config["t0"],
+                                                 t1=config["t1"])
+            
     # Initialize the convolutional autoencoder
     model = MAPPING_TO_NETWORK[config["network"]](**hyperparameter_defaults)
 
@@ -88,8 +96,8 @@ def train_with_wandb():
     else:
         print(f"Directory '{directory}' already exists.")
     
-    train_AE(model, criterion, optimizer, scheduler, epoch, wandb, directory,
-             property_= args.property_) 
+    train_AE(model, criterion, optimizer, scheduler, epoch, valid_data_loader, wandb, directory,
+             property_= property_) 
     
 if __name__ == "__main__":
     

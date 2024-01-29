@@ -3,12 +3,11 @@ import torch.nn as nn
 import numpy as np
 import time
 import random
-from utilities import save_visual, save_visual_all, filter_dims
+from utilities import save_visual, save_visual_all, filter_dims, validate_model
 
 def train_AE(model, criterion, optimizer,
-             scheduler, epoch, wandb, directory,
-             info_image_path=".",
-             property_ = "positions",
+             scheduler, epoch, valid_data_loader, wandb, directory,
+             info_image_path=".", property_ = "positions",
              log_visual_report_every_tb = 30):
     
     config = wandb.config
@@ -80,10 +79,13 @@ def train_AE(model, criterion, optimizer,
                 save_visual_all(model, timeBatch, wandb, timeInfo, info_image_path)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
-    
-        if min_valid_loss > loss_overall_avg:     
-            print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model')
-            min_valid_loss = loss_overall_avg
+        
+        # Perform validation
+        val_loss_overall_avg = validate_model(model, valid_data_loader, property_, device)
+            
+        if min_valid_loss > val_loss_overall_avg:     
+            print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{val_loss_overall_avg:.6f}) \t Saving The Model')
+            min_valid_loss = val_loss_overall_avg
             no_improvement_count = 0
             slow_improvement_count = 0
             # Saving State Dict
