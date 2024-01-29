@@ -46,9 +46,10 @@ def train_with_wandb():
     print('New session...')
     
     info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_{args.property_}"
+    time_now = datetime.now().strftime("%H:%M").replace(":","_")
     
     # Pass your defaults to wandb.init
-    run = wandb.init(config=hyperparameter_defaults, project='newruns', name=info_image_path)
+    run = wandb.init(config=hyperparameter_defaults, project=f'newruns_{time_now}', name=info_image_path)
     start_epoch = 0
     
     # Access all hyperparameter values through wandb.config

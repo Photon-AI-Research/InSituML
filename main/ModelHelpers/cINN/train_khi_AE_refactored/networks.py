@@ -60,8 +60,8 @@ class VAE(nn.Module):
         self.point_dim = point_dim
         self.z_dim = z_dim
         self.loss_function = loss_function
-        self.use_deterministic_encoder = True
-        self.use_encoding_in_decoder = True
+        self.use_deterministic_encoder = False
+        self.use_encoding_in_decoder = False
         self.encoder = encoder(self.z_dim,
                                self.point_dim,
                                self.use_deterministic_encoder)
