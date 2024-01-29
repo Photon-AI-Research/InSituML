@@ -6,6 +6,19 @@ import torch
 import random
 from collections import deque
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+import inspect
+
+def inspect_and_select(base):
+    
+    def decorator(**all_input_pars):
+
+        input_vals = {k:all_input_pars[k] for k, v in inspect.signature(base).parameters.items() 
+                      if k in all_input_pars}
+    
+        return base(**input_vals)
+    
+    return decorator
+    
 
 def filter_dims(phase_space, property_="positions"):
     

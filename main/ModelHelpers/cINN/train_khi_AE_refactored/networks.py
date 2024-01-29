@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from encoder_decoder import Encoder as encoder
 from encoder_decoder import MLP_Decoder as decoder
-from utilities import sample_gaussian, kl_normal
+from utilities import sample_gaussian, kl_normal, inspect_and_select
 
 class Reshape(nn.Module):
     def __init__(self, *args):
@@ -13,8 +13,9 @@ class Reshape(nn.Module):
         return x.view(self.shape)
     
 # Define the convolutional autoencoder class
+@inspect_and_select
 class ConvAutoencoder(nn.Module):
-    def __init__(self, config):
+    def __init__(self, hidden_size, dim_pool):
         super(ConvAutoencoder, self).__init__()
 
         # Encoder
@@ -31,8 +32,8 @@ class ConvAutoencoder(nn.Module):
             nn.ReLU(),
             nn.Conv1d(256, 512, kernel_size=1),
             nn.ReLU(),
-            nn.Conv1d(512, config["hidden_size"], kernel_size=1),
-            nn.AdaptiveMaxPool1d(config["dim_pool"]), 
+            nn.Conv1d(512, hidden_size, kernel_size=1),
+            nn.AdaptiveMaxPool1d(dim_pool), 
             nn.Flatten()
         )
 
@@ -52,16 +53,20 @@ class ConvAutoencoder(nn.Module):
         #TODO: calculate loss here. 
         return None, x
 
-
+@inspect_and_select
 class VAE(nn.Module):
-    def __init__(self, loss_function = None, point_dim=3, z_dim=4):
+    def __init__(self, loss_function = None, 
+                 property_="positions", z_dim=4, 
+                 use_deterministic_encoder=True,
+                 use_encoding_in_decoder=True
+                 ):
         super(VAE, self).__init__()
+        self.point_dim = 9 if property_ == "all" else 3
         self.n_point = 150000
-        self.point_dim = point_dim
         self.z_dim = z_dim
         self.loss_function = loss_function
-        self.use_deterministic_encoder = False
-        self.use_encoding_in_decoder = False
+        self.use_deterministic_encoder = use_deterministic_encoder
+        self.use_encoding_in_decoder = use_encoding_in_decoder
         self.encoder = encoder(self.z_dim,
                                self.point_dim,
                                self.use_deterministic_encoder)

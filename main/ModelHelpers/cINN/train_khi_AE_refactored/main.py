@@ -38,15 +38,18 @@ def train_with_wandb():
     loss_function = args.lossfunction,
     loss_function_params = {},
     network ="VAE",
-    z_dim = args.z_dim
     )
     
-    point_dim = 9 if args.property_ == "all" else 3
+    hyperparameter_defaults.update(args)
+    
     
     print('New session...')
     
     info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_{args.property_}"
     time_now = datetime.now().strftime("%H:%M").replace(":","_")
+
+    criterion = MAPPING_TO_LOSS[config["loss_function"]](**loss_function_params)
+    hyperparameter_defaults.update({"loss_function": criterion})
     
     # Pass your defaults to wandb.init
     run = wandb.init(config=hyperparameter_defaults, project=f'newruns_{time_now}', name=info_image_path)
@@ -66,10 +69,8 @@ def train_with_wandb():
                          particlebatchsize=config["particlebatchsize"])
 
         
-    criterion = MAPPING_TO_LOSS[config["loss_function"]](**config["loss_function_params"])
-    
     # Initialize the convolutional autoencoder
-    model = MAPPING_TO_NETWORK[config["network"]](criterion, point_dim, config["z_dim"])
+    model = MAPPING_TO_NETWORK[config["network"]](hyperparameter_defaults)
 
     epoch = data_loader[0]
     
@@ -116,6 +117,16 @@ if __name__ == "__main__":
                         default='chamfersloss',
                         help="Choose the loss function")
     
+    parser.add_argument('--use_deterministic_encoder',
+                        type=bool,
+                        default=False,
+                        help="Whether to use a deterministic encoder or otherwise")
+
+    parser.add_argument('--use_encoding_in_decoder',
+                        type=bool,
+                        default=False,
+                        help="Whether to use encodings in the decoder or otherwise")
+
     args = parser.parse_args()
     
     train_with_wandb()
