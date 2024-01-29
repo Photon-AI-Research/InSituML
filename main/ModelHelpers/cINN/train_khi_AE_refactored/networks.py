@@ -15,12 +15,13 @@ class Reshape(nn.Module):
 # Define the convolutional autoencoder class
 @inspect_and_select
 class ConvAutoencoder(nn.Module):
-    def __init__(self, hidden_size, dim_pool):
-        super(ConvAutoencoder, self).__init__()
+    def __init__(self, property_, hidden_size, dim_pool):
+        super().__init__()
+        self.input_dim = 9 if property_ == "all" else 3
 
         # Encoder
         self.encoder = nn.Sequential(
-            nn.Conv1d(9, 16, kernel_size=1),
+            nn.Conv1d(self.input_dim, 16, kernel_size=1),
             nn.ReLU(),
             nn.Conv1d(16, 32, kernel_size=1),
             nn.ReLU(),
@@ -42,7 +43,7 @@ class ConvAutoencoder(nn.Module):
             nn.Unflatten(1, (16,4,4,4)),
             nn.ConvTranspose3d(16, 4,kernel_size=2, stride=1),
             nn.ReLU(),
-            nn.ConvTranspose3d(4, 9,kernel_size=2, stride=2),
+            nn.ConvTranspose3d(4, self.input_dim,kernel_size=2, stride=2),
             nn.Flatten(2),
         )
 
@@ -60,7 +61,7 @@ class VAE(nn.Module):
                  use_deterministic_encoder=True,
                  use_encoding_in_decoder=True
                  ):
-        super(VAE, self).__init__()
+        super().__init__()
         self.point_dim = 9 if property_ == "all" else 3
         self.n_point = 150000
         self.z_dim = z_dim

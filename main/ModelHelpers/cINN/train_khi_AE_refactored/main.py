@@ -37,10 +37,10 @@ def train_with_wandb():
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     loss_function = args.lossfunction,
     loss_function_params = {},
-    network ="VAE",
+    network ="convAE",
     )
     
-    hyperparameter_defaults.update(args)
+    hyperparameter_defaults.update(vars(args))
     
     
     print('New session...')
@@ -48,7 +48,7 @@ def train_with_wandb():
     info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_{args.property_}"
     time_now = datetime.now().strftime("%H:%M").replace(":","_")
 
-    criterion = MAPPING_TO_LOSS[config["loss_function"]](**loss_function_params)
+    criterion = MAPPING_TO_LOSS[hyperparameter_defaults["loss_function"]](**hyperparameter_defaults["loss_function_params"])
     hyperparameter_defaults.update({"loss_function": criterion})
     
     # Pass your defaults to wandb.init
@@ -70,7 +70,7 @@ def train_with_wandb():
 
         
     # Initialize the convolutional autoencoder
-    model = MAPPING_TO_NETWORK[config["network"]](hyperparameter_defaults)
+    model = MAPPING_TO_NETWORK[config["network"]](**hyperparameter_defaults)
 
     epoch = data_loader[0]
     
