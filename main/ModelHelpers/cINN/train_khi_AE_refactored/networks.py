@@ -18,7 +18,6 @@ class ConvAutoencoder(nn.Module):
     def __init__(self, property_, hidden_size, dim_pool):
         super().__init__()
         self.input_dim = 9 if property_ == "all" else 3
-
         # Encoder
         self.encoder = nn.Sequential(
             nn.Conv1d(self.input_dim, 16, kernel_size=1),
@@ -53,6 +52,11 @@ class ConvAutoencoder(nn.Module):
         #Adding None for compatibility
         #TODO: calculate loss here. 
         return None, x
+
+    def reconstruct_input(self, x):
+        #Adding for compatibility with VAE.
+        None, x = self.forward(x)
+        return x
 
 @inspect_and_select
 class VAE(nn.Module):
