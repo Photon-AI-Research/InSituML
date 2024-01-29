@@ -55,7 +55,7 @@ class ConvAutoencoder(nn.Module):
 
     def reconstruct_input(self, x):
         #Adding for compatibility with VAE.
-        None, x = self.forward(x)
+        _, x = self.forward(x)
         return x
 
 @inspect_and_select
