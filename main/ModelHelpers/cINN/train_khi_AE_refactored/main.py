@@ -37,8 +37,7 @@ def train_with_wandb():
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     loss_function = args.lossfunction,
-    loss_function_params = {},
-    network ="convAE",
+    loss_function_params = {}
     )
     
     hyperparameter_defaults.update(vars(args))
@@ -97,7 +96,7 @@ def train_with_wandb():
         print(f"Directory '{directory}' already exists.")
     
     train_AE(model, criterion, optimizer, scheduler, epoch, valid_data_loader, wandb, directory,
-             property_= property_) 
+             property_= args.property_) 
     
 if __name__ == "__main__":
     
@@ -123,6 +122,11 @@ if __name__ == "__main__":
     parser.add_argument('--lossfunction',
                         type=str,
                         default='chamfersloss',
+                        help="Choose the loss function")
+
+    parser.add_argument('--network',
+                        type=str,
+                        default='VAE',
                         help="Choose the loss function")
     
     parser.add_argument('--use_deterministic_encoder',
