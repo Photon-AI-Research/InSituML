@@ -61,13 +61,15 @@ class ConvAutoencoder(nn.Module):
 @inspect_and_select
 class VAE(nn.Module):
     def __init__(self, loss_function = None, 
-                 property_="positions", z_dim=4, 
+                 property_="positions", z_dim=4,
+                 particles_to_sample=4000,
                  use_deterministic_encoder=True,
                  use_encoding_in_decoder=True
                  ):
         super().__init__()
         self.point_dim = 9 if property_ == "all" else 3
-        self.n_point = 150000
+        #Different namings due to terminology in dataloaders
+        self.n_point = particles_to_sample
         self.z_dim = z_dim
         self.loss_function = loss_function
         self.use_deterministic_encoder = use_deterministic_encoder
