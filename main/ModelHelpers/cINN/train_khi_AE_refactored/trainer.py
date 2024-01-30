@@ -7,7 +7,7 @@ from utilities import save_visual, save_visual_all, filter_dims, validate_model
 
 def train_AE(model, criterion, optimizer,
              scheduler, epoch, valid_data_loader, wandb, directory,
-             property_ = "positions",
+             info_image_path=".", property_ = "positions",
              log_visual_report_every_tb = 30):
     
     config = wandb.config
@@ -65,11 +65,18 @@ def train_AE(model, criterion, optimizer,
             print(timeInfo +' last timebatch loss: {}, avg_loss: {}, time: {}'.format(loss.item(), 
                                                                                       loss_timebatch_avg, 
                                                                                       elapsed_timebatch),
-                                                                                      flush=True)
+            
+                                                                          flush=True)
+            wandb.log({
+                "Epoch": i_epoch,
+                "tb":(i_epoch+1)*timeBatchIndex,
+                "loss_timebatch_avg_loss": loss_timebatch_avg,
+            })
+
             if timeBatchIndex%log_visual_report_every_tb==0 and property_ != "all":
-                save_visual(model, timeBatch, wandb, timeInfo, property_)
+                save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
             elif timeBatchIndex%log_visual_report_every_tb==0:
-                save_visual_all(model, timeBatch, wandb, timeInfo)
+                save_visual_all(model, timeBatch, wandb, timeInfo, info_image_path)
             
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
         
@@ -91,16 +98,6 @@ def train_AE(model, criterion, optimizer,
                 slow_improvement_count += 1
         
         scheduler.step()
-        
-        # Log the loss and accuracy values at the end of each epoch
-        wandb.log({
-            "Epoch": i_epoch,
-            "loss_timebatch_avg_loss": loss_timebatch_avg,
-            "loss_overall_avg": loss_overall_avg,
-            "Validation loss": val_loss_overall_avg,
-            "min_valid_loss": min_valid_loss,
-        })
-            
         
         # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
         #     break  # Stop training
