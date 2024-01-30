@@ -46,13 +46,12 @@ def train_with_wandb():
     print('New session...')
     
     info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_{args.property_}"
-    time_now = datetime.now().strftime("%H:%M").replace(":","_")
 
     criterion = MAPPING_TO_LOSS[hyperparameter_defaults["loss_function"]](**hyperparameter_defaults["loss_function_params"])
     hyperparameter_defaults.update({"loss_function": criterion})
     
     # Pass your defaults to wandb.init
-    run = wandb.init(config=hyperparameter_defaults, project=f'newruns_{time_now}', name=info_image_path)
+    run = wandb.init(config=hyperparameter_defaults, project=f'newruns_{args.project_kw}', name=info_image_path)
     start_epoch = 0
     
     # Access all hyperparameter values through wandb.config
@@ -128,6 +127,11 @@ if __name__ == "__main__":
                         type=str,
                         default='VAE',
                         help="Choose the loss function")
+    
+    parser.add_argument('--project_kw',
+                        type=str,
+                        default='',
+                        help="Choose the project keyword for runs")
     
     parser.add_argument('--use_deterministic_encoder',
                         type=bool,
