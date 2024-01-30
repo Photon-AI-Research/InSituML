@@ -87,7 +87,7 @@ class TrainLoader:
                     
                     # random sample N points from each box
                     p = [random_sample(element,
-                                       sample_size=self.particles_to_sample) for element in p]
+                                       sample_size=self.loader.particles_to_sample) for element in p]
                     
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
                     
