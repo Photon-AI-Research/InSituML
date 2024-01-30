@@ -23,6 +23,7 @@ def inspect_and_select(base):
 def validate_model(model, valid_data_loader, property_, device):
     model.eval()
     val_loss_avg = []
+    print(len(valid_data_loader), flush=True)
     with torch.no_grad():
         for idx in range(len(valid_data_loader)):
             timestep_index, validation_boxes, p, _ = valid_data_loader[idx]

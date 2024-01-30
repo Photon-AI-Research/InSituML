@@ -138,7 +138,9 @@ class ValidationFixedBoxLoader:
                  validation_boxes,
                  t0=0,
                  t1=100,
-                 particles_to_sample=4000):
+                 particles_to_sample=4000,
+                 select_timesteps=100,
+          ):
         
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
@@ -146,14 +148,16 @@ class ValidationFixedBoxLoader:
         self.t0 = t0
         self.t1 = t1
         self.particles_to_sample = particles_to_sample
-
+        self.select_timesteps = select_timesteps
+    
     def __len__(self):
-        return self.t1 - self.t0
+        self.perm =  torch.randperm((self.t1-self.t0))[:self.select_timesteps]
+        return self.select_timesteps
 
     def __getitem__(self, idx):
 
-        timestep_index = self.t0 + idx
-
+        timestep_index = self.t0 + self.perm[idx]
+     
         # Load particle data for the validation boxes
         p_loaded = np.load(self.pathpattern1.format(timestep_index), allow_pickle=True)
         p = [p_loaded[box_index] for box_index in self.validation_boxes]
@@ -162,7 +166,7 @@ class ValidationFixedBoxLoader:
         p = np.array(p, dtype=object)
                 
         p = [random_sample(element, 
-                           sample_size=self.particlebatchsize) for element in p]
+                           sample_size=self.particles_to_sample) for element in p]
         
         p = torch.from_numpy(np.array(p, dtype = np.float32))        
 
