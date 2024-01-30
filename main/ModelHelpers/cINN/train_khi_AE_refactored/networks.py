@@ -15,9 +15,10 @@ class Reshape(nn.Module):
 # Define the convolutional autoencoder class
 @inspect_and_select
 class ConvAutoencoder(nn.Module):
-    def __init__(self, property_, hidden_size, dim_pool):
+    def __init__(self, loss_function, property_, hidden_size, dim_pool):
         super().__init__()
         self.input_dim = 9 if property_ == "all" else 3
+        self.loss_function = loss_function
         # Encoder
         self.encoder = nn.Sequential(
             nn.Conv1d(self.input_dim, 16, kernel_size=1),
@@ -47,16 +48,15 @@ class ConvAutoencoder(nn.Module):
         )
 
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        #Adding None for compatibility
-        #TODO: calculate loss here. 
-        return None, x
-
+        y = self.reconstruct_input(x)
+        loss = self.loss_function(y,x)
+        return loss, y
+    
     def reconstruct_input(self, x):
-        #Adding for compatibility with VAE.
-        _, x = self.forward(x)
-        return x
+        #z is the latent space.
+        z = self.encoder(x)
+        y = self.decoder(z)
+        return y
 
 @inspect_and_select
 class VAE(nn.Module):

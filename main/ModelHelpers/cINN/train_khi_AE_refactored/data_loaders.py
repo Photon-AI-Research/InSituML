@@ -11,7 +11,8 @@ class TrainLoader:
                  t1=100,
                  timebatchsize=20,
                  particlebatchsize=10240,
-                 blacklist_box=None):
+                 blacklist_box=None,
+                 particles_to_sample=4000):
         
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
@@ -24,6 +25,7 @@ class TrainLoader:
         
         self.timebatchsize = timebatchsize
         self.particlebatchsize = particlebatchsize
+        self.particles_to_sample = particles_to_sample
 
         num_files = t1 - t0
         missing_files = [i for i in range(t0, t1) if not os.path.exists(pathpattern1.format(i))]
@@ -84,7 +86,9 @@ class TrainLoader:
                     p = np.array(p, dtype=object)
                     
                     # random sample N points from each box
-                    p = [random_sample(element, sample_size=150000) for element in p]
+                    p = [random_sample(element,
+                                       sample_size=self.particles_to_sample) for element in p]
+                    
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
                     
                     # choose relevant detection directions
@@ -133,13 +137,15 @@ class ValidationFixedBoxLoader:
                  pathpattern2,
                  validation_boxes,
                  t0=0,
-                 t1=100):
+                 t1=100,
+                 particles_to_sample=4000):
         
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
         self.validation_boxes = validation_boxes
         self.t0 = t0
         self.t1 = t1
+        self.particles_to_sample = particles_to_sample
 
     def __len__(self):
         return self.t1 - self.t0
@@ -155,7 +161,9 @@ class ValidationFixedBoxLoader:
         p = [normalize_columns(element) for element in p]
         p = np.array(p, dtype=object)
                 
-        p = [random_sample(element, sample_size=150000) for element in p]
+        p = [random_sample(element, 
+                           sample_size=self.particlebatchsize) for element in p]
+        
         p = torch.from_numpy(np.array(p, dtype = np.float32))        
 
         # Load radiation data for the validation boxes

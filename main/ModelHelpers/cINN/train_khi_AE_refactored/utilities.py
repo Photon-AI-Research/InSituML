@@ -46,9 +46,10 @@ def filter_dims(phase_space, property_="positions"):
     
 def save_visual_all(*args):
     
-    deque(save_visual(*args, property_, running_all=True) for property_ in ["positions", 
-                                                          "momentum", 
-                                                          "force"])
+    deque(save_visual(*args, property_, running_all=True) \
+             for property_ in ["positions", \
+                               "momentum", \
+                               "force"])
     
 def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, running_all=False):
     

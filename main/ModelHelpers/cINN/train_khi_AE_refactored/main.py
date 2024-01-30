@@ -143,6 +143,11 @@ if __name__ == "__main__":
                         default=False,
                         help="Whether to use encodings in the decoder or otherwise")
 
+    parser.add_argument('--particles_to_sample',
+                        type=int,
+                        default=4000,
+                        help="How many particles to sample.")
+
     args = parser.parse_args()
     
     train_with_wandb()
