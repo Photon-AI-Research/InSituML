@@ -31,7 +31,7 @@ def train_with_wandb():
     hidden_size = 1024,
     dim_pool = 1,
     learning_rate = args.learning_rate,
-    num_epochs = 3,
+    num_epochs = 100,
     val_boxes = [19,5,3],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
