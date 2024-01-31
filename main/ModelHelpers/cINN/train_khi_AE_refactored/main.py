@@ -67,13 +67,15 @@ def train_with_wandb():
                               t0=config["t0"], t1=config["t1"],
                               timebatchsize=config["timebatchsize"],
                               particlebatchsize=config["particlebatchsize"],
-                              blacklist_box = config["val_boxes"])
+                              blacklist_box = config["val_boxes"], 
+                              particles_to_sample = config["particles_to_sample"])
     
     valid_data_loader = ValidationFixedBoxLoader(pathpattern1,
                                                  pathpattern2,
                                                  config["val_boxes"],
                                                  t0=config["t0"],
-                                                 t1=config["t1"])
+                                                 t1=config["t1"],
+                                                 particles_to_sample = config["particles_to_sample"])
             
     # Initialize the convolutional autoencoder
     model = MAPPING_TO_NETWORK[config["network"]](**hyperparameter_defaults)
