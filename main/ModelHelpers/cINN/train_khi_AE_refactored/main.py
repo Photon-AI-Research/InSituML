@@ -1,7 +1,7 @@
 import wandb
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
 from networks import ConvAutoencoder, VAE
-from loss_functions import EarthMoversLoss, ChamfersLoss
+from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,6 +13,7 @@ from datetime import datetime
 MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
     "chamfersloss":ChamfersLoss,
+    "chamfersloss_d":ChamfersLossDiagonal,
     "mse":nn.MSELoss
     }
 

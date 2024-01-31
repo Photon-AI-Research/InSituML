@@ -2,6 +2,62 @@ import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
 
+def distChamfer(a, b):
+    x, y = a, b
+    bs, num_points, points_dim = x.size()
+    xx = torch.bmm(x, x.transpose(2, 1))
+    yy = torch.bmm(y, y.transpose(2, 1))
+    zz = torch.bmm(x, y.transpose(2, 1))
+    diag_ind = torch.arange(0, num_points).to(a).long()
+    rx = xx[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
+    ry = yy[:, diag_ind, diag_ind].unsqueeze(1).expand_as(yy)
+    P = (rx.transpose(2, 1) + ry - 2 * zz)
+    return P.min(1)[0], P.min(2)[0]
+
+def CD_loss(sample_pcs,ref_pcs):
+    dl, dr = distChamfer(sample_pcs, ref_pcs)
+    cd_loss = dl.sum(dim=1) + dr.sum(dim=1)
+    return cd_loss
+
+class ChamfersLossDiagonal(nn.Module):
+    """
+    Custom loss class for Chamfers Distance taken with diagonal things to metrics.
+    Taken from https://github.com/lingjiekong/CS236Project/blob/eval_metric/metrics/evaluation_metrics.py
+    Args:
+        reduction(str): How to reduce loss from each batch element.
+        p(float): value for the p - norm distance to calculate between 
+        each vector pair. See also torch.cdist.
+    """
+    def __init__(self, 
+                 reduction='mean',
+                 p=2):
+        
+        super().__init__()
+        self.reduction = reduction
+        self.p = p
+
+    def forward(self, x, y):
+        """
+        
+        Args:
+            x(Tensor): Output of the model.
+            y(Tensor): Ground truth values
+        """
+        dl, dr = chamfers_distance(x, y)
+        cd_loss = dl.mean(dim=1) + dr.mean(dim=1)
+        return cd_loss
+
+    def chamfers_distance(x, y):
+        bs, num_points, points_dim = x.size()
+        xx = torch.bmm(x, x.transpose(2, 1))
+        yy = torch.bmm(y, y.transpose(2, 1))
+        zz = torch.bmm(x, y.transpose(2, 1))
+        diag_ind = torch.arange(0, num_points).to(a).long()
+        rx = xx[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
+        ry = yy[:, diag_ind, diag_ind].unsqueeze(1).expand_as(yy)
+        P = (rx.transpose(2, 1) + ry - 2 * zz)
+        return P.min(1)[0], P.min(2)[0]
+
 
 class ChamfersLoss(nn.Module):
     """
