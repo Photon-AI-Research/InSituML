@@ -43,11 +43,12 @@ class ChamfersLossDiagonal(nn.Module):
             x(Tensor): Output of the model.
             y(Tensor): Ground truth values
         """
-        dl, dr = chamfers_distance(x, y)
+        dl, dr = self.chamfers_distance(x, y)
         cd_loss = dl.mean(dim=1) + dr.mean(dim=1)
         return cd_loss
 
-    def chamfers_distance(x, y):
+    def chamfers_distance(self, a, b):
+        x, y = a, b
         bs, num_points, points_dim = x.size()
         xx = torch.bmm(x, x.transpose(2, 1))
         yy = torch.bmm(y, y.transpose(2, 1))
