@@ -2,6 +2,7 @@ import wandb
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
 from networks import ConvAutoencoder, VAE
 from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal
+import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as ChamfersLossOptimized
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,6 +15,7 @@ MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
     "chamfersloss":ChamfersLoss,
     "chamfersloss_d":ChamfersLossDiagonal,
+    "chamfersloss_o":ChamfersLossOptimized,
     "mse":nn.MSELoss
     }
 
