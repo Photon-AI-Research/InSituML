@@ -3,7 +3,7 @@ import torch.nn as nn
 from geomloss import SamplesLoss
 import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as dist_chamfer_3D
 
-class ChamfersOptimized(nn.Module):
+class ChamfersLossOptimized(nn.Module):
     def __init__(self):
         super().__init__()
         self.chm_obj = dist_chamfer_3D.chamfer_3DDist()
