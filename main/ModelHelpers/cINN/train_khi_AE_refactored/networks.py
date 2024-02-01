@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from encoder_decoder import Encoder as encoder
 from encoder_decoder import MLP_Decoder as decoder
-from utilities import sample_gaussian, kl_normal
+from utilities import sample_gaussian, kl_normal, inspect_and_select
 
 class Reshape(nn.Module):
     def __init__(self, *args):
@@ -13,13 +13,15 @@ class Reshape(nn.Module):
         return x.view(self.shape)
     
 # Define the convolutional autoencoder class
+@inspect_and_select
 class ConvAutoencoder(nn.Module):
-    def __init__(self, config):
-        super(ConvAutoencoder, self).__init__()
-
+    def __init__(self, loss_function, property_, hidden_size, dim_pool):
+        super().__init__()
+        self.input_dim = 9 if property_ == "all" else 3
+        self.loss_function = loss_function
         # Encoder
         self.encoder = nn.Sequential(
-            nn.Conv1d(9, 16, kernel_size=1),
+            nn.Conv1d(self.input_dim, 16, kernel_size=1),
             nn.ReLU(),
             nn.Conv1d(16, 32, kernel_size=1),
             nn.ReLU(),
@@ -31,8 +33,8 @@ class ConvAutoencoder(nn.Module):
             nn.ReLU(),
             nn.Conv1d(256, 512, kernel_size=1),
             nn.ReLU(),
-            nn.Conv1d(512, config["hidden_size"], kernel_size=1),
-            nn.AdaptiveMaxPool1d(config["dim_pool"]), 
+            nn.Conv1d(512, hidden_size, kernel_size=1),
+            nn.AdaptiveMaxPool1d(dim_pool), 
             nn.Flatten()
         )
 
@@ -41,27 +43,37 @@ class ConvAutoencoder(nn.Module):
             nn.Unflatten(1, (16,4,4,4)),
             nn.ConvTranspose3d(16, 8,kernel_size=2, stride=2),
             nn.ReLU(),
-            nn.ConvTranspose3d(8, 9,kernel_size=2, stride=2),
+            nn.ConvTranspose3d(8, self.input_dim,kernel_size=2, stride=2),
             nn.Flatten(2),
         )
 
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        #Adding None for compatibility
-        #TODO: calculate loss here. 
-        return None, x
+        y = self.reconstruct_input(x)
+        loss = self.loss_function(y,x)
+        return loss, y
+    
+    def reconstruct_input(self, x):
+        #z is the latent space.
+        z = self.encoder(x)
+        y = self.decoder(z)
+        return y
 
-
+@inspect_and_select
 class VAE(nn.Module):
-    def __init__(self, loss_function = None, point_dim=3):
-        super(VAE, self).__init__()
-        self.n_point = 150000
-        self.point_dim = point_dim
-        self.z_dim = 4
+    def __init__(self, loss_function = None, 
+                 property_="positions", z_dim=4,
+                 particles_to_sample=4000,
+                 use_deterministic_encoder=True,
+                 use_encoding_in_decoder=True
+                 ):
+        super().__init__()
+        self.point_dim = 9 if property_ == "all" else 3
+        #Different namings due to terminology in dataloaders
+        self.n_point = particles_to_sample
+        self.z_dim = z_dim
         self.loss_function = loss_function
-        self.use_deterministic_encoder = True
-        self.use_encoding_in_decoder = True
+        self.use_deterministic_encoder = use_deterministic_encoder
+        self.use_encoding_in_decoder = use_encoding_in_decoder
         self.encoder = encoder(self.z_dim,
                                self.point_dim,
                                self.use_deterministic_encoder)
