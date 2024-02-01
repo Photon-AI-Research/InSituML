@@ -105,7 +105,6 @@ class VAE(nn.Module):
             kl_loss = kl_normal(m,v,p_m,p_v)
         #compute reconstruction loss 
         if self.loss_function is not None:
-            print(x.shape, y.shape)
             x_reconst = self.loss_function(y.contiguous(),x.contiguous())
         # mean or sum
         x_reconst = x_reconst.mean()

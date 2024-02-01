@@ -70,7 +70,7 @@ def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, r
         random_input = filter_dims(random_input, property_)
         random_output = model.reconstruct_input(random_input.to(device))
     
-    all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
+    all_var_to_plot = random_input[0].transpose(1,0).tolist() + random_output[0].transpose(1,0).tolist()
     
     if property_ == "positions":
         create_position_density_plots(*all_var_to_plot, path=info_image_path,
