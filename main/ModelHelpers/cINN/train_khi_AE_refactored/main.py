@@ -1,7 +1,8 @@
 import wandb
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
 from networks import ConvAutoencoder, VAE
-from loss_functions import EarthMoversLoss, ChamfersLoss
+from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal
+import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as ChamfersLossOptimized
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,6 +14,8 @@ from datetime import datetime
 MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
     "chamfersloss":ChamfersLoss,
+    "chamfersloss_d":ChamfersLossDiagonal,
+    "chamfersloss_o":ChamfersLossOptimized,
     "mse":nn.MSELoss
     }
 
@@ -31,7 +34,7 @@ def train_with_wandb():
     hidden_size = 1024,
     dim_pool = 1,
     learning_rate = args.learning_rate,
-    num_epochs = 3,
+    num_epochs = 100,
     val_boxes = [19,5,3],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
@@ -67,13 +70,15 @@ def train_with_wandb():
                               t0=config["t0"], t1=config["t1"],
                               timebatchsize=config["timebatchsize"],
                               particlebatchsize=config["particlebatchsize"],
-                              blacklist_box = config["val_boxes"])
+                              blacklist_box = config["val_boxes"], 
+                              particles_to_sample = config["particles_to_sample"])
     
     valid_data_loader = ValidationFixedBoxLoader(pathpattern1,
                                                  pathpattern2,
                                                  config["val_boxes"],
                                                  t0=config["t0"],
-                                                 t1=config["t1"])
+                                                 t1=config["t1"],
+                                                 particles_to_sample = config["particles_to_sample"])
             
     # Initialize the convolutional autoencoder
     model = MAPPING_TO_NETWORK[config["network"]](**hyperparameter_defaults)
@@ -142,6 +147,11 @@ if __name__ == "__main__":
                         type=bool,
                         default=False,
                         help="Whether to use encodings in the decoder or otherwise")
+
+    parser.add_argument('--particles_to_sample',
+                        type=int,
+                        default=4000,
+                        help="How many particles to sample.")
 
     args = parser.parse_args()
     
