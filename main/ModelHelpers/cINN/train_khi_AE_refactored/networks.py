@@ -39,9 +39,9 @@ class ConvAutoencoder(nn.Module):
         # Decoder
         self.decoder = nn.Sequential(
             nn.Unflatten(1, (16,4,4,4)),
-            nn.ConvTranspose3d(16, 4,kernel_size=2, stride=1),
+            nn.ConvTranspose3d(16, 8,kernel_size=2, stride=2),
             nn.ReLU(),
-            nn.ConvTranspose3d(4, 9,kernel_size=2, stride=2),
+            nn.ConvTranspose3d(8, 9,kernel_size=2, stride=2),
             nn.Flatten(2),
         )
 
