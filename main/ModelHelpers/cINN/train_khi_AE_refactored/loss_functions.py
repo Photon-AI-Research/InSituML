@@ -1,14 +1,15 @@
 import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
-import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as ChamfersOp
+import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as dist_chamfer_3D
 
-class ChamfersOptimized(ChamfersOp):
+class ChamfersOptimized(nn.Module):
     def __init__(self):
-        super.chamfer_3DDist()
-    
+        super().__init__()
+        self.chm_obj = dist_chamfer_3D.chamfer_3DDist()
+
     def forward(self, x, y):
-        dist1, dist2, idx1, idx2 = self(x, y)
+        dist1, dist2, idx1, idx2 = self.chm_obj(x, y)
         loss = torch.mean(dist1) + torch.mean(dist2)
         return loss
         
