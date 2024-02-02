@@ -3,86 +3,118 @@ import torch.nn.functional as F
 from torch import nn
 import numpy as np
 
+class AddLayersMixin:
+    
+    def add_layers_seq(self, layers_kind, config,
+                       add_activation = True,
+                       add_batch_normalisation = True):
+        
+        layers = []
+        for idx, channel_size in enumerate(config):
+            if idx==0:
+                layers.append(getattr(nn, layer_kind)(input_dim, channel_size, 1))
+            else:
+                layers.append(getattr(nn, layer_kind)(config[idx-1], channel_size, 1))
+            
+            if add_batch_normalisation:
+                layers.append(nn.BatchNorm1d(channel_size, 1))
+            
+            if add_activation:
+                layers.append(nn.relu())
+        
+        return layers
+
+
+
 #simple encodr design
-class Encoder(nn.Module):
-    def __init__(self, zdim, input_dim=3, use_deterministic_encoder=False):
-        super(Encoder, self).__init__()
-        self.use_deterministic_encoder = use_deterministic_encoder
-        self.zdim = zdim
-        self.conv1 = nn.Conv1d(input_dim, 128, 1)
-        self.conv2 = nn.Conv1d(128, 128, 1)
-        self.conv3 = nn.Conv1d(128, 256, 1)
-        self.conv4 = nn.Conv1d(256, 512, 1)
-        self.bn1 = nn.BatchNorm1d(128)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(256)
-        self.bn4 = nn.BatchNorm1d(512)
+class Encoder(AddLayersMixin, nn.Module):
+    def __init__(self, zdim,
+                 input_dim = 3, 
+                 ae_config = "determistic",
+                 conv_layer_config = [128, 128, 256, 512],
+                 fc_layer_config=[256, 128]):
+        
+        super().__init__()
+        
+        conv_layers = self.add_layers_seq("Conv1d",
+                                           conv_layer_config,
+                                           input_dim)
+        
+        self.ae_config = ae_config
+        
+        self.ll_size = conv_layer_config[-1]
 
-        if self.use_deterministic_encoder:
-            self.fc1 = nn.Linear(512, 256)
-            self.fc2 = nn.Linear(256, 128)
-            self.fc_bn1 = nn.BatchNorm1d(256)
-            self.fc_bn2 = nn.BatchNorm1d(128)
-            self.fc3 = nn.Linear(128, zdim)
+        conv_layers += [nn.AdaptiveMaxPool1d(1),
+                        nn.Flatten()]
+        
+        if ae_config == "determistic":
+            conv_layers += [nn.Unflatten(1, (-1, self.ll_size))]
+            fc_layers = self.add_layers_seq("Linear",
+                                            fc_layer_config,
+                                            self.ll_size)
+            
+            final_layers = conv_layers + fc_layers + \
+                           [nn.Linear(self.ll_size, zdim)]
+                       
+            self.layers = nn.Sequential(*final_layers)
+
+        elif ae_config == "non_deterministic":
+
+            conv_layers += [nn.Unflatten(1, (-1, self.ll_size))]
+            self.layers = nn.Sequential(*conv_layers)
+            
+            fc_layers_mean = self.add_layers_seq("Linear",
+                                                 fc_layer_config,
+                                                 self.ll_size)
+            
+            fc_layers_var = self.add_layers_seq("Linear",
+                                                 fc_layer_config,
+                                                 self.ll_size)
+            
+            partition_mean = fc_layers_mean + [nn.Linear(self.ll_size, zdim)]
+            
+            partition_var = fc_layers_var + [nn.Linear(self.ll_size, zdim)]
+            
+            self.mean = nn.Sequential(*partition_mean)
+            self.variance = nn.Sequential(*partition_var)
+        
         else:
-            #basically, creates a seperate mapping 
-            #for variance and mean for use_deterministic_encoder
-            #only has one mapping which is mean.  
-            # Mapping to [c], cmean
-            self.fc1_m = nn.Linear(512, 256)
-            self.fc2_m = nn.Linear(256, 128)
-            self.fc3_m = nn.Linear(128, zdim)
-            self.fc_bn1_m = nn.BatchNorm1d(256)
-            self.fc_bn2_m = nn.BatchNorm1d(128)
-
-            # Mapping to [c], cmean
-            self.fc1_v = nn.Linear(512, 256)
-            self.fc2_v = nn.Linear(256, 128)
-            self.fc3_v = nn.Linear(128, zdim)
-            self.fc_bn1_v = nn.BatchNorm1d(256)
-            self.fc_bn2_v = nn.BatchNorm1d(128)
+            self.layers = nn.Sequential(*conv_layers)
+            
 
     def forward(self, x):
         x = x.transpose(1, 2)
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = self.bn4(self.conv4(x))
-        x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 512)
+        x = self.layers(x)
 
-        if self.use_deterministic_encoder:
-            ms = F.relu(self.fc_bn1(self.fc1(x)))
-            ms = F.relu(self.fc_bn2(self.fc2(ms)))
-            ms = self.fc3(ms)
-            #mean and variance.
-            m, v = ms, 0
+        if self.ae_config == "deterministic":
+            return x, 0
+        elif self.ae_config == "non_deterministic":
+            return self.mean(x), self.variance(x)
         else:
-            m = F.relu(self.fc_bn1_m(self.fc1_m(x)))
-            m = F.relu(self.fc_bn2_m(self.fc2_m(m)))
-            m = self.fc3_m(m)
-            v = F.relu(self.fc_bn1_v(self.fc1_v(x)))
-            v = F.relu(self.fc_bn2_v(self.fc2_v(v)))
-            v = self.fc3_v(v)
-            v = F.softplus(v) + 1e-8
-
-        return m, v
+            return x
 
 #decoder design
-class MLP_Decoder(nn.Module):
-    def __init__(self,zdim,n_point,point_dim):
-        super(MLP_Decoder,self).__init__()
+class MLP_Decoder(AddLayersMixin, nn.Module):
+    def __init__(self, zdim, n_point, point_dim,
+                layer_config = [256, 256]):
+        
+        super().__init__()
         self.zdim = zdim
         self.n_point = n_point
         self.point_dim = point_dim
         self.n_point_3 = self.point_dim * self.n_point
-        self.fc1 = nn.Linear(self.zdim, 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.final = nn.Linear(256,self.n_point_3)
+        layers = self.add_layers_seq("Linear", 
+                                     self.zdim,
+                                     layer_config,
+                                     add_batch_normalisation = False)
+        output.reshape(-1,self.n_point,self.point_dim)
+        
+        layers = layers + [nn.Linear(layer_config[-1], self.n_point_3)]
+        
+        layers = layers + [nn.Flatten(0),
+                                nn.Unflatten(0, (-1, self.n_point, self.point_dim))]
+        
+        self.layers = nn.Sequential(*layers)
     
-    def forward(self,z):
-        x = F.relu(self.fc1(z))
-        x = F.relu(self.fc2(x))
-        output  =  self.final(x)
-        output = output.reshape(-1,self.n_point,self.point_dim)
-        return output
+    def forward(self, z):
+        return self.layer(z)
