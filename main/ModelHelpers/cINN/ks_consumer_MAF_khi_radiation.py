@@ -1,10 +1,13 @@
 """
-
+Consumer of PIConGPU particle and radiation data to train an ML model.
+The data to train on is supposed to be provided in a buffer which allows accessing it by a `get()` method.
+The particle and radiation data itself is expected to be provided as 'timebatches'.
+A timebatch is a list holding particle and radiation data from a number of timesteps.
+It is supposed to behave like a list. That is, it can be accessed and iterated over with the `[]` operator and it has a `length`.
 """
 import time
 
 from threading import Thread
-from queue import Queue
 
 from ks_helperfuncs import *
 
@@ -22,18 +25,15 @@ class MafModelTrainer(Thread):
         self.wandb_run = wandbRunObject
 
     def run(self):
-#        for i_epoch in range(start_epoch, hyperparameter_defaults["num_epochs"]):
         i_epoch = int(0)
         tb_count = int(0)
         loss_overall = []
         while True:
-#           for tb in range(len(epoch)):
             # get a timebatch from the queue
             timebatch = self.data.get()
             if timebatch is None:
                 break
             loss_avg = []
-#                timebatch = epoch[tb]
 
             start_timebatch = time.time()
             for b in range(len(timebatch)):

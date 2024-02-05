@@ -69,6 +69,9 @@ model = (PC_MAF(dim_condition = hyperparameter_defaults["dim_condition"],
                            activation = hyperparameter_defaults["activation"]
                          ))
 
+# dataTransformationPolicy = BoxesParticlesAttributes()
+dataTransformationPolicy = None
+
 # Calculate the total number of parameters
 total_params = sum(p.numel() for p in model.parameters())
 print(f"Total number of parameters: {total_params}")
@@ -95,7 +98,7 @@ modelTrainer = MafModelTrainer(batchDataBuffer, totalTimebatchNumber, model, opt
 modelTrainer.start()
 
 # start the producer
-timeBatchLoader = Loader(batchDataBuffer, dataTransformationPolicy)
+timeBatchLoader = Loader(batchDataBuffer, hyperparameter_defaults, dataTransformationPolicy)
 timeBatchLoader.start()
 
 modelTrainer.join()

@@ -5,11 +5,13 @@ In order to train the model do:
 
 2. `bash`
 
-3. `module load git gcc/12.2.0 cuda/12.1`
+3. `module load git gcc/12.2.0 cuda/12.1; conda activate pytorch-cuda`
 
-4. `ipython`
+4. `ipython -i train_MAF_khi_radiation.py` for the existing training by Jeyhun & Jeffrey
+    or 
+    `ipython -i ks_main.py` for the refactored version using threading by Klaus & Jeyhun & Jeffrey
 
-5. `%run train_MAF_khi_radiation.py` for the existing training by Jeyhun & Jeffrey
-    or
-    `%run ks_main.py` for the refactored version using threading by Klaus & Jeyhun & Jeffrey
+OR
+
+4. `python train_MAF_khi_radiation.py 2>err.txt | tee out.txt`
 
