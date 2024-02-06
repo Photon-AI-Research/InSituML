@@ -10,10 +10,10 @@ def adjust_args(arg1, arg2, kernel_size):
     """
     
     if kernel_size is not None:
-        return *(arg1, arg2, kernel_size)
+        return (arg1, arg2, kernel_size)
     
     else:
-        return *(arg1, args2)
+        return (arg1, arg2)
 
 class AddLayersMixin:  
     """
@@ -21,7 +21,10 @@ class AddLayersMixin:
     for adding sequential layers with common properties like batch normalisation
     and activation after convolutional layers and linear, fully connected layers.
     """    
-    def add_layers_seq(self, layers_kind, config,
+    def add_layers_seq(self, 
+                       layer_kind,
+                       config,
+                       input_dim,
                        add_activation = True,
                        add_batch_normalisation = True,
                        kernel_size = None):
@@ -51,19 +54,19 @@ class AddLayersMixin:
             input_args = []
             
             if idx == 0:
-                layers.append(getattr(nn, layer_kind)(adjust_args(input_dim,
+                layers.append(getattr(nn, layer_kind)(*adjust_args(input_dim,
                                                                   channel_size,
                                                                   kernel_size)))
             else:
-                layers.append(getattr(nn, layer_kind)(adjust_args(config[idx-1],
+                layers.append(getattr(nn, layer_kind)(*adjust_args(config[idx-1],
                                                                        channel_size,
                                                                        kernel_size)))    
             
             if add_batch_normalisation:
-                layers.append(nn.BatchNorm1d(channel_size, 1))
+                layers.append(nn.BatchNorm1d(channel_size))
             
             if add_activation:
-                layers.append(nn.relu())
+                layers.append(nn.ReLU())
         
         return layers
 
@@ -102,8 +105,8 @@ class Encoder(AddLayersMixin, nn.Module):
                  conv_layer_config = [128, 128, 256, 512],
                  conv_add_bn = True,
                  conv_add_activation = True,
-                 kernel_size = 1
-                 fc_layer_config=[256, 128]
+                 kernel_size = 1,
+                 fc_layer_config=[256, 128],
                  fc_add_bn = True,
                  fc_add_activation = True):
          
@@ -162,6 +165,8 @@ class Encoder(AddLayersMixin, nn.Module):
             self.variance = nn.Sequential(*partition_var)
         
         else:
+            final_layers = conv_layers + [nn.Linear(self.ll_size, zdim)]
+                       
             self.layers = nn.Sequential(*conv_layers)
             
 
