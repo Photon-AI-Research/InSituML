@@ -15,10 +15,10 @@ from ks_helperfuncs import *
 from ks_consumer_MAF_khi_radiation import *
 
 hyperparameter_defaults = dict(
-t0 = 1990,
-t1 = 2001,
+t0 = 500,
+t1 = 504, # endpoint=false, t1 is not used in training
 dim_input = 90000,
-timebatchsize = 4,
+timebatchsize = 2,
 particlebatchsize = 32,
 dim_condition = 2048,
 num_coupling_layers = 3,
@@ -27,8 +27,8 @@ lr = 0.001,
 num_epochs = 10,
 num_blocks_mat = 2,
 activation = 'gelu',
-pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
-pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy"
+pathpattern1 = "/ccs/home/ksteinig/ALPINE2/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
+pathpattern2 = "/ccs/home/ksteinig/ALPINE2/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T.h5"
 )
 
 enable_wandb = False
