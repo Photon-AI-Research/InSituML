@@ -23,12 +23,12 @@ def inspect_and_select(base):
 def validate_model(model, valid_data_loader, property_, device):
     model.eval()
     val_loss_avg = []
-    print(len(valid_data_loader), flush=True)
+    
     with torch.no_grad():
         for idx in range(len(valid_data_loader)):
             timestep_index, validation_boxes, p, _ = valid_data_loader[idx]
             p = filter_dims(p, property_)
-            p = p.permute(0, 2, 1).to(device)
+            p = p.to(device)
             val_loss, p_pr = model(p)
             val_loss_avg.append(val_loss.mean().item())
     val_loss_overall_avg = sum(val_loss_avg) / len(val_loss_avg)
@@ -60,17 +60,17 @@ def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, r
     #if model is being trained on all the dimensions, it changes the order filtering
     # and inference.
     if running_all:
-        random_input = random_input.transpose(2, 1)
+        random_input = random_input
         random_output = model.reconstruct_input(random_input.to(device))
         
-        random_input = filter_dims(random_input.transpose(2,1), property_).transpose(2,1)
-        random_output = filter_dims(random_output.transpose(2,1), property_).transpose(2,1)
+        random_input = filter_dims(random_input, property_)
+        random_output = filter_dims(random_output, property_)
         
     else:
-        random_input = filter_dims(random_input, property_).transpose(2, 1)
+        random_input = filter_dims(random_input, property_)
         random_output = model.reconstruct_input(random_input.to(device))
     
-    all_var_to_plot = random_input[0].tolist() + random_output[0].tolist()
+    all_var_to_plot = random_input[0].transpose(1,0).tolist() + random_output[0].transpose(1,0).tolist()
     
     if property_ == "positions":
         create_position_density_plots(*all_var_to_plot, path=info_image_path,

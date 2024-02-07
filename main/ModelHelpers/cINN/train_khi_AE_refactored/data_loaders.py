@@ -16,6 +16,7 @@ class TrainLoader:
         
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
+        print(pathpattern1, pathpattern2)
         self.blacklist_box = blacklist_box
         
         # TODO check if all files are there

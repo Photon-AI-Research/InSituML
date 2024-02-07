@@ -42,11 +42,10 @@ def train_AE(model, criterion, optimizer,
                 optimizer.zero_grad()
                 
                 phase_space, _ = timeBatch[particleBatchIndex]
-                
                 #TODO do this in the loader. Saves double code.
                 phase_space = filter_dims(phase_space, property_)
                 
-                phase_space = phase_space.permute(0, 2, 1).to(device)
+                phase_space = phase_space.to(device)
                 
                 loss, _ = model(phase_space)
                 

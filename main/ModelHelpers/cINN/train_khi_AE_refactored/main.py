@@ -2,7 +2,7 @@ import wandb
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
 from networks import ConvAutoencoder, VAE
 from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal
-import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as ChamfersLossOptimized
+#, ChamfersLossOptimized
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,7 +15,7 @@ MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
     "chamfersloss":ChamfersLoss,
     "chamfersloss_d":ChamfersLossDiagonal,
-    "chamfersloss_o":ChamfersLossOptimized,
+#    "chamfersloss_o":ChamfersLossOptimized,
     "mse":nn.MSELoss
     }
 
@@ -34,8 +34,8 @@ def train_with_wandb():
     hidden_size = 1024,
     dim_pool = 1,
     learning_rate = args.learning_rate,
-    num_epochs = 100,
-    val_boxes = [19,5,3],
+    num_epochs = 5,
+    val_boxes =  [19,5,3],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
@@ -62,8 +62,6 @@ def train_with_wandb():
     
     pathpattern1 = config["pathpattern1"]
     pathpattern2 = config["pathpattern2"]
-
-    
 
     data_loader = TrainLoader(pathpattern1=pathpattern1,
                               pathpattern2=pathpattern2,
@@ -152,6 +150,26 @@ if __name__ == "__main__":
                         type=int,
                         default=4000,
                         help="How many particles to sample.")
+
+    parser.add_argument('--pathpattern1',
+                        type=str,
+                        default="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
+                        help="Stuff")
+
+    parser.add_argument('--pathpattern2',
+                        type=str,
+                        default= "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
+                        help="Stuff")
+
+    parser.add_argument('--t0',
+                        type=int,
+                        default = 1000,
+                        help="Stuff")
+
+    parser.add_argument('--t1',
+                        type=int,
+                        default = 2001,
+                        help="Stuff")
 
     args = parser.parse_args()
     
