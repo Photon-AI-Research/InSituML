@@ -124,7 +124,7 @@ class Encoder(AddLayersMixin, nn.Module):
         self.ll_size = conv_layer_config[-1]
 
         conv_layers += [nn.AdaptiveMaxPool1d(1),
-                        nn.Flatten()]
+                        nn.Flatten(1)]
         
         if ae_config == "deterministic":
             conv_layers += [nn.Unflatten(1, (-1, self.ll_size))]
@@ -172,7 +172,10 @@ class Encoder(AddLayersMixin, nn.Module):
 
     def forward(self, x):
         x = x.transpose(1, 2)
-        x = self.layers(x)
+        for idx, layer in enumerate(self.layers):
+            x = layer(x)
+            print(idx, x.size())
+        #x = self.layers(x)
 
         if self.ae_config == "deterministic":
             return x, 0
