@@ -124,10 +124,9 @@ class Encoder(AddLayersMixin, nn.Module):
         self.ll_size = conv_layer_config[-1]
 
         conv_layers += [nn.AdaptiveMaxPool1d(1),
-                        nn.Flatten(1)]
+                        nn.Flatten()]
         
         if ae_config == "deterministic":
-            conv_layers += [nn.Unflatten(1, (-1, self.ll_size))]
             
             fc_layers = self.add_layers_seq("Linear",
                                             fc_layer_config,
@@ -136,13 +135,12 @@ class Encoder(AddLayersMixin, nn.Module):
                                             add_activation = fc_add_activation)
             
             final_layers = conv_layers + fc_layers + \
-                           [nn.Linear(self.ll_size, zdim)]
+                           [nn.Linear(fc_layer_config[-1], zdim)]
                        
             self.layers = nn.Sequential(*final_layers)
 
         elif ae_config == "non_deterministic":
 
-            conv_layers += [nn.Unflatten(1, (-1, self.ll_size))]
             self.layers = nn.Sequential(*conv_layers)
             
             fc_layers_mean = self.add_layers_seq("Linear",
@@ -157,26 +155,25 @@ class Encoder(AddLayersMixin, nn.Module):
                                                  add_batch_normalisation = fc_add_bn,
                                                  add_activation = fc_add_activation)
             
-            partition_mean = fc_layers_mean + [nn.Linear(self.ll_size, zdim)]
+            partition_mean = fc_layers_mean + [nn.Linear(fc_layer_config[-1], zdim)]
             
-            partition_var = fc_layers_var + [nn.Linear(self.ll_size, zdim)]
+            partition_var = fc_layers_var + [nn.Linear(fc_layer_config[-1], zdim)]
             
             self.mean = nn.Sequential(*partition_mean)
             self.variance = nn.Sequential(*partition_var)
         
         else:
-            final_layers = conv_layers + [nn.Linear(self.ll_size, zdim)]
+            #take away the maxpool, and flatten
+            final_layers = conv_layers[:-2] + [nn.Conv1d(conv_layer_config[-1], zdim, kernel_size)] + \
+                                       conv_layers[-2:]
                        
-            self.layers = nn.Sequential(*conv_layers)
+            self.layers = nn.Sequential(*final_layers)
             
 
     def forward(self, x):
         x = x.transpose(1, 2)
-        for idx, layer in enumerate(self.layers):
-            x = layer(x)
-            print(idx, x.size())
-        #x = self.layers(x)
-
+        x = self.layers(x)
+        
         if self.ae_config == "deterministic":
             return x, 0
         elif self.ae_config == "non_deterministic":
