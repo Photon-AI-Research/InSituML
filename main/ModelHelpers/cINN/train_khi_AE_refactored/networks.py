@@ -55,7 +55,7 @@ class VAE(nn.Module):
         ae_config = "deterministic" if use_deterministic_encoder else "non_deterministic"
         
         self.encoder = Encoder(zdim = self.z_dim,
-                               point_dim = self.point_dim,
+                               input_dim = self.point_dim,
                                ae_config = ae_config)
         
         if not self.use_deterministic_encoder and self.use_encoding_in_decoder:
