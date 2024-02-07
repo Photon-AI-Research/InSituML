@@ -13,7 +13,7 @@ class ConvAutoencoder(nn.Module):
         self.loss_function = loss_function
         # Encoder
         self.encoder = Encoder(z_dim = hidden_size,
-                               input_dim = input_dim
+                               input_dim = input_dim,
                                conv_layer_config = [16, 32, 64, 128, 256, 512], 
                                conv_add_bn = False,
                                ae_config = "normal")

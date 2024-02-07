@@ -200,26 +200,28 @@ class MLPDecoder(AddLayersMixin, nn.Module):
     
     """
 
-    def __init__(self, zdim, n_point, point_dim,
-                layer_config = [256, 256]):
+    def __init__(self, 
+                 zdim,
+                 n_point,
+                 point_dim,
+                 layer_config = [256, 256],
+                 add_batch_normalisation = False):
         
         super().__init__()
-        self.zdim = zdim
-        self.n_point = n_point
-        self.point_dim = point_dim
-        self.n_point_3 = self.point_dim * self.n_point
         
-        # normalisation was added in this setup:
+        n_point_3 = point_dim * n_point
+        
+        # normalisation was removed in this setup:
         #https://arxiv.org/abs/1906.12320 see Appendix.
         layers = self.add_layers_seq("Linear", 
-                                     self.zdim,
                                      layer_config,
-                                     add_batch_normalisation = False)
+                                     zdim,
+                                     add_batch_normalisation = add_batch_normalisation)
                 
-        layers = layers + [nn.Linear(layer_config[-1], self.n_point_3)]
+        layers = layers + [nn.Linear(layer_config[-1], n_point_3)]
         
         layers = layers + [nn.Flatten(),
-                                nn.Unflatten(1, (self.n_point, self.point_dim))]
+                                nn.Unflatten(1, (n_point, point_dim))]
         
         self.layers = nn.Sequential(*layers)
     

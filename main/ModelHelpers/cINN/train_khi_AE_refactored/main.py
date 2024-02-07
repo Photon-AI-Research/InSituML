@@ -152,6 +152,16 @@ if __name__ == "__main__":
                         default=4000,
                         help="How many particles to sample.")
 
+    parser.add_argument('--pathpattern1',
+                        type=str,
+                        default="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
+                        help="Stuff")
+
+    parser.add_argument('--pathpattern2',
+                        type=str,
+                        default= "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
+                        help="Stuff")
+
     args = parser.parse_args()
     
     train_with_wandb()
