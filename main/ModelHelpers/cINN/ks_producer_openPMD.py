@@ -14,6 +14,7 @@ from torch import cat as torch_cat
 from torch import float32 as torch_float32
 from torch import empty as torch_empty
 from torch import zeros as torch_zeros
+from torch import transpose as torch_transpose
 
 import openpmd_api as opmd
 
@@ -59,6 +60,7 @@ class Loader(Thread):
 
     def run(self):
         """Function being executed when thread is started."""
+        from sys import stdout
         # Open openPMD particle and radiation series
         series = opmd.Series(self.particlePathpattern, opmd.Access.read_only)
         radiationSeries = opmd.Series(self.radiationPathPattern, opmd.Access.read_only)
@@ -95,9 +97,9 @@ class Loader(Thread):
                 rng = np.random.default_rng()
                 randomParticlesPerGPU = np.array([ rng.choice(numParticles[i], self.particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
 
-                local_region = {"offset": numParticlesOffsets[0], "extent": totalParticles}
+                local_region = {"offset": [numParticlesOffsets[0]], "extent": [totalParticles]}
 
-                np.append(numParticlesOffsets, [int(-1)]) # append to use array for indexing
+                numParticlesOffsets = np.concatenate((numParticlesOffsets, [-1]), dtype=np.int64) # append to use array for indexing
 
 #                for i_gpu in arange(len(numParticles)):
 #                    """Chunk particle load in gpu sizes to reduce host memory usage."""
@@ -135,17 +137,17 @@ class Loader(Thread):
                         for i in np.arange(len(numParticles))
                     ])
 
-                    loaded_particles[0+i_c] = pos_reduced # absolute position in cells
-                    loaded_particles[3+i_c] = mom_reduced # momentum in gamma*beta
-                    loaded_particles[6+i_c] = mom_reduced - momPrev1_reduced # force
+                    loaded_particles[0+i_c] = torch_from_numpy(pos_reduced) # absolute position in cells
+                    loaded_particles[3+i_c] = torch_from_numpy(mom_reduced) # momentum in gamma*beta
+                    loaded_particles[6+i_c] = torch_from_numpy(mom_reduced - momPrev1_reduced) # force
 
-                iteration.close()
+#                iteration.close() # It is currently not possible to reopen an iteration in openPMD
                 
                 if self.transformPolicy is not None:
                     loaded_particles = self.transformPolicy(loaded_particles)
                 else:
                     """transform data to shape (GPUs, phaseSpaceComponents, particlesPerGPU)"""
-                    loaded_particles = torch.transpose(loaded_particles, 0, 1)
+                    loaded_particles = torch_transpose(loaded_particles, 0, 1)
 
                 particles.append(loaded_particles)
 
@@ -156,7 +158,7 @@ class Loader(Thread):
 
                 # ... do things here according to transform script ...
 
-                radIter.close()
+#                radIter.close() # It is currently not possible to reopen an iteration in openPMD
 
                 # For testing purposes
                 r = torch_zeros(2, dtype=torch_float32)
@@ -176,13 +178,14 @@ class Loader(Thread):
             particles = torch_cat(particles)
             radiation = torch_cat(radiation)
 
-            self.data.put(Timebatch(particles, radiation, self.timebatchSliceSize))
+            self.data.put(self.Timebatch(particles, radiation, self.timebatchSliceSize))
 
             print("Finish timebatch. Timestep =", i_tb)
+            stdout.flush()
 
             i_tb += self.timebatchSize
 
-            if i_tb%totalTimebatchNumber == 0:
+            if i_tb%self.totalTimebatchNumber == 0:
                 """All timesteps have been read once within this epoch. Epoch finished."""
                 print("Finished epoch", i_epoch)
                 i_epoch += int(1)
@@ -190,11 +193,13 @@ class Loader(Thread):
                 perm = torch_randperm(len(series.iterations))
 
         # signal that there are no further items
+        print("Finish iterating all epochs")
+        stdout.flush()
         self.data.put(None)
 
         # close series
-        del series
-        del radiationSeries
+        series.close()
+        radiationSeries.close()
 
 
     class Timebatch:

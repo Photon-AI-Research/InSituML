@@ -5,6 +5,8 @@ import os
 import numpy as np
 import time
 
+from sys import stdout
+
 import torch
 from torch import optim
 
@@ -16,6 +18,8 @@ from ks_consumer_MAF_khi_radiation import *
 #from ks_models import *
 from ks_producer_openPMD import *
 
+print("Done importing modules.")
+
 hyperparameter_defaults = dict(
 t0 = 500,
 t1 = 504, # endpoint=false, t1 is not used in training
@@ -26,7 +30,7 @@ dim_condition = 2048,
 num_coupling_layers = 3,
 hidden_size = 64,
 lr = 0.001,
-num_epochs = 10,
+num_epochs = 2,
 num_blocks_mat = 2,
 activation = 'gelu',
 pathpattern1 = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp",
@@ -98,20 +102,29 @@ class DummyTimebatchConsumer(Thread):
         self.queue = queue
 
     def run(self):
+        from time import sleep
         print('Consumer: Running')
         # consume items
         while True:
             # get a unit of work
+            print("Get next queue item.")
             item = self.queue.get()
+            print("Got queue item")
+            stdout.flush()
             # check for stop
             if item is None:
+                print("Reached end of queue")
+                stdout.flush()
                 break
             # block, to simulate effort
+            #sleep(3)
             print(f'>consumer got item')
             print(f'Number of boxes times number of timesteps {len(item)}')
+            stdout.flush()
             # report
         # all done
         print('Consumer: Done')
+        stdout.flush()
 
 
 dummyConsumer = DummyTimebatchConsumer(batchDataBuffer)
@@ -124,7 +137,11 @@ timeBatchLoader.start()
 
 #modelTrainer.join()
 dummyConsumer.join()
+print("Join consumer")
+stdout.flush()
 timeBatchLoader.join()
+print("Join producerer")
+stdout.flush()
 
 end_time = time.time()
 elapsed_time = end_time - start_time
