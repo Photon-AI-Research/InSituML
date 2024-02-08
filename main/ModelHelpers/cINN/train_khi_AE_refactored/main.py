@@ -1,8 +1,7 @@
 import wandb
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
 from networks import ConvAutoencoder, VAE
-from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal
-#, ChamfersLossOptimized
+from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal, ChamfersLossOptimized
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,7 +14,7 @@ MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
     "chamfersloss":ChamfersLoss,
     "chamfersloss_d":ChamfersLossDiagonal,
-#    "chamfersloss_o":ChamfersLossOptimized,
+    "chamfersloss_o":ChamfersLossOptimized,
     "mse":nn.MSELoss
     }
 
@@ -29,13 +28,13 @@ def train_with_wandb():
     hyperparameter_defaults = dict(
     t0 = 1000,
     t1 = 2001,
-    timebatchsize = 2,
-    particlebatchsize = 2,
+    timebatchsize = 4,
+    particlebatchsize = 4,
     hidden_size = 1024,
     dim_pool = 1,
     learning_rate = args.learning_rate,
     num_epochs = 5,
-    val_boxes =  [],
+    val_boxes =  [19,5,3],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
