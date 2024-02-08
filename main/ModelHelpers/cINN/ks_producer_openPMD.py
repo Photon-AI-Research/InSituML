@@ -156,22 +156,48 @@ class Loader(Thread):
                 #
                 radIter = radiationSeries.iterations[step]
 
-                # ... do things here according to transform script ...
+                cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
+                r_offset = np.empty(len(numParticles), 3)) # shape: number of GPUs
+                n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: number of radiation measurement directions along x
+
+                DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0]
+                radiationSeries.flush()
+
+                distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency))) # shape: (components, GPUs, frequencies)
+
+                for i_c, component in enumerate(["x", "y", "z"]):
+                    gpuBoxExtent = ps.particle_patches["extent"][component][opmd.Mesh_Record_Component.SCALAR].load()
+                    gpuBoxOffset = ps.particle_patches["offset"][component][opmd.Mesh_Record_Component.SCALAR].load()
+                    series.flush()
+
+                    Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
+                    DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (directions)
+                    radiationSeries.flush()
+
+                    r_offset[:, i_c] = gpuBoxOffset * iteration.get_attribute(cellExtensionNames[component])
+                    n_vec[:, i_c] = DetectorDirection
+
+                    #index direction = 0 to get ex vector = [1,0,0]
+                    i_direction = 0
+                    distributed_amplitudes[i_c] = torch_from_numpy(Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
 
 #                radIter.close() # It is currently not possible to reopen an iteration in openPMD
 
-                # For testing purposes
-                r = torch_zeros(2, dtype=torch_float32)
+                # time retardation correction
+                phase_offset = torch_from_numpy((np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :])
+                distributed_amplitudes = distributed_amplitudes/phase_offset
 
-#                r = torch.from_numpy(np.load(self.radiationPathPattern.format(index)).astype(np.cfloat) )
-#                r = r[:, 1:, :]
+                # Transform to shape: (GPUs, components, frequencies)
+                distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
+                
+                r = distributed_amplitudes[:, 1:, :]
 
-#                # Compute the phase (angle) of the complex number
-#                phase = torch.angle(r)
-#                # Compute the absolute value of the complex number
-#                absolute = torch.abs(r)
-#                r = torch_cat((absolute, phase), dim=1).to(torch_float32)
-#
+                # Compute the phase (angle) of the complex number
+                phase = torch.angle(r)
+                # Compute the absolute value of the complex number
+                absolute = torch.abs(r)
+                r = torch_cat((absolute, phase), dim=1).to(torch_float32)
+
                 radiation.append(r)
 
             
