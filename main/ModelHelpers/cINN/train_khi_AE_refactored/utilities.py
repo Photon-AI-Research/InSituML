@@ -31,7 +31,7 @@ def validate_model(model, valid_data_loader, property_, device):
             p = p.to(device)
             val_loss, p_pr = model(p)
             val_loss_avg.append(val_loss.mean().item())
-    val_loss_overall_avg = sum(val_loss_avg) / len(val_loss_avg)
+    val_loss_overall_avg = sum(val_loss_avg) / (len(val_loss_avg) + 1e-8)
     return val_loss_overall_avg
 
 def filter_dims(phase_space, property_="positions"):

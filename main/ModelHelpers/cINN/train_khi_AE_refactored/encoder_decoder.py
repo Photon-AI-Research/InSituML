@@ -102,11 +102,11 @@ class Encoder(AddLayersMixin, nn.Module):
     def __init__(self, zdim,
                  input_dim = 3, 
                  ae_config = "determistic",
-                 conv_layer_config = [128, 128, 256, 512],
+                 conv_layer_config = [128],
                  conv_add_bn = True,
                  conv_add_activation = True,
                  kernel_size = 1,
-                 fc_layer_config=[256, 128],
+                 fc_layer_config=[256],
                  fc_add_bn = True,
                  fc_add_activation = True):
          
@@ -204,7 +204,7 @@ class MLPDecoder(AddLayersMixin, nn.Module):
                  zdim,
                  n_point,
                  point_dim,
-                 layer_config = [256, 256],
+                 layer_config = [256],
                  add_batch_normalisation = False):
         
         super().__init__()

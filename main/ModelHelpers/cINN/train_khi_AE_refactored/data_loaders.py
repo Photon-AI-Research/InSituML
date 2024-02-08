@@ -12,11 +12,12 @@ class TrainLoader:
                  timebatchsize=20,
                  particlebatchsize=10240,
                  blacklist_box=None,
-                 particles_to_sample=4000):
+                 particles_to_sample=4000,
+                 load_radiation=False):
         
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
-        print(pathpattern1, pathpattern2)
+        self.load_radiation = load_radiation        
         self.blacklist_box = blacklist_box
         
         # TODO check if all files are there
@@ -75,12 +76,18 @@ class TrainLoader:
                     p = np.load(self.loader.pathpattern1.format(index), allow_pickle = True)
                     
                     # Load radiation data
-                    r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat))
+                    if self.loader.load_radiation:
+                        r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat))
+                    
                     
                     # Exclude the blacklisted box if specified
-                    if self.blacklist_box is not None:
+                    if self.blacklist_box is not None and self.loader.load_radiation:
                         p = np.delete(p, self.blacklist_box, axis=0)
                         r = np.delete(r, self.blacklist_box, axis=0)
+                        
+                    elif self.blacklist_box is not None:
+                        p = np.delete(p, self.blacklist_box, axis=0)
+                        
                         
                     # Normalize particle data for all boxes
                     p = [normalize_columns(element) for element in p]
@@ -93,22 +100,24 @@ class TrainLoader:
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
                     
                     # choose relevant detection directions
-                    r = r[:, 1:, :]
-                    r = r.view(r.shape[0], -1)
+                    if self.loader.load_radiation:
+                        r = r[:, 1:, :]
+                        r = r.view(r.shape[0], -1)
                     
-                    # Compute the phase (angle) of the complex number in radians
-                    phase = torch.angle(r)
-                    
-                    # Compute the amplitude (magnitude) of the complex number
-                    amplitude = torch.abs(r)
-                    r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
+                        # Compute the phase (angle) of the complex number in radians
+                        phase = torch.angle(r)
+                        
+                        # Compute the amplitude (magnitude) of the complex number
+                        amplitude = torch.abs(r)
+                        r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
+                        radiation.append(r)
 
                     particles.append(p)
-                    radiation.append(r)
                 
                 # concatenate particle and radiation data across randomly chosen timesteps
                 particles = torch.cat(particles)
-                radiation = torch.cat(radiation)
+                if self.loader.load_radiation:
+                    radiation = torch.cat(radiation)
                 
                 class Timebatch:
                     def __init__(self, particles, radiation, batchsize):
@@ -116,16 +125,19 @@ class TrainLoader:
                         self.particles = particles
                         self.radiation = radiation
                         
-                        self.perm = torch.randperm(self.radiation.shape[0])
+                        self.perm = torch.randperm(self.particles.shape[0])
                         
                     def __len__(self):
-                        return self.radiation.shape[0] // self.batchsize
+                        return self.particles.shape[0] // self.batchsize
 
-                    def __getitem__(self, batch):
-                        i = self.batchsize*batch
-                        bi = self.perm[i:i+self.batchsize]
-                    
-                        return self.particles[bi], self.radiation[bi]
+                    def __getitem__(self_tb, batch):
+                        i = self_tb.batchsize*batch
+                        bi = self_tb.perm[i:i+self_tb.batchsize]
+                        
+                        if self.loader.load_radiation:
+                            return self_tb.particles[bi], self_local.radiation[bi]
+                        else:
+                            return self_tb.particles[bi], None
                 
                 return Timebatch(particles, radiation, self.particlebatchsize)
                     
@@ -141,6 +153,7 @@ class ValidationFixedBoxLoader:
                  t1=100,
                  particles_to_sample=4000,
                  select_timesteps=100,
+                 load_radiation = False
           ):
         
         self.pathpattern1 = pathpattern1
@@ -150,10 +163,11 @@ class ValidationFixedBoxLoader:
         self.t1 = t1
         self.particles_to_sample = particles_to_sample
         self.select_timesteps = select_timesteps
+        self.load_radiation = load_radiation
     
     def __len__(self):
         self.perm =  torch.randperm((self.t1-self.t0))[:self.select_timesteps]
-        return self.select_timesteps
+        return self.select_timesteps if len(self.validation_boxes) else 0
 
     def __getitem__(self, idx):
 
@@ -170,19 +184,22 @@ class ValidationFixedBoxLoader:
                            sample_size=self.particles_to_sample) for element in p]
         
         p = torch.from_numpy(np.array(p, dtype = np.float32))        
-
-        # Load radiation data for the validation boxes
-        r_loaded = torch.from_numpy(np.load(self.pathpattern2.format(timestep_index)).astype(np.cfloat))
-        r =  r_loaded[self.validation_boxes, 1:, :]
-        r = r.view(r.shape[0], -1)
         
-        # Compute the phase (angle) of the complex number in radians
-        phase = torch.angle(r)
+        if self.load_radiation:
+            # Load radiation data for the validation boxes
+            r_loaded = torch.from_numpy(np.load(self.pathpattern2.format(timestep_index)).astype(np.cfloat))
+            r = r_loaded[self.validation_boxes, 1:, :]
+            r = r.view(r.shape[0], -1)
+            
+            # Compute the phase (angle) of the complex number in radians
+            phase = torch.angle(r)
 
-        # Compute the amplitude (magnitude) of the complex number
-        amplitude = torch.abs(r)
-        r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
+            # Compute the amplitude (magnitude) of the complex number
+            amplitude = torch.abs(r)
+            r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
 
-        return timestep_index, self.validation_boxes, p, r
-
+            return timestep_index, self.validation_boxes, p, r
+        
+        else:
+            return timestep_index, self.validation_boxes, p, None
 
