@@ -5,13 +5,15 @@ The buffer is expected to be fillable by a `put()` method.
 Furthermore, a policy is taken which describes the data structure that needs to be put in the buffer. This policy actually performs the required transformation on the data, if required.
 """
 
-from threading import Threading
+from threading import Thread
 
 import numpy as np
 from torch import randperm as torch_randperm
 from torch import from_numpy as torch_from_numpy
 from torch import cat as torch_cat
 from torch import float32 as torch_float32
+from torch import empty as torch_empty
+from torch import zeros as torch_zeros
 
 import openpmd_api as opmd
 
@@ -41,10 +43,10 @@ class Loader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-        #self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/ccs/home/ksteinig/ALPINE2/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
-        #self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/ccs/home/ksteinig/ALPINE2/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T.h5"
+        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
+        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
+        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
+        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
         self.t0 = hyperParameterDefaults["t0"]
         self.t1 = hyperParameterDefaults["t1"] # endpoint=false, t1 is not loaded from disk
         self.timebatchSize = hyperParameterDefaults["timebatchsize"]
@@ -52,14 +54,14 @@ class Loader(Thread):
         self.numEpochs = hyperParameterDefaults["num_epochs"]
         self.transformPolicy = None #dataTransformationPolicy
 
-        self.totalTimebatchNumber = int((self.t1-self.t0)/self.timebatchsize)
+        self.totalTimebatchNumber = int((self.t1-self.t0)/self.timebatchSize)
         self.particlePerGPU = int(10000)
 
     def run(self):
         """Function being executed when thread is started."""
         # Open openPMD particle and radiation series
         series = opmd.Series(self.particlePathpattern, opmd.Access.read_only)
-        radiationSeries = opmd.Series(self.radiationPathpattern, opmd.Access.read_only)
+        radiationSeries = opmd.Series(self.radiationPathPattern, opmd.Access.read_only)
 
         # start reading data
         i_epoch = int(0)
@@ -67,6 +69,7 @@ class Loader(Thread):
         perm = torch_randperm(self.t1-self.t0)
         while i_epoch < self.numEpochs:
             """Iterate over all timebatches in all epochs."""
+            print("Start epoch ", i_epoch)
             ###############################################
             # Fill timebatch with particle and radiation data
             bi = perm[i_tb:i_tb+self.timebatchSize]
@@ -94,12 +97,12 @@ class Loader(Thread):
 
                 local_region = {"offset": numParticlesOffsets[0], "extent": totalParticles}
 
-                numParticlesOffsets.append(int(-1)) # append to use array for indexing
+                np.append(numParticlesOffsets, [int(-1)]) # append to use array for indexing
 
 #                for i_gpu in arange(len(numParticles)):
 #                    """Chunk particle load in gpu sizes to reduce host memory usage."""
                 # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
-                loaded_particles = torch.empty((9, len(numParticles), self.particlePerGPU))
+                loaded_particles = torch_empty((9, len(numParticles), self.particlePerGPU))
                 for i_c, component in enumerate(["x", "y", "z"]):
                     """Read particle data component-wise to reduce host memory usage.
                        And immediately reshape by subdividing in particles per GPU.
@@ -155,6 +158,9 @@ class Loader(Thread):
 
                 radIter.close()
 
+                # For testing purposes
+                r = torch_zeros(2, dtype=torch_float32)
+
 #                r = torch.from_numpy(np.load(self.radiationPathPattern.format(index)).astype(np.cfloat) )
 #                r = r[:, 1:, :]
 
@@ -164,18 +170,21 @@ class Loader(Thread):
 #                absolute = torch.abs(r)
 #                r = torch_cat((absolute, phase), dim=1).to(torch_float32)
 #
-#                radiation.append(r)
+                radiation.append(r)
 
             
             particles = torch_cat(particles)
-#            radiation = torch_cat(radiation)
+            radiation = torch_cat(radiation)
 
-#            self.data.put(Timebatch(particles, radiation, self.timebatchSliceSize))
+            self.data.put(Timebatch(particles, radiation, self.timebatchSliceSize))
 
-            i_tb += self.timebatchsize
+            print("Finish timebatch. Timestep =", i_tb)
+
+            i_tb += self.timebatchSize
 
             if i_tb%totalTimebatchNumber == 0:
                 """All timesteps have been read once within this epoch. Epoch finished."""
+                print("Finished epoch", i_epoch)
                 i_epoch += int(1)
                 i_tb = int(0)
                 perm = torch_randperm(len(series.iterations))
@@ -184,7 +193,8 @@ class Loader(Thread):
         self.data.put(None)
 
         # close series
-        del series, del radiationSeries
+        del series
+        del radiationSeries
 
 
     class Timebatch:

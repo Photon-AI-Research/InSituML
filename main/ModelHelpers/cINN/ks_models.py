@@ -1,7 +1,7 @@
 """
 Define the AI model
 """
-from torch import nn, 
+from torch import nn
 from torch import sigmoid as t_sigmoid
 from torch import tanh as t_tanh
 from torch.nn import functional as F
