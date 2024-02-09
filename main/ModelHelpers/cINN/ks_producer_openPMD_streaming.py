@@ -27,6 +27,79 @@ from ks_helperfuncs import *
 
 from sys import stdout
 
+def distribution_strategy(dataset_extent,
+                          mpi_rank,
+                          mpi_size,
+                          strategy_identifier=None):
+    import os
+    import re
+    if strategy_identifier is None or not strategy_identifier:
+        if 'OPENPMD_CHUNK_DISTRIBUTION' in os.environ:
+            strategy_identifier = os.environ[
+                'OPENPMD_CHUNK_DISTRIBUTION'].lower()
+        else:
+            strategy_identifier = 'hostname_roundrobinofsourceranks_fail'  # default
+    match = re.search('hostname_(.*)_(.*)', strategy_identifier)
+    if match is not None:
+        inside_node = distribution_strategy(dataset_extent,
+                                            mpi_rank,
+                                            mpi_size,
+                                            strategy_identifier=match.group(1))
+        second_phase = distribution_strategy(
+            dataset_extent,
+            mpi_rank,
+            mpi_size,
+            strategy_identifier=match.group(2))
+        return opmd.FromPartialStrategy(opmd.ByHostname(inside_node), second_phase)
+    elif strategy_identifier == 'roundrobin':
+        return opmd.RoundRobin()
+    elif strategy_identifier == 'roundrobinofsourceranks':
+        return opmd.RoundRobinOfSourceRanks()
+    elif strategy_identifier == 'binpacking':
+        return opmd.BinPacking()
+    elif strategy_identifier == 'slicedataset':
+        return opmd.ByCuboidSlice(opmd.OneDimensionalBlockSlicer(), dataset_extent,
+                                mpi_rank, mpi_size)
+    elif strategy_identifier == 'fail':
+        return opmd.FailingStrategy()
+    elif strategy_identifier == 'discard':
+        return opmd.DiscardingStrategy()
+    else:
+        raise RuntimeError("Unknown distribution strategy: " +
+                           strategy_identifier)
+
+# Specify environment variable OPENPMD_CHUNK_DISTRIBUTION to modify the
+# logic used in this function.
+# The default logic will (intentionally) fail when the source data does not
+# define a rank table.
+# The rank table can be requested in openPMD by setting
+# {"rank_table": "posix_hostname"} in the writer
+#  (functionality not on the dev branch yet!).
+# If the data does not define a rank table, a possible setting for the
+# environment variable is `OPENPMD_CHUNK_DISTRIBUTION=slicedataset`.
+def determine_local_region(record_component, comm, inranks, outranks):
+    distribution = distribution_strategy(record_component.shape, comm.rank, comm.size)
+    all_chunks = record_component.available_chunks()
+    chunk_distribution = distribution.assign(all_chunks, inranks, outranks)
+    res = dict()
+    for target_rank, chunks in chunk_distribution.items():
+        chunks = chunks.merge_chunks_from_same_sourceID()
+        if len(chunks) != 1:
+            raise RuntimeError(
+                "Chunks from more than one source MPI rank were assigned. Dealing with that is unimplemented."
+            )
+        for source_id, chunks in chunks.items():
+            break
+        if len(chunks) != 1:
+            raise RuntimeError(
+                "Need one contiguous slice of particles to load, got {} regions instead.".format(
+                    len(chunks)
+                )
+            )
+        res[target_rank] = opmd.WrittenChunkInfo(chunks[0].offset, chunks[0].extent, source_id)
+
+    return res
+
 class StreamLoader(Thread):
     """ Thread providing PIConGPU particle and radiation data from an openPMD stream for the ML model training.
 
@@ -54,6 +127,7 @@ class StreamLoader(Thread):
 
         self.rng = np.random.default_rng()
         self.transformPolicy = None #dataTransformationPolicy
+        self.comm = MPI.COMM_WORLD
 
     def run(self):
         """Function being executed when thread is started."""
@@ -67,12 +141,12 @@ class StreamLoader(Thread):
         series = opmd.Series(
             self.particlePathpattern,
             opmd.Access.read_linear,
-            MPI.COMM_WORLD,
+            self.comm,
             openpmd_stream_config)
         radiationSeries = opmd.Series(
             self.radiationPathPattern,
             opmd.Access.read_linear,
-            MPI.COMM_WORLD,
+            self.comm,
             openpmd_stream_config)
 
         # The streams wait until a reader connects.
@@ -84,6 +158,9 @@ class StreamLoader(Thread):
         t2.start()
         t1.join()
         t2.join()
+
+        inranks = series.get_rank_table(collective=True)
+        outranks = opmd.HostInfo.MPI_PROCESSOR_NAME.get_collective(self.comm)
 
         particle_iterations = series.read_iterations().__iter__()
         radiation_iterations = radiationSeries.read_iterations().__iter__()
@@ -102,20 +179,22 @@ class StreamLoader(Thread):
             #
             ps = iteration.particles["e_all"] #particle species
 
-            numParticles = ps.particle_patches["numParticles"][opmd.Mesh_Record_Component.SCALAR].load()
-            numParticlesOffsets = ps.particle_patches["numParticlesOffset"][opmd.Mesh_Record_Component.SCALAR].load()
-            series.flush()
-
-            totalParticles = np.sum(numParticles) # numParticlesOffsets[-1] + numParticles[-1]?
-
             # memorize particle distribution over GPUs in array
-            local_region = {"offset": [numParticlesOffsets[0]], "extent": [totalParticles]}
-
-            numParticlesOffsets = np.concatenate((numParticlesOffsets, [-1]), dtype=np.int64) # append to use array for indexing
+            e_pos_x = ps["position"]["x"]
+            totalParticles = e_pos_x.shape[0]
+            chunk_distribution = determine_local_region(
+                e_pos_x, self.comm, inranks, outranks
+            )
+            local_particles_chunk = chunk_distribution[self.comm.rank]
 
             # Every GPU will hold a different number of particles.
             # But we need to keep the number of particles per GPU constant in order to construct the dataset.
-            particlePerGPU = numParticles.min()
+            numParticles = local_particles_chunk.extent
+            particlePerGPU = chunk_distribution[0].extent[0]
+            for _, chunk in chunk_distribution.items():
+                possibly_smaller = chunk.extent[0]
+                if possibly_smaller < particlePerGPU:
+                    particlePerGPU = possibly_smaller
             print("particles per GPU", numParticles)
             print("choose particles", particlePerGPU)
             randomParticlesPerGPU = np.array([ self.rng.choice(numParticles[i], particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
@@ -133,13 +212,13 @@ class StreamLoader(Thread):
                 ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
                 component_buffers = EnqueuedBuffers()
                 component_buffers.positionBase = \
-                    ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    ps["position"][component].load_chunk(local_particles_chunk.offset, local_particles_chunk.extent)
                 component_buffers.positionOffset = \
-                    ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    ps["positionOffset"][component].load_chunk(local_particles_chunk.offset, local_particles_chunk.extent)
                 component_buffers.momentum = \
-                    ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    ps["momentum"][component].load_chunk(local_particles_chunk.offset, local_particles_chunk.extent)
                 component_buffers.momentumPrev1 = \
-                    ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    ps["momentumPrev1"][component].load_chunk(local_particles_chunk.offset, local_particles_chunk.extent)
 
                 loaded_buffers[component] = component_buffers
 
@@ -149,6 +228,8 @@ class StreamLoader(Thread):
             for component in ["x", "y", "z"]:
                 gpuBoxExtent[component] = ps.particle_patches["extent"][component].load()
                 gpuBoxOffset[component] = ps.particle_patches["offset"][component].load()
+            numParticles = ps.particle_patches["numParticles"].load()
+            numParticlesOffsets = ps.particle_patches["numParticlesOffset"].load()
 
             iteration.close() # trigger enqueued data loads
 
@@ -209,10 +290,18 @@ class StreamLoader(Thread):
 
             distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
 
+            rad_chunk_distribution = determine_local_region(
+                radIter.meshes["Amplitude_distributed"]["x"], self.comm, inranks, outranks
+            )
+            local_radiation_chunk = rad_chunk_distribution[self.comm.rank]
+
             loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = EnqueuedBuffers()
-                component_buffers.Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
+                component_buffers.Dist_Amplitude = \
+                    radIter.meshes["Amplitude_distributed"][component].load_chunk(
+                        local_radiation_chunk.offset,
+                        local_radiation_chunk.extent) # shape: (GPUs, directions, frequencies)
                 # MAGIC: only look along one direction
                 component_buffers.DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
                 loaded_buffers[component] = component_buffers
