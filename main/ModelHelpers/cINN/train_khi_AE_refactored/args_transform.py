@@ -56,7 +56,7 @@ def main_args_transform(hd):
         if "n_point" in decoder_kwargs:
             assert decoder_kwargs["n_point"] == hd["particles_to_sample"]
         else:
-            decoder_kwargs["z_dim"] = hd["particles_to_sample"]
+            decoder_kwargs["n_point"] = hd["particles_to_sample"]
         
         if "point_dim" in decoder_kwargs:
             assert decoder_kwargs["point_dim"] == 9 if hd["property_"]=="all" else 3
