@@ -30,6 +30,8 @@ def list_transform(kwargs):
         if "layer_config" in k:
             kwargs[k] = ast.literal_eval(kwargs[k])
     
+    return kwargs
+    
 
 def main_args_transform(hd):
     
@@ -37,7 +39,7 @@ def main_args_transform(hd):
     hd.update({"loss_function": criterion})
     
     #security checks    
-    decoder_kwargs = ast.literal_eval(hd["decoder_kwargs"])
+    decoder_kwargs = list_transform(ast.literal_eval(hd["decoder_kwargs"]))
     if hd["decoder_type"]=="mlp_decoder":
 
         if "z_dim" in decoder_kwargs:
@@ -55,7 +57,7 @@ def main_args_transform(hd):
         else:
             decoder_kwargs["point_dim"] = 9 if hd["property_"]=="all" else 3
     #security checks
-    encoder_kwargs = ast.literal_eval(hd["encoder_kwargs"])
+    encoder_kwargs = list_transform(ast.literal_eval(hd["encoder_kwargs"]))
     if hd["encoder_type"]=="encoder_simple":
 
         if "z_dim" in encoder_kwargs:
