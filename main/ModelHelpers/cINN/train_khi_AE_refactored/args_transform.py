@@ -43,9 +43,15 @@ def main_args_transform(hd):
     if hd["decoder_type"]=="mlp_decoder":
 
         if "z_dim" in decoder_kwargs:
-            assert decoder_kwargs["z_dim"] == hd["z_dim"]
+            if hd["use_deterministic_encoder"]:
+                assert decoder_kwargs["z_dim"] == hd["z_dim"]
+            else:
+                assert decoder_kwargs["z_dim"] == 2*hd["z_dim"]
         else:
-            decoder_kwargs["z_dim"] = hd["z_dim"]
+            if hd["use_deterministic_encoder"]:
+                decoder_kwargs["z_dim"] = hd["z_dim"]
+            else:
+                decoder_kwargs["z_dim"] = 2*hd["z_dim"]
 
         if "n_point" in decoder_kwargs:
             assert decoder_kwargs["n_point"] == hd["particles_to_sample"]

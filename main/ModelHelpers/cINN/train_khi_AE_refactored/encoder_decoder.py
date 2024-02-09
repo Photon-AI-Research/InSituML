@@ -210,7 +210,6 @@ class MLPDecoder(AddLayersMixin, nn.Module):
         super().__init__()
         
         n_point_3 = point_dim * n_point
-        
         # normalisation was removed in this setup:
         #https://arxiv.org/abs/1906.12320 see Appendix.
         layers = self.add_layers_seq("Linear", 
