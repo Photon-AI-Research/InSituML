@@ -1,5 +1,7 @@
 """
+Main file/module to train ML model from PIConGPU openPMD data using threads.
 
+Start training by executing `python ks_main.py`.
 """
 import os
 import numpy as np
@@ -10,13 +12,13 @@ from sys import stdout
 import torch
 from torch import optim
 
-#from threading import Thread
 from queue import Queue
 
 from ks_helperfuncs import *
 from ks_consumer_MAF_khi_radiation import *
 #from ks_models import *
 from ks_producer_openPMD import *
+from ks_producer_openPMD_streaming import *
 
 print("Done importing modules.")
 
@@ -132,7 +134,8 @@ dummyConsumer.start()
 
 
 # start the producer
-timeBatchLoader = Loader(batchDataBuffer, hyperparameter_defaults, dataTransformationPolicy)
+#timeBatchLoader = Loader(batchDataBuffer, hyperparameter_defaults, dataTransformationPolicy) ## Normal offline data
+timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, dataTransformationPolicy) ## Sreaming  ## Sreaming readyready
 timeBatchLoader.start()
 
 #modelTrainer.join()
