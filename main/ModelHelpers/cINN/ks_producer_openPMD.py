@@ -19,6 +19,8 @@ from torch import transpose as torch_transpose
 from torch import angle as torch_angle
 from torch import abs as torch_abs
 
+from mpi4py import MPI
+
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
@@ -73,8 +75,16 @@ class Loader(Thread):
         """
 
         # Open openPMD particle and radiation series
-        series = opmd.Series(self.particlePathpattern, opmd.Access.read_linear)
-        radiationSeries = opmd.Series(self.radiationPathPattern, opmd.Access.read_linear)
+        series = opmd.Series(
+            self.particlePathpattern,
+            opmd.Access.read_linear,
+            MPI.COMM_WORLD,
+            openpmd_stream_config)
+        radiationSeries = opmd.Series(
+            self.radiationPathPattern,
+            opmd.Access.read_linear,
+            MPI.COMM_WORLD,
+            openpmd_stream_config)
 
         # The streams wait until a reader connects.
         # To avoid deadlocks, we need to open both concurrently
