@@ -40,7 +40,7 @@ class StreamLoader(Thread):
             batchDataBuffer (e.g. queue.Queue) : buffer to put the data into (where the consumer reads it)
             hyperParameterDefaults (dict) : Defines timesteps, paths to data, etc.
             dataReadPolicy (functor) : Provides particle and radiation data per time step
-            dataTransformationPolicy (functor) : 
+            dataTransformationPolicy (functor) :
         """
         Thread.__init__(self)
         # instantiate all required parameters
@@ -51,6 +51,7 @@ class StreamLoader(Thread):
         self.radiationPathPattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5"
 
         self.rng = np.random.default_rng()
+        self.transformPolicy = None #dataTransformationPolicy
 
     def run(self):
         """Function being executed when thread is started."""
@@ -96,7 +97,7 @@ class StreamLoader(Thread):
                     + ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
                 )
                 pos_reduced = np.array([
-                    position[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
+                    position[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
                     for i in np.arange(len(numParticles))
                 ])
 
@@ -105,13 +106,13 @@ class StreamLoader(Thread):
 
                 momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
                 mom_reduced = np.array([
-                    momentum[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
+                    momentum[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
                     for i in np.arange(len(numParticles))
                 ])
 
                 momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
                 momPrev1_reduced = np.array([
-                    momentumPrev1[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
+                    momentumPrev1[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
                     for i in np.arange(len(numParticles))
                 ])
 
@@ -159,13 +160,13 @@ class StreamLoader(Thread):
 
 
             # time retardation correction
-            # QUESTION: The `step`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
-            phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
+            # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
+            phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
             distributed_amplitudes = distributed_amplitudes/phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
             distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
-            
+
             # MAGIC: Just look at y&z component
             r = distributed_amplitudes[:, 1:, :]
 
@@ -183,7 +184,7 @@ class StreamLoader(Thread):
 
             iteration.close() # It is currently not possible to reopen an iteration in openPMD
             radIter.close() # It is currently not possible to reopen an iteration in openPMD
-        
+
 
         # signal that there are no further items
         print("Processed all iterations")
