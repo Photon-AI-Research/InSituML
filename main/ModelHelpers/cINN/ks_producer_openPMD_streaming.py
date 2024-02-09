@@ -19,6 +19,8 @@ from torch import transpose as torch_transpose
 from torch import angle as torch_angle
 from torch import abs as torch_abs
 
+from mpi4py import MPI
+
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
@@ -56,12 +58,44 @@ class StreamLoader(Thread):
     def run(self):
         """Function being executed when thread is started."""
         # Open openPMD particle and radiation series
-        series = opmd.Series(self.particlePathpattern, opmd.Access.read_only)
-        radiationSeries = opmd.Series(self.radiationPathPattern, opmd.Access.read_only)
+        openpmd_stream_config = """
+            [adios2.engine.parameters]
+            OpenTimeoutSecs = 300
+        """
+
+        # Open openPMD particle and radiation series
+        series = opmd.Series(
+            self.particlePathpattern,
+            opmd.Access.read_linear,
+            MPI.COMM_WORLD,
+            openpmd_stream_config)
+        radiationSeries = opmd.Series(
+            self.radiationPathPattern,
+            opmd.Access.read_linear,
+            MPI.COMM_WORLD,
+            openpmd_stream_config)
+
+        # The streams wait until a reader connects.
+        # To avoid deadlocks, we need to open both concurrently
+        # (PIConGPU opens the streams one after the other)
+        t1 = Thread(target=series.parse_base)
+        t2 = Thread(target=radiationSeries.parse_base)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        particle_iterations = series.read_iterations().__iter__()
+        radiation_iterations = radiationSeries.read_iterations().__iter__()
 
         # start reading data
-        for iteration in series.read_iterations():
+        while True:
             """Work on PIConGPU data for this iteration."""
+            try:
+                iteration = particle_iterations.__next__()
+            except StopIteration:
+                break
+
             print("Start processing iteration %i"%(iteration.time))
             stdout.flush()
             ## obtain particle distribution over GPUs ##
@@ -128,9 +162,18 @@ class StreamLoader(Thread):
 
             ## obtain radiation data per GPU ##
             #
-# TODO
-# FRANZ: here we need to get the iteration from the radiation data stream
-            radIter = radiationSeries.iterations[int(iteration.time)]
+            try:
+                radIter = radiation_iterations.__next__()
+            except StopIteration:
+                raise RuntimeError(
+                    "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
+                        iteration.iteration_index))
+
+            if iteration.iteration_index != radIter.iteration_index:
+                raise RuntimeError(
+                    "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
+                        iteration.iteration_index,
+                        radIter.iteration_index))
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
             r_offset = np.empty((len(numParticles), 3)) # shape: (GPUs, components)
@@ -182,8 +225,8 @@ class StreamLoader(Thread):
             print("Done loading iteration %i"%(iteration.time))
             stdout.flush()
 
-            iteration.close() # It is currently not possible to reopen an iteration in openPMD
-            radIter.close() # It is currently not possible to reopen an iteration in openPMD
+            iteration.close()
+            radIter.close()
 
 
         # signal that there are no further items
