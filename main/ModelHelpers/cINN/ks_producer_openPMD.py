@@ -1,20 +1,23 @@
 """
-Loader for PIConGPU openPMD particle data to be used for machine learning model training.
+Loader for PIConGPU openPMD particle and radiation data to be used for insitu machine learning model training.
 The data is put in a buffer provided during construction of the producer class.
 The buffer is expected to be fillable by a `put()` method.
-Furthermore, a policy is taken which describes the data structure that needs to be put in the buffer. This policy actually performs the required transformation on the data, if required.
+TODO: Furthermore, a policy is taken which describes the data structure that needs to be put in the buffer.
+This policy actually performs the required transformation on the data, if required.
+For example, it performs data normalization and layouts the data as requested for the training.
 """
-
 from threading import Thread
 
 import numpy as np
-from torch import randperm as torch_randperm
 from torch import from_numpy as torch_from_numpy
 from torch import cat as torch_cat
 from torch import float32 as torch_float32
+from torch import complex64 as torch_complex64
 from torch import empty as torch_empty
 from torch import zeros as torch_zeros
 from torch import transpose as torch_transpose
+from torch import angle as torch_angle
+from torch import abs as torch_abs
 
 import openpmd_api as opmd
 
@@ -44,9 +47,9 @@ class Loader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
+#        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
         self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
-        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
+#        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
         self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
         self.t0 = hyperParameterDefaults["t0"]
         self.t1 = hyperParameterDefaults["t1"] # endpoint=false, t1 is not loaded from disk
@@ -56,7 +59,9 @@ class Loader(Thread):
         self.transformPolicy = None #dataTransformationPolicy
 
         self.totalTimebatchNumber = int((self.t1-self.t0)/self.timebatchSize)
-        self.particlePerGPU = int(10000)
+        self.particlePerGPU = np.int64(10000) # MAGIC: Number of randomly choosen particles per GPU
+        
+        self.rng = np.random.default_rng()
 
     def run(self):
         """Function being executed when thread is started."""
@@ -68,7 +73,7 @@ class Loader(Thread):
         # start reading data
         i_epoch = int(0)
         i_tb = int(0)
-        perm = torch_randperm(self.t1-self.t0)
+        perm = self.rng.permutation(self.t1-self.t0)
         while i_epoch < self.numEpochs:
             """Iterate over all timebatches in all epochs."""
             print("Start epoch ", i_epoch)
@@ -94,17 +99,14 @@ class Loader(Thread):
                 # prepare selection of particle indices that will be used for training from the whole data set
                 # In case numParticlesPerGpu < particlePerGpuForTraining, rng.choice() will throw a ValueError and stop.
                 # In streaming setups, we should catch this error and have a mitigation strategy in order to be able to continue.
-                rng = np.random.default_rng()
-                randomParticlesPerGPU = np.array([ rng.choice(numParticles[i], self.particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
+                randomParticlesPerGPU = np.array([ self.rng.choice(np.int64(numParticles[i]-1), self.particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
 
                 local_region = {"offset": [numParticlesOffsets[0]], "extent": [totalParticles]}
 
                 numParticlesOffsets = np.concatenate((numParticlesOffsets, [-1]), dtype=np.int64) # append to use array for indexing
 
-#                for i_gpu in arange(len(numParticles)):
-#                    """Chunk particle load in gpu sizes to reduce host memory usage."""
                 # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
-                loaded_particles = torch_empty((9, len(numParticles), self.particlePerGPU))
+                loaded_particles = torch_empty((9, len(numParticles), self.particlePerGPU), dtype=torch_float32)
                 for i_c, component in enumerate(["x", "y", "z"]):
                     """Read particle data component-wise to reduce host memory usage.
                        And immediately reshape by subdividing in particles per GPU.
@@ -157,45 +159,48 @@ class Loader(Thread):
                 radIter = radiationSeries.iterations[step]
 
                 cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
-                r_offset = np.empty(len(numParticles), 3)) # shape: number of GPUs
-                n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: number of radiation measurement directions along x
+                r_offset = np.empty((len(numParticles), 3)) # shape: (GPUs, components)
+                n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (radiation measurement directions along x, components)
 
                 DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0]
                 radiationSeries.flush()
 
-                distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency))) # shape: (components, GPUs, frequencies)
+                distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
 
                 for i_c, component in enumerate(["x", "y", "z"]):
-                    gpuBoxExtent = ps.particle_patches["extent"][component][opmd.Mesh_Record_Component.SCALAR].load()
-                    gpuBoxOffset = ps.particle_patches["offset"][component][opmd.Mesh_Record_Component.SCALAR].load()
+                    gpuBoxExtent = ps.particle_patches["extent"][component].load()
+                    gpuBoxOffset = ps.particle_patches["offset"][component].load()
                     series.flush()
 
                     Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
-                    DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (directions)
+                    # MAGIC: only look along one direction
+                    DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
                     radiationSeries.flush()
 
                     r_offset[:, i_c] = gpuBoxOffset * iteration.get_attribute(cellExtensionNames[component])
                     n_vec[:, i_c] = DetectorDirection
 
-                    #index direction = 0 to get ex vector = [1,0,0]
+                    # MAGIC: index direction = 0 to get ex vector = [1,0,0]
                     i_direction = 0
                     distributed_amplitudes[i_c] = torch_from_numpy(Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
 
 #                radIter.close() # It is currently not possible to reopen an iteration in openPMD
 
                 # time retardation correction
-                phase_offset = torch_from_numpy((np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :])
+                # QUESTION: The `step`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
+                phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
                 distributed_amplitudes = distributed_amplitudes/phase_offset
 
                 # Transform to shape: (GPUs, components, frequencies)
                 distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
                 
+                # MAGIC: Just look at y&z component
                 r = distributed_amplitudes[:, 1:, :]
 
                 # Compute the phase (angle) of the complex number
-                phase = torch.angle(r)
+                phase = torch_angle(r)
                 # Compute the absolute value of the complex number
-                absolute = torch.abs(r)
+                absolute = torch_abs(r)
                 r = torch_cat((absolute, phase), dim=1).to(torch_float32)
 
                 radiation.append(r)
@@ -204,7 +209,7 @@ class Loader(Thread):
             particles = torch_cat(particles)
             radiation = torch_cat(radiation)
 
-            self.data.put(self.Timebatch(particles, radiation, self.timebatchSliceSize))
+            self.data.put(self.Timebatch(particles, radiation, self.timebatchSliceSize, self.rng))
 
             print("Finish timebatch. Timestep =", i_tb)
             stdout.flush()
@@ -214,9 +219,10 @@ class Loader(Thread):
             if i_tb%self.totalTimebatchNumber == 0:
                 """All timesteps have been read once within this epoch. Epoch finished."""
                 print("Finished epoch", i_epoch)
+                stdout.flush()
                 i_epoch += int(1)
                 i_tb = int(0)
-                perm = torch_randperm(len(series.iterations))
+                perm = self.rng.permutation(len(series.iterations))
 
         # signal that there are no further items
         print("Finish iterating all epochs")
@@ -229,12 +235,13 @@ class Loader(Thread):
 
 
     class Timebatch:
-        def __init__(self, particles, radiation, batchsize):
+        def __init__(self, particles, radiation, batchsize, rng=np.random.default_rng()):
             self.batchsize = batchsize
             self.particles = particles
             self.radiation = radiation
 
-            self.perm = torch_randperm(self.radiation.shape[0])
+            self.rng = rng
+            self.perm = self.rng.permutation(self.radiation.shape[0])
 
         def __len__(self):
             return self.radiation.shape[0] // self.batchsize
