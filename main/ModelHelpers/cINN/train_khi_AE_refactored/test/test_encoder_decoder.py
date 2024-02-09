@@ -113,14 +113,14 @@ def test_encoder_non_deterministic():
                           fc_add_bn = True,
                           fc_add_activation = True)
     
-    # conv1, bn, act, maxpooling, flatten, 
+    # conv1, bn, act, maxpooling, flatten
     assert len(encoder_obj.layers) == 5  
 
-    # fc, bn, act, fc  
+    # fc, bn, act, fc
     assert len(encoder_obj.mean) == 4  
     
-    # fc, bn, act, fc  
-    assert len(encoder_obj.variance) == 4  
+    # fc, bn, act, fc , softplus
+    assert len(encoder_obj.variance) == 5  
 
 
     encoder_obj = Encoder(zdim,
@@ -139,8 +139,8 @@ def test_encoder_non_deterministic():
     # 2*(fc, bn, act), fc  
     assert len(encoder_obj.mean) == 7 
     
-    # 2*(fc, bn, act), fc 
-    assert len(encoder_obj.variance) == 7
+    # 2*(fc, bn, act), fc, softplus
+    assert len(encoder_obj.variance) == 8
 
     mean, variance = encoder_obj(input_)
 

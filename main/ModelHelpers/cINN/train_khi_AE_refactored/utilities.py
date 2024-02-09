@@ -8,6 +8,7 @@ from collections import deque
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import inspect
 
+
 def inspect_and_select(base):
     
     def decorator(**all_input_pars):

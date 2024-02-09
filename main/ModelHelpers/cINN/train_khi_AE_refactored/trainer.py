@@ -5,7 +5,7 @@ import time
 import random
 from utilities import save_visual, save_visual_all, filter_dims, validate_model
 
-def train_AE(model, criterion, optimizer,
+def train_AE(model, optimizer,
              scheduler, epoch, valid_data_loader, wandb, directory,
              info_image_path=".", property_ = "positions",
              log_visual_report_every_tb = 120,

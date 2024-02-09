@@ -1,7 +1,5 @@
 import wandb
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
-from networks import ConvAutoencoder, VAE
-from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal, ChamfersLossOptimized
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,19 +7,7 @@ import os
 from trainer import train_AE
 import argparse
 from datetime import datetime
-
-MAPPING_TO_LOSS = {
-    "earthmovers":EarthMoversLoss,
-    "chamfersloss":ChamfersLoss,
-    "chamfersloss_d":ChamfersLossDiagonal,
-    "chamfersloss_o":ChamfersLossOptimized,
-    "mse":nn.MSELoss
-    }
-
-MAPPING_TO_NETWORK = {
-    "convAE":ConvAutoencoder,
-    "VAE":VAE
-    }
+from args_transform import main_args_transform
 
 def train_with_wandb():
     
@@ -44,14 +30,12 @@ def train_with_wandb():
     
     hyperparameter_defaults.update(vars(args))
     
+    hyperparameter_defaults = main_args_transform(hyperparameter_defaults)
     
     print('New session...')
     
     info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_{args.property_}"
-
-    criterion = MAPPING_TO_LOSS[hyperparameter_defaults["loss_function"]](**hyperparameter_defaults["loss_function_params"])
-    hyperparameter_defaults.update({"loss_function": criterion})
-    
+        
     # Pass your defaults to wandb.init
     run = wandb.init(config=hyperparameter_defaults, project=f'newruns_{args.project_kw}', name=info_image_path)
     start_epoch = 0
@@ -78,8 +62,7 @@ def train_with_wandb():
                                                  particles_to_sample = config["particles_to_sample"])
             
     # Initialize the convolutional autoencoder
-    model = MAPPING_TO_NETWORK[config["network"]](**hyperparameter_defaults)
-
+    model = hyperparameter_defaults["model"]
     epoch = data_loader[0]
     
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
@@ -96,7 +79,7 @@ def train_with_wandb():
     else:
         print(f"Directory '{directory}' already exists.")
     
-    train_AE(model, criterion, optimizer, scheduler, epoch, valid_data_loader, wandb, directory,
+    train_AE(model, optimizer, scheduler, epoch, valid_data_loader, wandb, directory,
              property_= args.property_) 
     
 if __name__ == "__main__":
@@ -153,23 +136,43 @@ if __name__ == "__main__":
     parser.add_argument('--pathpattern1',
                         type=str,
                         default="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
-                        help="Stuff")
+                        help="Path to the particles data")
 
     parser.add_argument('--pathpattern2',
                         type=str,
                         default= "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
-                        help="Stuff")
+                        help="Path to radiation data")
 
     parser.add_argument('--t0',
                         type=int,
                         default = 1000,
-                        help="Stuff")
+                        help="Start time step from the data")
 
     parser.add_argument('--t1',
                         type=int,
                         default = 2001,
-                        help="Stuff")
+                        help="Last time step from the data")
 
+    parser.add_argument('--encoder_type',
+                        type=str,
+                        default = "encoder_simple",
+                        help="Kind of Encoder")
+
+    parser.add_argument('--encoder_kwargs',
+                        type=str,
+                        default = '{"zdim":128,"input_dim":3,"ae_config":"non_deterministic"}',
+                        help="Encoder keyword arguments")
+
+    parser.add_argument('--decoder_type',
+                        type=str,
+                        default = "mlp_decoder",
+                        help="Kind of Decoder")
+
+    parser.add_argument('--decoder_kwargs',
+                        type=str,
+                        default = '{"zdim":128, "n_point":3, "point_dim":3}',
+                        help="Decoder keyword arguments")
+    
     args = parser.parse_args()
     
     train_with_wandb()
