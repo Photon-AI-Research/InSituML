@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--z_dim',
                         type=int,
-                        default='5',
+                        default='128',
                         help="Set the latent space dimensions")
     
     parser.add_argument('--lossfunction',
@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--encoder_kwargs',
                         type=str,
-                        default = '{"zdim":128,"input_dim":3,"ae_config":"non_deterministic"}',
+                        default = '{"z_dim":128,"input_dim":3,"ae_config":"non_deterministic"}',
                         help="Encoder keyword arguments")
 
     parser.add_argument('--decoder_type',
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--decoder_kwargs',
                         type=str,
-                        default = '{"zdim":128, "n_point":3, "point_dim":3}',
+                        default = '{"z_dim":128, "n_point":4000, "point_dim":3}',
                         help="Decoder keyword arguments")
     
     args = parser.parse_args()
