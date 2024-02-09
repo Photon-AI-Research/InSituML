@@ -45,12 +45,12 @@ def main_args_transform(hd):
         if "z_dim" in decoder_kwargs:
             if hd["use_deterministic_encoder"]:
                 assert decoder_kwargs["z_dim"] == hd["z_dim"]
-            else:
+            elif not hd["use_deterministic_encoder"] and hd["network"]=="VAE":
                 assert decoder_kwargs["z_dim"] == 2*hd["z_dim"]
         else:
             if hd["use_deterministic_encoder"]:
                 decoder_kwargs["z_dim"] = hd["z_dim"]
-            else:
+            elif not hd["use_deterministic_encoder"] and hd["network"]=="VAE":
                 decoder_kwargs["z_dim"] = 2*hd["z_dim"]
 
         if "n_point" in decoder_kwargs:
@@ -65,7 +65,6 @@ def main_args_transform(hd):
     #security checks
     encoder_kwargs = list_transform(ast.literal_eval(hd["encoder_kwargs"]))
     if hd["encoder_type"]=="encoder_simple":
-
         if "z_dim" in encoder_kwargs:
             assert encoder_kwargs["z_dim"] == hd["z_dim"]
         else:
