@@ -48,9 +48,9 @@ class Loader(Thread):
         # instantiate all required parameters
         self.data = batchDataBuffer
 #        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
+        self.particlePathpattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/openPMD/simData_%T.bp5"
 #        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
+        self.radiationPathPattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5"
         self.t0 = hyperParameterDefaults["t0"]
         self.t1 = hyperParameterDefaults["t1"] # endpoint=false, t1 is not loaded from disk
         self.timebatchSize = hyperParameterDefaults["timebatchsize"]
