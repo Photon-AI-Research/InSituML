@@ -24,6 +24,13 @@ MAPPING_TO_NETWORK = {
     "VAE":VAE
     }
 
+def list_transform(kwargs):
+    
+    for k in kwargs:
+        if "layer_config" in k:
+            kwargs[k] = ast.literal_eval(kwargs[k])
+    
+
 def main_args_transform(hd):
     
     criterion = MAPPING_TO_LOSS[hd["loss_function"]](**hd["loss_function_params"])
