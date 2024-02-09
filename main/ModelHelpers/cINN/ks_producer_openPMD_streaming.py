@@ -120,39 +120,61 @@ class StreamLoader(Thread):
             print("choose particles", particlePerGPU)
             randomParticlesPerGPU = np.array([ self.rng.choice(numParticles[i], particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
 
+            class EnqueuedBuffers(object):
+                pass
             # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
-            loaded_particles = torch_empty((9, len(numParticles), particlePerGPU), dtype=torch_float32)
+            loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
                 """Read particle data component-wise to reduce host memory usage.
                    And immediately reshape by subdividing in particles per GPU.
                    Also, reduce to requested number of particles per GPU.
                 """
-                position = (ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
-                    + ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
-                )
+                ## TODO: need to scale and normalize these values
+                ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
+                component_buffers = EnqueuedBuffers()
+                component_buffers.positionBase = \
+                    ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
+                component_buffers.positionOffset = \
+                    ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
+                component_buffers.momentum = \
+                    ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
+                component_buffers.momentumPrev1 = \
+                    ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
+
+                loaded_buffers[component] = component_buffers
+
+            # needed further below for mysterious reasons
+            gpuBoxExtent = ps.particle_patches["extent"][component].load()
+            gpuBoxOffset = ps.particle_patches["offset"][component].load()
+
+            iteration.close() # trigger enqueued data loads
+
+            loaded_particles = torch_empty((9, len(numParticles), particlePerGPU), dtype=torch_float32)
+            for i_c, component in enumerate(["x", "y", "z"]):
+                component_buffers = loaded_buffers[component]
+
+                position = component_buffers.positionBase + component_buffers.positionOffset
                 pos_reduced = np.array([
                     position[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
                     for i in np.arange(len(numParticles))
                 ])
-
-                ## TODO:
-                ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
-
-                momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
                 mom_reduced = np.array([
-                    momentum[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
+                    component_buffers.momentum[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
+                    for i in np.arange(len(numParticles))
+                ])
+                momPrev1_reduced = np.array([
+                    component_buffers.momentumPrev1[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
                     for i in np.arange(len(numParticles))
                 ])
 
-                momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
-                momPrev1_reduced = np.array([
-                    momentumPrev1[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
-                    for i in np.arange(len(numParticles))
-                ])
+                del component_buffers
+                del loaded_buffers[component]
 
                 loaded_particles[0+i_c] = torch_from_numpy(pos_reduced) # absolute position in cells
                 loaded_particles[3+i_c] = torch_from_numpy(mom_reduced) # momentum in gamma*beta
                 loaded_particles[6+i_c] = torch_from_numpy(mom_reduced - momPrev1_reduced) # force
+
+            del loaded_buffers
 
             if self.transformPolicy is not None:
                 loaded_particles = self.transformPolicy(loaded_particles)
@@ -185,9 +207,6 @@ class StreamLoader(Thread):
             distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
 
             for i_c, component in enumerate(["x", "y", "z"]):
-                gpuBoxExtent = ps.particle_patches["extent"][component].load()
-                gpuBoxOffset = ps.particle_patches["offset"][component].load()
-                series.flush()
 
                 Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
                 # MAGIC: only look along one direction
@@ -225,7 +244,6 @@ class StreamLoader(Thread):
             print("Done loading iteration %i"%(iteration.time))
             stdout.flush()
 
-            iteration.close()
             radIter.close()
 
 
