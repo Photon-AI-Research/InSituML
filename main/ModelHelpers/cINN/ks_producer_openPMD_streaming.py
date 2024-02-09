@@ -144,8 +144,11 @@ class StreamLoader(Thread):
                 loaded_buffers[component] = component_buffers
 
             # needed further below for mysterious reasons
-            gpuBoxExtent = ps.particle_patches["extent"][component].load()
-            gpuBoxOffset = ps.particle_patches["offset"][component].load()
+            gpuBoxExtent = dict()
+            gpuBoxOffset = dict()
+            for component in ["x", "y", "z"]:
+                gpuBoxExtent[component] = ps.particle_patches["extent"][component].load()
+                gpuBoxOffset[component] = ps.particle_patches["offset"][component].load()
 
             iteration.close() # trigger enqueued data loads
 
@@ -202,23 +205,29 @@ class StreamLoader(Thread):
             n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (radiation measurement directions along x, components)
 
             DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0]
-            radiationSeries.flush()
+            # radiationSeries.flush()
 
             distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
 
+            loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
-
-                Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
+                component_buffers = EnqueuedBuffers()
+                component_buffers.Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
                 # MAGIC: only look along one direction
-                DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
-                radiationSeries.flush()
+                component_buffers.DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
+                loaded_buffers[component] = component_buffers
 
-                r_offset[:, i_c] = gpuBoxOffset * iteration.get_attribute(cellExtensionNames[component])
-                n_vec[:, i_c] = DetectorDirection
+            radIter.close()
+
+            for i_c, component in enumerate(["x", "y", "z"]):
+                component_buffers = loaded_buffers[component]
+
+                r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
+                n_vec[:, i_c] = component_buffers.DetectorDirection
 
                 # MAGIC: index direction = 0 to get ex vector = [1,0,0]
                 i_direction = 0
-                distributed_amplitudes[i_c] = torch_from_numpy(Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
+                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
 
 
             # time retardation correction
@@ -243,8 +252,6 @@ class StreamLoader(Thread):
 
             print("Done loading iteration %i"%(iteration.time))
             stdout.flush()
-
-            radIter.close()
 
 
         # signal that there are no further items
