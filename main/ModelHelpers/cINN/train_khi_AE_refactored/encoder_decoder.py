@@ -157,7 +157,7 @@ class Encoder(AddLayersMixin, nn.Module):
             
             partition_mean = fc_layers_mean + [nn.Linear(fc_layer_config[-1], zdim)]
             
-            partition_var = fc_layers_var + [nn.Linear(fc_layer_config[-1], zdim)]
+            partition_var = fc_layers_var + [nn.Linear(fc_layer_config[-1], zdim), nn.Softplus()]
             
             self.mean = nn.Sequential(*partition_mean)
             self.variance = nn.Sequential(*partition_var)
@@ -177,7 +177,7 @@ class Encoder(AddLayersMixin, nn.Module):
         if self.ae_config == "deterministic":
             return x, 0
         elif self.ae_config == "non_deterministic":
-            return self.mean(x), self.variance(x)
+            return self.mean(x), self.variance(x) + 1e-8
         else:
             return x
 
