@@ -98,6 +98,10 @@ def determine_local_region(record_component, comm, inranks, outranks):
             )
         res[target_rank] = opmd.WrittenChunkInfo(chunks[0].offset, chunks[0].extent, source_id)
 
+    if comm.rank == 0:
+        for target_rank, chunk in res.items():
+            print("Target rank {} loads from source rank {}, {} - {}".format(
+                target_rank, chunk.source_id, chunk.offset, chunk.extent))
     return res
 
 class StreamLoader(Thread):
@@ -198,6 +202,9 @@ class StreamLoader(Thread):
             print("particles per GPU", numParticles)
             print("choose particles", particlePerGPU)
             randomParticlesPerGPU = np.array([ self.rng.choice(numParticles[i], particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
+            # print("numParticles:", numParticles)
+            # print("CHOSING {} RANDOM PARTICLES:".format(particlePerGPU), np.sort(randomParticlesPerGPU), randomParticlesPerGPU.shape)
+            # stdout.flush()
 
             class EnqueuedBuffers(object):
                 pass
@@ -239,16 +246,13 @@ class StreamLoader(Thread):
 
                 position = component_buffers.positionBase + component_buffers.positionOffset
                 pos_reduced = np.array([
-                    position[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
-                    for i in np.arange(len(numParticles))
+                    position[randomParticlesPerGPU[0]]
                 ])
                 mom_reduced = np.array([
-                    component_buffers.momentum[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
-                    for i in np.arange(len(numParticles))
+                    component_buffers.momentum[randomParticlesPerGPU[0]]
                 ])
                 momPrev1_reduced = np.array([
-                    component_buffers.momentumPrev1[numParticlesOffsets[i]:numParticles[i]][randomParticlesPerGPU[i]]
-                    for i in np.arange(len(numParticles))
+                    component_buffers.momentumPrev1[randomParticlesPerGPU[0]]
                 ])
 
                 del component_buffers
