@@ -38,7 +38,7 @@ def distribution_strategy(dataset_extent,
             strategy_identifier = os.environ[
                 'OPENPMD_CHUNK_DISTRIBUTION'].lower()
         else:
-            strategy_identifier = 'hostname_roundrobinofsourceranks_fail'  # default
+            strategy_identifier = 'hostname_roundrobinofsourceranks_roundrobinofsourceranks'  # default
     match = re.search('hostname_(.*)_(.*)', strategy_identifier)
     if match is not None:
         inside_node = distribution_strategy(dataset_extent,
@@ -185,6 +185,9 @@ class StreamLoader(Thread):
         t2.join()
 
         inranks = series.get_rank_table(collective=True)
+        if not inranks:
+            import sys
+            print("[WARNING] No chunk table found in data. Will map source to sink ranks somehow, but this might scale terribly in streaming setups.", file=sys.stderr)
         outranks = opmd.HostInfo.MPI_PROCESSOR_NAME.get_collective(self.comm)
 
         particle_iterations = series.read_iterations().__iter__()
