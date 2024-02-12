@@ -256,11 +256,24 @@ class StreamLoader(Thread):
             # needed further below for mysterious reasons
             gpuBoxExtent = dict()
             gpuBoxOffset = dict()
+            patches_chunk_distribution = determine_local_region(
+                ps.particle_patches["extent"]["x"], self.comm, inranks, outranks,
+                SelectFromRank(chunk_distribution)
+            )
+            local_patch_chunk = patches_chunk_distribution[self.comm.rank]
             for component in ["x", "y", "z"]:
-                gpuBoxExtent[component] = ps.particle_patches["extent"][component].load()
-                gpuBoxOffset[component] = ps.particle_patches["offset"][component].load()
-            numParticles = ps.particle_patches["numParticles"].load()
-            numParticlesOffsets = ps.particle_patches["numParticlesOffset"].load()
+                gpuBoxExtent[component] = ps.particle_patches["extent"][component].load_chunk(
+                    local_patch_chunk.offset, local_patch_chunk.extent
+                )
+                gpuBoxOffset[component] = ps.particle_patches["offset"][component].load_chunk(
+                    local_patch_chunk.offset, local_patch_chunk.extent
+                )
+            numParticles = ps.particle_patches["numParticles"].load_chunk(
+                local_patch_chunk.offset, local_patch_chunk.extent
+            )
+            numParticlesOffsets = ps.particle_patches["numParticlesOffset"].load_chunk(
+                local_patch_chunk.offset, local_patch_chunk.extent
+            )
 
             iteration.close() # trigger enqueued data loads
 
@@ -310,7 +323,8 @@ class StreamLoader(Thread):
                         radIter.iteration_index))
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
-            r_offset = np.empty((len(numParticles), 3)) # shape: (GPUs, components)
+            # TODO: Do we REALLY need the data from all GPUs here, or only for the local GPU?
+            r_offset = np.empty((len(numParticles), 3)) # shape: (current GPU = 1, components)
             n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (radiation measurement directions along x, components)
 
             DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0]
@@ -350,7 +364,11 @@ class StreamLoader(Thread):
 
             # time retardation correction
             # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
-            phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
+            phase_offset = torch_from_numpy(
+                np.exp(
+                    -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
+                    * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
+                    [:, i_direction, :]
             distributed_amplitudes = distributed_amplitudes/phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
