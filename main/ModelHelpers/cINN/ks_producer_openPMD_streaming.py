@@ -77,8 +77,13 @@ def distribution_strategy(dataset_extent,
 #  (functionality not on the dev branch yet!).
 # If the data does not define a rank table, a possible setting for the
 # environment variable is `OPENPMD_CHUNK_DISTRIBUTION=slicedataset`.
-def determine_local_region(record_component, comm, inranks, outranks):
-    distribution = distribution_strategy(record_component.shape, comm.rank, comm.size)
+def determine_local_region(record_component, comm, inranks, outranks,
+                          strategy_identifier=None):
+    if isinstance(strategy_identifier, opmd.Strategy):
+        distribution = strategy_identifier
+    else:
+        distribution = distribution_strategy(
+            record_component.shape, comm.rank, comm.size, strategy_identifier)
     all_chunks = record_component.available_chunks()
     chunk_distribution = distribution.assign(all_chunks, inranks, outranks)
     res = dict()
@@ -104,6 +109,22 @@ def determine_local_region(record_component, comm, inranks, outranks):
                 target_rank, chunk.source_id, chunk.offset, chunk.extent))
     return res
 
+class SelectFromRank(opmd.Strategy):
+    def __init__(self, electrons_chunk_distribution):
+        super().__init__()
+        self.source_to_target = dict()
+        for target, chunk in electrons_chunk_distribution.items():
+            self.source_to_target[chunk.source_id] = target
+
+    def assign(self, chunks, *_):
+        res = opmd.Assignment()
+        for unassigned_chunk in chunks:
+            target_rank = self.source_to_target[unassigned_chunk.source_id]
+            if target_rank not in res:
+                res[target_rank] = opmd.ChunkTable()
+            res[target_rank].append(unassigned_chunk)
+        return res
+
 class StreamLoader(Thread):
     """ Thread providing PIConGPU particle and radiation data from an openPMD stream for the ML model training.
 
@@ -125,9 +146,9 @@ class StreamLoader(Thread):
         # instantiate all required parameters
         self.data = batchDataBuffer
 #        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/openPMD/simData_%T.bp5"
+        self.particlePathpattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/openPMD/simData.sst"
 #        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5"
+        self.radiationPathPattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/radiationOpenPMD/e_radAmplitudes.sst"
 
         self.rng = np.random.default_rng()
         self.transformPolicy = None #dataTransformationPolicy
@@ -295,7 +316,8 @@ class StreamLoader(Thread):
             distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
 
             rad_chunk_distribution = determine_local_region(
-                radIter.meshes["Amplitude_distributed"]["x"], self.comm, inranks, outranks
+                radIter.meshes["Amplitude_distributed"]["x"], self.comm, inranks, outranks,
+                SelectFromRank(chunk_distribution)
             )
             local_radiation_chunk = rad_chunk_distribution[self.comm.rank]
 
