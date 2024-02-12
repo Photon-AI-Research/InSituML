@@ -109,7 +109,7 @@ def determine_local_region(record_component, comm, inranks, outranks,
                 target_rank, chunk.source_id, chunk.offset, chunk.extent))
     return res
 
-class SelectFromRank(opmd.Strategy):
+class SelectAccordingToChunkDistribution(opmd.Strategy):
     def __init__(self, electrons_chunk_distribution):
         super().__init__()
         self.source_to_target = dict()
@@ -258,7 +258,7 @@ class StreamLoader(Thread):
             gpuBoxOffset = dict()
             patches_chunk_distribution = determine_local_region(
                 ps.particle_patches["extent"]["x"], self.comm, inranks, outranks,
-                SelectFromRank(chunk_distribution)
+                SelectAccordingToChunkDistribution(chunk_distribution)
             )
             local_patch_chunk = patches_chunk_distribution[self.comm.rank]
             for component in ["x", "y", "z"]:
@@ -334,7 +334,7 @@ class StreamLoader(Thread):
 
             rad_chunk_distribution = determine_local_region(
                 radIter.meshes["Amplitude_distributed"]["x"], self.comm, inranks, outranks,
-                SelectFromRank(chunk_distribution)
+                SelectAccordingToChunkDistribution(chunk_distribution)
             )
             local_radiation_chunk = rad_chunk_distribution[self.comm.rank]
 
