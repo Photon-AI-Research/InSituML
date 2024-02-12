@@ -103,6 +103,21 @@ if __name__ == "__main__":
                         default='128',
                         help="Set the latent space dimensions")
     
+    parser.add_argument('--timebatchsize',
+                        type=int,
+                        default='4',
+                        help="Set the timebatchsize")
+    
+    parser.add_argument('--particlebatchsize',
+                        type=int,
+                        default='4',
+                        help="Set the particlebatchsize")
+    
+    parser.add_argument('--val_boxes',
+                        type=str,
+                        default='[19,5,3]',
+                        help="Validation boxes")
+    
     parser.add_argument('--lossfunction',
                         type=str,
                         default='chamfersloss',
@@ -118,10 +133,10 @@ if __name__ == "__main__":
                         default='',
                         help="Choose the project keyword for runs")
     
-    parser.add_argument('--use_deterministic_encoder',
-                        type=bool,
-                        default=False,
-                        help="Whether to use a deterministic encoder or otherwise")
+    parser.add_argument('--ae_config',
+                        type=str,
+                        default="deterministic",
+                        help="Three choices for encoder config: simple, non_deterministic, or deterministic")
 
     parser.add_argument('--use_encoding_in_decoder',
                         type=bool,
@@ -160,7 +175,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--encoder_kwargs',
                         type=str,
-                        default = '{"z_dim":128,"input_dim":3,"ae_config":"non_deterministic"}',
+                        default = '{"z_dim":128,"input_dim":3,"ae_config":"deterministic"}',
                         help="Encoder keyword arguments")
 
     parser.add_argument('--decoder_type',
@@ -170,7 +185,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--decoder_kwargs',
                         type=str,
-                        default = '{"z_dim":128, "n_point":4000, "point_dim":3}',
+                        default = '{"z_dim":128, "particles_to_sample":4000, "input_dim":3}',
                         help="Decoder keyword arguments")
     
     args = parser.parse_args()

@@ -1,6 +1,6 @@
 from networks import ConvAutoencoder, VAE
 from encoder_decoder import Encoder, MLPDecoder, Conv3DDecoder
-from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal, ChamfersLossOptimized
+from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal ,ChamfersLossOptimized
 import ast
 import torch.nn as nn
 
@@ -24,6 +24,7 @@ MAPPING_TO_NETWORK = {
     "VAE":VAE
     }
 
+
 def list_transform(kwargs):
     
     for k in kwargs:
@@ -40,46 +41,19 @@ def main_args_transform(hd):
     
     #security checks    
     decoder_kwargs = list_transform(ast.literal_eval(hd["decoder_kwargs"]))
-    if hd["decoder_type"]=="mlp_decoder":
-
-        if "z_dim" in decoder_kwargs:
-            if not hd["use_deterministic_encoder"] and hd["network"]=="VAE":
-                assert decoder_kwargs["z_dim"] == 2*hd["z_dim"]            
-            else:
-                assert decoder_kwargs["z_dim"] == hd["z_dim"]            
-        else:
-            if not hd["use_deterministic_encoder"] and hd["network"]=="VAE":
-                decoder_kwargs["z_dim"] = 2*hd["z_dim"]            
-            else:
-                decoder_kwargs["z_dim"] == hd["z_dim"]            
-
-        if "n_point" in decoder_kwargs:
-            assert decoder_kwargs["n_point"] == hd["particles_to_sample"]
-        else:
-            decoder_kwargs["n_point"] = hd["particles_to_sample"]
-        
-        if "point_dim" in decoder_kwargs:
-            assert decoder_kwargs["point_dim"] == 9 if hd["property_"]=="all" else 3
-        else:
-            decoder_kwargs["point_dim"] = 9 if hd["property_"]=="all" else 3
     #security checks
     encoder_kwargs = list_transform(ast.literal_eval(hd["encoder_kwargs"]))
-    if hd["encoder_type"]=="encoder_simple":
-        if "z_dim" in encoder_kwargs:
-            assert encoder_kwargs["z_dim"] == hd["z_dim"]
-        else:
-            encoder_kwargs["z_dim"] = hd["z_dim"]
-        
-        if "input_dim" in encoder_kwargs:
-            assert encoder_kwargs["input_dim"] == 9 if hd["property_"]=="all" else 3
-        else:
-            encoder_kwargs["input_dim"] = 9 if hd["property_"]=="all" else 3
-
-    encoder = MAPPING_TO_ED[hd["encoder_type"]](**encoder_kwargs)
-    decoder = MAPPING_TO_ED[hd["decoder_type"]](**decoder_kwargs)
-    hd.update({"encoder":encoder, "decoder":decoder})
+    
+    encoder = MAPPING_TO_ED[hd["encoder_type"]]
+    decoder = MAPPING_TO_ED[hd["decoder_type"]]
+    hd.update({"encoder":encoder,
+               "decoder":decoder,
+               "encoder_kwargs":encoder_kwargs, 
+               "decoder_kwargs":decoder_kwargs})
     
     model = MAPPING_TO_NETWORK[hd["network"]](**hd)
     hd.update({"model": model})
+
+    hd["val_boxes"] = ast.literal_eval(hd["val_boxes"])
     
     return hd

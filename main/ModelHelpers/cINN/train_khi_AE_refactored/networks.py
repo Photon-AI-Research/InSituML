@@ -29,42 +29,55 @@ class ConvAutoencoder(nn.Module):
 
 @inspect_and_select
 class VAE(nn.Module):
-    def __init__(self, encoder, decoder, loss_function = None, 
+    def __init__(self, encoder, decoder, encoder_kwargs, 
+                 decoder_kwargs, loss_function = None, 
                  property_="positions", z_dim=4,
-                 particles_to_sample=4000,
-                 use_deterministic_encoder=True,
+                 particles_to_sample = 4000,
+                 ae_config = "deterministic",
                  use_encoding_in_decoder=True
                  ):
         super().__init__()
-        self.point_dim = 9 if property_ == "all" else 3
-        #Different namings due to terminology in dataloaders
-        self.n_point = particles_to_sample
+        
+        self.input_dim = 9 if property_ == "all" else 3
+        self.particles_to_sample = particles_to_sample
         self.z_dim = z_dim
         self.loss_function = loss_function
         
-        self.use_deterministic_encoder = use_deterministic_encoder
+        self.ae_config = ae_config
         
         self.use_encoding_in_decoder = use_encoding_in_decoder
         
-        #need to synch this later
-        ae_config = "deterministic" if use_deterministic_encoder else "non_deterministic"
+        self.check_kwargs(encoder_kwargs, "encoder")
+        self.check_kwargs(decoder_kwargs, "decoder")
         
-        self.encoder = encoder
-        self.decoder = decoder
+        if ae_config== "non_deterministic" and use_encoding_in_decoder:
+            decoder_kwargs["z_dim"] = 2*z_dim
+            
+        self.encoder = encoder(**encoder_kwargs)
+        self.decoder = decoder(**decoder_kwargs)
         
         #set prior parameters of the vae model p(z) with 0 mean and 1 variance.
         self.z_prior_m = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
         self.z_prior_v = torch.nn.Parameter(torch.ones(1), requires_grad=False)
         self.z_prior = (self.z_prior_m, self.z_prior_v)
         self.type = 'VAE'
+
+    def check_kwargs(self, kwargs, type_):
+        for val in ["z_dim", "ae_config", "input_dim", "particles_to_sample"]:
+            network_val = getattr(self, val)
+            if val not in kwargs:
+                kwargs[val] = network_val
+                
+            elif network_val != kwargs[val]:
+                raise ValueError(f"The {val} for {type_} does not match with network:{network_val} not equal {kwargs[val]}")
     
     def forward(self, inputs):
         x = inputs
         m, v = self.encoder(x)
-        if self.use_deterministic_encoder:
+        if self.ae_config == "deterministic":
             y = self.decoder(m)
             kl_loss = torch.zeros(1)
-        else:
+        elif self.ae_config == "non_deterministic":
             z =  sample_gaussian(m,v)
             decoder_input = z if not self.use_encoding_in_decoder else \
             torch.cat((z,m),dim=-1) 
@@ -97,7 +110,7 @@ class VAE(nn.Module):
 
     def reconstruct_input(self, x):
         m, v = self.encoder(x)
-        if self.use_deterministic_encoder:
+        if self.ae_config =="deterministic":
             y = self.decoder(m)
         else:
             z =  sample_gaussian(m,v)

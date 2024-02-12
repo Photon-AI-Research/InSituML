@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import numpy as np
+from utilities import inspect_and_select
 
 def adjust_args(arg1, arg2, kernel_size):
     """
@@ -70,7 +71,6 @@ class AddLayersMixin:
         
         return layers
 
-
 class Encoder(AddLayersMixin, nn.Module):
 
     """
@@ -100,8 +100,9 @@ class Encoder(AddLayersMixin, nn.Module):
     
     """
     def __init__(self, z_dim,
-                 input_dim = 3, 
-                 ae_config = "determistic",
+                 input_dim = 3,
+                 particles_to_sample=None,
+                 ae_config = "deterministic",
                  conv_layer_config = [128, 128, 256, 512],
                  conv_add_bn = True,
                  conv_add_activation = True,
@@ -162,7 +163,7 @@ class Encoder(AddLayersMixin, nn.Module):
             self.mean = nn.Sequential(*partition_mean)
             self.variance = nn.Sequential(*partition_var)
         
-        else:
+        elif ae_config == "simple":
             #take away the maxpool, and flatten
             final_layers = conv_layers[:-2] + [nn.Conv1d(conv_layer_config[-1], z_dim, kernel_size)] + \
                                        conv_layers[-2:]
@@ -202,14 +203,16 @@ class MLPDecoder(AddLayersMixin, nn.Module):
 
     def __init__(self, 
                  z_dim,
-                 n_point,
-                 point_dim,
+                 particles_to_sample,
+                 input_dim,
+                 ae_config=None,
                  layer_config = [256],
                  add_batch_normalisation = False):
         
         super().__init__()
         
-        n_point_3 = point_dim * n_point
+        out_dims = input_dim * particles_to_sample
+        
         # normalisation was removed in this setup:
         #https://arxiv.org/abs/1906.12320 see Appendix.
         layers = self.add_layers_seq("Linear", 
@@ -217,10 +220,10 @@ class MLPDecoder(AddLayersMixin, nn.Module):
                                      z_dim,
                                      add_batch_normalisation = add_batch_normalisation)
                 
-        layers = layers + [nn.Linear(layer_config[-1], n_point_3)]
+        layers = layers + [nn.Linear(layer_config[-1], out_dims)]
         
         layers = layers + [nn.Flatten(),
-                                nn.Unflatten(1, (n_point, point_dim))]
+                                nn.Unflatten(1, (particles_to_sample, input_dim))]
         
         self.layers = nn.Sequential(*layers)
     
