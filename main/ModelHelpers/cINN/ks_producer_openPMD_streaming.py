@@ -5,6 +5,11 @@ The buffer is expected to be fillable by a `put()` method.
 TODO: Furthermore, a policy is taken which describes the data structure that needs to be put in the buffer.
 This policy actually performs the required transformation on the data, if required.
 For example, it performs data normalization and layouts the data as requested for the training.
+
+!!!!!!!
+This file only works with the openPMD-api version installed from this branch:
+    https://github.com/franzpoeschel/openPMD-api/tree/pic_env
+!!!!!!!
 """
 from threading import Thread
 
@@ -70,8 +75,9 @@ def distribution_strategy(dataset_extent,
 
 # Specify environment variable OPENPMD_CHUNK_DISTRIBUTION to modify the
 # logic used in this function.
-# The default logic will (intentionally) fail when the source data does not
-# define a rank table.
+# Recommendation: set OPENPMD_CHUNK_DISTRIBUTION to
+# `hostname_roundrobinofsourceranks_fail` to ensure failure when openPMD cannot
+# figure out which data chunks are local to the current host.
 # The rank table can be requested in openPMD by setting
 # {"rank_table": "posix_hostname"} in the writer
 #  (functionality not on the dev branch yet!).
@@ -109,6 +115,12 @@ def determine_local_region(record_component, comm, inranks, outranks,
                 target_rank, chunk.source_id, chunk.offset, chunk.extent))
     return res
 
+# Assign chunks from the same source ranks as in a previously calculated
+# chunk distribution. Used to keep chunk distribution consistent between:
+#
+# * electron data
+# * electron patches data
+# * radiation data
 class SelectAccordingToChunkDistribution(opmd.Strategy):
     def __init__(self, electrons_chunk_distribution):
         super().__init__()
@@ -119,6 +131,9 @@ class SelectAccordingToChunkDistribution(opmd.Strategy):
     def assign(self, chunks, *_):
         res = opmd.Assignment()
         for unassigned_chunk in chunks:
+            # We could theoretically ignore the chunk if the target rank
+            # is different from the current rank, but it's not a huge overhead
+            # and it makes debugging simpler.
             target_rank = self.source_to_target[unassigned_chunk.source_id]
             if target_rank not in res:
                 res[target_rank] = opmd.ChunkTable()
@@ -190,9 +205,15 @@ class StreamLoader(Thread):
             print("[WARNING] No chunk table found in data. Will map source to sink ranks somehow, but this might scale terribly in streaming setups.", file=sys.stderr)
         outranks = opmd.HostInfo.MPI_PROCESSOR_NAME.get_collective(self.comm)
 
+        # We need to use the __iter__() and __next__() manually since both these
+        # iterators need to be processed concurrently.
+        # zip() might also work, but manual iteration is better since it gives
+        # us greater control over when to wait for data (e.g. we can avoid
+        # useless waiting)
         particle_iterations = series.read_iterations().__iter__()
         radiation_iterations = radiationSeries.read_iterations().__iter__()
 
+        NUM_PROCESSED_CHUNKS_PER_RANK = 1
         # start reading data
         while True:
             """Work on PIConGPU data for this iteration."""
@@ -209,7 +230,6 @@ class StreamLoader(Thread):
 
             # memorize particle distribution over GPUs in array
             e_pos_x = ps["position"]["x"]
-            totalParticles = e_pos_x.shape[0]
             chunk_distribution = determine_local_region(
                 e_pos_x, self.comm, inranks, outranks
             )
@@ -217,22 +237,31 @@ class StreamLoader(Thread):
 
             # Every GPU will hold a different number of particles.
             # But we need to keep the number of particles per GPU constant in order to construct the dataset.
-            numParticles = local_particles_chunk.extent
-            particlePerGPU = chunk_distribution[0].extent[0]
+            numParticles = local_particles_chunk.extent[0]
+            particlePerGPU = numParticles
             for _, chunk in chunk_distribution.items():
                 possibly_smaller = chunk.extent[0]
                 if possibly_smaller < particlePerGPU:
                     particlePerGPU = possibly_smaller
             print("particles per GPU", numParticles)
-            print("choose particles", particlePerGPU)
-            randomParticlesPerGPU = np.array([ self.rng.choice(numParticles[i], particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
-            # print("numParticles:", numParticles)
-            # print("CHOSING {} RANDOM PARTICLES:".format(particlePerGPU), np.sort(randomParticlesPerGPU), randomParticlesPerGPU.shape)
-            # stdout.flush()
+            randomParticlesPerGPU = np.array([self.rng.choice(numParticles, particlePerGPU, replace=False)])
 
+            # Helper object to store enqueued load buffers.
             class EnqueuedBuffers(object):
                 pass
-            # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
+
+            # Workflow:
+            #
+            # 1. Enqueue all load operations on the particles stream and store
+            #    the to-be-filled buffers in the loaded_buffers dict.
+            # 2. Close the iteration with a single flush.
+            #    a) There is only one communication back to the writer.
+            #    b) After closing the iteration, the writer knows that the data
+            #       is no longer needed, can discard the data and go on.
+            # 3. Perform all further computations afterwards.
+            #
+            # This is a compromise: We use a slightly higher amount of host
+            # memory in exchange for loading data once only.
             loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
                 """Read particle data component-wise to reduce host memory usage.
@@ -242,7 +271,7 @@ class StreamLoader(Thread):
                 ## TODO: need to scale and normalize these values
                 ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
                 component_buffers = EnqueuedBuffers()
-                component_buffers.positionBase = \
+                component_buffers.position = \
                     ps["position"][component].load_chunk(local_particles_chunk.offset, local_particles_chunk.extent)
                 component_buffers.positionOffset = \
                     ps["positionOffset"][component].load_chunk(local_particles_chunk.offset, local_particles_chunk.extent)
@@ -253,7 +282,13 @@ class StreamLoader(Thread):
 
                 loaded_buffers[component] = component_buffers
 
-            # needed further below for mysterious reasons
+            # Particle patches are needed further below for determining the GPU bounding box.
+            # This only loads the patch information for the locally processed GPU.
+            # Do NOT load all of them as this will be a NxN communication pattern,
+            # e.g. it will not scale (I'll talk to the ADIOS2 devs on how we can avoid this
+            # situation in the future).
+            # IF the entire patches info is needed, then use MPI to distribute this
+            # local information to all ranks.
             gpuBoxExtent = dict()
             gpuBoxOffset = dict()
             patches_chunk_distribution = determine_local_region(
@@ -277,20 +312,27 @@ class StreamLoader(Thread):
 
             iteration.close() # trigger enqueued data loads
 
-            loaded_particles = torch_empty((9, len(numParticles), particlePerGPU), dtype=torch_float32)
+            # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
+            loaded_particles = torch_empty((9, NUM_PROCESSED_CHUNKS_PER_RANK, particlePerGPU), dtype=torch_float32)
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
 
-                position = component_buffers.positionBase + component_buffers.positionOffset
+                position = ps["position"][component].unit_SI * component_buffers.position \
+                    + ps["positionOffset"][component].unit_SI * component_buffers.positionOffset
+                del component_buffers.position
+                del component_buffers.positionOffset
                 pos_reduced = np.array([
                     position[randomParticlesPerGPU[0]]
                 ])
-                mom_reduced = np.array([
+                del position
+                mom_reduced = ps["momentum"][component].unit_SI * np.array([
                     component_buffers.momentum[randomParticlesPerGPU[0]]
                 ])
-                momPrev1_reduced = np.array([
+                del component_buffers.momentum
+                momPrev1_reduced = ps["momentumPrev1"][component].unit_SI * np.array([
                     component_buffers.momentumPrev1[randomParticlesPerGPU[0]]
                 ])
+                del component_buffers.momentumPrev1
 
                 del component_buffers
                 del loaded_buffers[component]
@@ -298,6 +340,9 @@ class StreamLoader(Thread):
                 loaded_particles[0+i_c] = torch_from_numpy(pos_reduced) # absolute position in cells
                 loaded_particles[3+i_c] = torch_from_numpy(mom_reduced) # momentum in gamma*beta
                 loaded_particles[6+i_c] = torch_from_numpy(mom_reduced - momPrev1_reduced) # force
+                del pos_reduced
+                del mom_reduced
+                del momPrev1_reduced
 
             del loaded_buffers
 
@@ -323,14 +368,18 @@ class StreamLoader(Thread):
                         radIter.iteration_index))
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
-            # TODO: Do we REALLY need the data from all GPUs here, or only for the local GPU?
-            r_offset = np.empty((len(numParticles), 3)) # shape: (current GPU = 1, components)
+            # TODO: Klaus' version used a Numpy array of shape (GPUs, components) here,
+            # I changed this to consider the information only for the local GPU.
+            # If the info is needed for all GPUs, there will probably be a further MPI collective in here
+            # to avoid loading the full particle patches datasets on each reader, as this would
+            # otherwise be an NxN communication pattern.
+            r_offset = np.empty((NUM_PROCESSED_CHUNKS_PER_RANK, 3)) # shape: (local GPUs, components)
             n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (radiation measurement directions along x, components)
 
             DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0]
             # radiationSeries.flush()
 
-            distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
+            distributed_amplitudes = torch_empty((3, NUM_PROCESSED_CHUNKS_PER_RANK, len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, local GPUs, frequencies)
 
             rad_chunk_distribution = determine_local_region(
                 radIter.meshes["Amplitude_distributed"]["x"], self.comm, inranks, outranks,
@@ -351,6 +400,8 @@ class StreamLoader(Thread):
 
             radIter.close()
 
+            # PLEASE CHECK THE CALCULATIONS BELOW
+
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
 
@@ -359,7 +410,7 @@ class StreamLoader(Thread):
 
                 # MAGIC: index direction = 0 to get ex vector = [1,0,0]
                 i_direction = 0
-                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
+                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (local GPUs, frequencies)
 
 
             # time retardation correction
@@ -372,7 +423,7 @@ class StreamLoader(Thread):
             distributed_amplitudes = distributed_amplitudes/phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
-            distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
+            distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (local GPUs, components, frequencies)
 
             # MAGIC: Just look at y&z component
             r = distributed_amplitudes[:, 1:, :]
