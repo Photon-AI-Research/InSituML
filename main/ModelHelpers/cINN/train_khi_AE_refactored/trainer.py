@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import time
 import random
-from utilities import save_visual, save_visual_all, filter_dims, validate_model
+from utilities import save_visual, save_visual_multi, filter_dims, validate_model
 
 def train_AE(model, optimizer,
              scheduler, epoch, valid_data_loader, wandb, directory,
@@ -71,10 +71,10 @@ def train_AE(model, optimizer,
                 "loss_timebatch_avg_loss": loss_timebatch_avg
             }
 
-            if timeBatchIndex%log_visual_report_every_tb==0 and property_ != "all":
+            if timeBatchIndex%log_visual_report_every_tb==0 and property_ not in  ["all","momentum_force"]:
                 save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
             elif timeBatchIndex%log_visual_report_every_tb==0:
-                save_visual_all(model, timeBatch, wandb, timeInfo, info_image_path)
+                save_visual_multi(model, timeBatch, wandb, timeInfo, info_image_path, property_)
             
             if timeBatchIndex%log_validation_loss_every_tb==0:
                 # Perform validation

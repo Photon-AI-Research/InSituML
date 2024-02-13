@@ -3,7 +3,15 @@ import torch.nn as nn
 from encoder_decoder import Encoder
 from encoder_decoder import MLPDecoder, Conv3DDecoder
 from utilities import sample_gaussian, kl_normal, inspect_and_select
-    
+
+# property_ to input_dim
+P2ID = { 
+    "positions":3,
+    "momentum":3,
+    "force":3,
+    "momentum_force":6,
+    "all":9
+    }
 # Define the convolutional autoencoder class
 @inspect_and_select
 class ConvAutoencoder(nn.Module):
@@ -38,7 +46,7 @@ class VAE(nn.Module):
                  ):
         super().__init__()
         
-        self.input_dim = 9 if property_ == "all" else 3
+        self.input_dim = P2ID[property_]
         self.particles_to_sample = particles_to_sample
         self.z_dim = z_dim
         self.loss_function = loss_function
