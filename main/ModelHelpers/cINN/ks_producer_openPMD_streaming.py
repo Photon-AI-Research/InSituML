@@ -291,11 +291,11 @@ class StreamLoader(Thread):
                 loaded_buffers[component] = component_buffers
 
             # Particle patches are needed further below for determining the GPU bounding box.
-            # This only loads the patch information for the locally processed GPU.
+            # This only loads the patch information for the locally processed GPUs.
             # Do NOT load all of them as this will be a NxN communication pattern,
             # e.g. it will not scale (I'll talk to the ADIOS2 devs on how we can avoid this
             # situation in the future).
-            # IF the entire patches info is needed, then use MPI to distribute this
+            # IF the entire patches info is needed after all, then use MPI to distribute this
             # local information to all ranks.
             gpuBoxExtent = dict()
             gpuBoxOffset = dict()
@@ -384,11 +384,6 @@ class StreamLoader(Thread):
                         radIter.iteration_index))
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
-            # TODO: Klaus' version used a Numpy array of shape (GPUs, components) here,
-            # I changed this to consider the information only for the local GPU.
-            # If the info is needed for all GPUs, there will probably be a further MPI collective in here
-            # to avoid loading the full particle patches datasets on each reader, as this would
-            # otherwise be an NxN communication pattern.
             r_offset = np.empty((num_processed_chunks_per_rank, 3)) # shape: (local GPUs, components)
             n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (radiation measurement directions along x, components)
 
