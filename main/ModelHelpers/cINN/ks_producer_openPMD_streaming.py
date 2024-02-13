@@ -422,11 +422,14 @@ class StreamLoader(Thread):
                 component_buffers = loaded_buffers[component]
 
                 r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
-                n_vec[:, i_c] = component_buffers.DetectorDirection
+                n_vec[:, i_c] = radIter.meshes["DetectorDirection"][component].unit_SI *\
+                    component_buffers.DetectorDirection
 
                 # MAGIC: index direction = 0 to get ex vector = [1,0,0]
                 i_direction = 0
-                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (local GPUs, frequencies)
+                distributed_amplitudes[i_c] = torch_from_numpy(
+                    radIter.meshes["Amplitude_distributed"][component].unit_SI \
+                        * component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (local GPUs, frequencies)
 
 
             # time retardation correction
