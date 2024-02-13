@@ -3,23 +3,26 @@ import torch.nn as nn
 from encoder_decoder import Encoder
 from encoder_decoder import MLPDecoder, Conv3DDecoder
 from utilities import sample_gaussian, kl_normal, inspect_and_select
-    
+
+# property_ to input_dim
+P2ID = { 
+    "positions":3,
+    "momentum":3,
+    "force":3,
+    "momentum_force":6,
+    "all":9
+    }
 # Define the convolutional autoencoder class
 @inspect_and_select
 class ConvAutoencoder(nn.Module):
-    def __init__(self, loss_function, property_, hidden_size, dim_pool):
+    def __init__(self, encoder, decoder, loss_function, property_, hidden_size, dim_pool):
         super().__init__()
         self.input_dim = 9 if property_ == "all" else 3
         self.loss_function = loss_function
         # Encoder
-        self.encoder = Encoder(z_dim = hidden_size,
-                               input_dim = input_dim,
-                               conv_layer_config = [16, 32, 64, 128, 256, 512], 
-                               conv_add_bn = False,
-                               ae_config = "normal")
-
+        self.encoder = encoder
         # Decoder
-        self.decoder = Conv3DDecoder()
+        self.decoder = decoder
 
     def forward(self, x):
         y = self.reconstruct_input(x)
@@ -34,47 +37,55 @@ class ConvAutoencoder(nn.Module):
 
 @inspect_and_select
 class VAE(nn.Module):
-    def __init__(self, loss_function = None, 
+    def __init__(self, encoder, decoder, encoder_kwargs, 
+                 decoder_kwargs, loss_function = None, 
                  property_="positions", z_dim=4,
-                 particles_to_sample=4000,
-                 use_deterministic_encoder=True,
+                 particles_to_sample = 4000,
+                 ae_config = "deterministic",
                  use_encoding_in_decoder=True
                  ):
         super().__init__()
-        self.point_dim = 9 if property_ == "all" else 3
-        #Different namings due to terminology in dataloaders
-        self.n_point = particles_to_sample
+        
+        self.input_dim = P2ID[property_]
+        self.particles_to_sample = particles_to_sample
         self.z_dim = z_dim
         self.loss_function = loss_function
         
-        self.use_deterministic_encoder = use_deterministic_encoder
+        self.ae_config = ae_config
         
         self.use_encoding_in_decoder = use_encoding_in_decoder
         
-        #need to synch this later
-        ae_config = "deterministic" if use_deterministic_encoder else "non_deterministic"
+        self.check_kwargs(encoder_kwargs, "encoder")
+        self.check_kwargs(decoder_kwargs, "decoder")
         
-        self.encoder = Encoder(zdim = self.z_dim,
-                               input_dim = self.point_dim,
-                               ae_config = ae_config)
+        if ae_config== "non_deterministic" and use_encoding_in_decoder:
+            decoder_kwargs["z_dim"] = 2*z_dim
+            
+        self.encoder = encoder(**encoder_kwargs)
+        self.decoder = decoder(**decoder_kwargs)
         
-        if not self.use_deterministic_encoder and self.use_encoding_in_decoder:
-            self.decoder = MLPDecoder(2 *self.z_dim, self.n_point, self.point_dim)
-        else:
-            self.decoder = MLPDecoder(self.z_dim, self.n_point, self.point_dim)
         #set prior parameters of the vae model p(z) with 0 mean and 1 variance.
         self.z_prior_m = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
         self.z_prior_v = torch.nn.Parameter(torch.ones(1), requires_grad=False)
         self.z_prior = (self.z_prior_m, self.z_prior_v)
         self.type = 'VAE'
+
+    def check_kwargs(self, kwargs, type_):
+        for val in ["z_dim", "ae_config", "input_dim", "particles_to_sample"]:
+            network_val = getattr(self, val)
+            if val not in kwargs:
+                kwargs[val] = network_val
+                
+            elif network_val != kwargs[val]:
+                raise ValueError(f"The {val} for {type_} does not match with network:{network_val} not equal {kwargs[val]}")
     
     def forward(self, inputs):
         x = inputs
         m, v = self.encoder(x)
-        if self.use_deterministic_encoder:
+        if self.ae_config == "deterministic":
             y = self.decoder(m)
             kl_loss = torch.zeros(1)
-        else:
+        elif self.ae_config == "non_deterministic":
             z =  sample_gaussian(m,v)
             decoder_input = z if not self.use_encoding_in_decoder else \
             torch.cat((z,m),dim=-1) 
@@ -107,7 +118,7 @@ class VAE(nn.Module):
 
     def reconstruct_input(self, x):
         m, v = self.encoder(x)
-        if self.use_deterministic_encoder:
+        if self.ae_config =="deterministic":
             y = self.decoder(m)
         else:
             z =  sample_gaussian(m,v)

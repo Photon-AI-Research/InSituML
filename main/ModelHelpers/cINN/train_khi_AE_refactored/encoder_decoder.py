@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import numpy as np
+from utilities import inspect_and_select
 
 def adjust_args(arg1, arg2, kernel_size):
     """
@@ -70,7 +71,6 @@ class AddLayersMixin:
         
         return layers
 
-
 class Encoder(AddLayersMixin, nn.Module):
 
     """
@@ -99,14 +99,15 @@ class Encoder(AddLayersMixin, nn.Module):
     fc_add_activation (Bool): Whether to add activation function after the fully connected layers.
     
     """
-    def __init__(self, zdim,
-                 input_dim = 3, 
-                 ae_config = "determistic",
+    def __init__(self, z_dim,
+                 input_dim = 3,
+                 particles_to_sample=None,
+                 ae_config = "deterministic",
                  conv_layer_config = [128, 128, 256, 512],
                  conv_add_bn = True,
                  conv_add_activation = True,
                  kernel_size = 1,
-                 fc_layer_config=[256, 128],
+                 fc_layer_config= [256, 256],
                  fc_add_bn = True,
                  fc_add_activation = True):
          
@@ -135,7 +136,7 @@ class Encoder(AddLayersMixin, nn.Module):
                                             add_activation = fc_add_activation)
             
             final_layers = conv_layers + fc_layers + \
-                           [nn.Linear(fc_layer_config[-1], zdim)]
+                           [nn.Linear(fc_layer_config[-1], z_dim)]
                        
             self.layers = nn.Sequential(*final_layers)
 
@@ -155,16 +156,16 @@ class Encoder(AddLayersMixin, nn.Module):
                                                  add_batch_normalisation = fc_add_bn,
                                                  add_activation = fc_add_activation)
             
-            partition_mean = fc_layers_mean + [nn.Linear(fc_layer_config[-1], zdim)]
+            partition_mean = fc_layers_mean + [nn.Linear(fc_layer_config[-1], z_dim)]
             
-            partition_var = fc_layers_var + [nn.Linear(fc_layer_config[-1], zdim)]
+            partition_var = fc_layers_var + [nn.Linear(fc_layer_config[-1], z_dim), nn.Softplus()]
             
             self.mean = nn.Sequential(*partition_mean)
             self.variance = nn.Sequential(*partition_var)
         
-        else:
+        elif ae_config == "simple":
             #take away the maxpool, and flatten
-            final_layers = conv_layers[:-2] + [nn.Conv1d(conv_layer_config[-1], zdim, kernel_size)] + \
+            final_layers = conv_layers[:-2] + [nn.Conv1d(conv_layer_config[-1], z_dim, kernel_size)] + \
                                        conv_layers[-2:]
                        
             self.layers = nn.Sequential(*final_layers)
@@ -177,7 +178,7 @@ class Encoder(AddLayersMixin, nn.Module):
         if self.ae_config == "deterministic":
             return x, 0
         elif self.ae_config == "non_deterministic":
-            return self.mean(x), self.variance(x)
+            return self.mean(x), self.variance(x) + 1e-8
         else:
             return x
 
@@ -201,27 +202,28 @@ class MLPDecoder(AddLayersMixin, nn.Module):
     """
 
     def __init__(self, 
-                 zdim,
-                 n_point,
-                 point_dim,
-                 layer_config = [256, 256],
+                 z_dim,
+                 particles_to_sample,
+                 input_dim,
+                 ae_config=None,
+                 layer_config = [256],
                  add_batch_normalisation = False):
         
         super().__init__()
         
-        n_point_3 = point_dim * n_point
+        out_dims = input_dim * particles_to_sample
         
         # normalisation was removed in this setup:
         #https://arxiv.org/abs/1906.12320 see Appendix.
         layers = self.add_layers_seq("Linear", 
                                      layer_config,
-                                     zdim,
+                                     z_dim,
                                      add_batch_normalisation = add_batch_normalisation)
                 
-        layers = layers + [nn.Linear(layer_config[-1], n_point_3)]
+        layers = layers + [nn.Linear(layer_config[-1], out_dims)]
         
         layers = layers + [nn.Flatten(),
-                                nn.Unflatten(1, (n_point, point_dim))]
+                                nn.Unflatten(1, (particles_to_sample, input_dim))]
         
         self.layers = nn.Sequential(*layers)
     

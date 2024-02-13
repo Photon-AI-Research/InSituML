@@ -8,6 +8,7 @@ from collections import deque
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import inspect
 
+
 def inspect_and_select(base):
     
     def decorator(**all_input_pars):
@@ -31,7 +32,7 @@ def validate_model(model, valid_data_loader, property_, device):
             p = p.to(device)
             val_loss, p_pr = model(p)
             val_loss_avg.append(val_loss.mean().item())
-    val_loss_overall_avg = sum(val_loss_avg) / len(val_loss_avg)
+    val_loss_overall_avg = sum(val_loss_avg) / (len(val_loss_avg) + 1e-8)
     return val_loss_overall_avg
 
 def filter_dims(phase_space, property_="positions"):
@@ -42,15 +43,15 @@ def filter_dims(phase_space, property_="positions"):
         return phase_space[:,:,3:6]
     elif property_ == "force":
         return phase_space[:,:,6:]
+    elif property_ == "momentum_force":
+        return phase_space[:,:,3:]
     else:
         return phase_space
     
-def save_visual_all(*args):
-    
+def save_visual_multi(*args, property_):
+    property_run = ["positions", "momentum", "force"] if property_=="all" else ["momentum", "force"]
     deque(save_visual(*args, property_, running_all=True) \
-             for property_ in ["positions", \
-                               "momentum", \
-                               "force"])
+             for property_ in property_run)
     
 def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, running_all=False):
     
