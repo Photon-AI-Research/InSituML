@@ -2,87 +2,245 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import numpy as np
+from utilities import inspect_and_select
 
-#simple encodr design
-class Encoder(nn.Module):
-    def __init__(self, zdim, input_dim=3, use_deterministic_encoder=False):
-        super(Encoder, self).__init__()
-        self.use_deterministic_encoder = use_deterministic_encoder
-        self.zdim = zdim
-        self.conv1 = nn.Conv1d(input_dim, 128, 1)
-        self.conv2 = nn.Conv1d(128, 128, 1)
-        self.conv3 = nn.Conv1d(128, 256, 1)
-        self.conv4 = nn.Conv1d(256, 512, 1)
-        self.bn1 = nn.BatchNorm1d(128)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(256)
-        self.bn4 = nn.BatchNorm1d(512)
+def adjust_args(arg1, arg2, kernel_size):
+    """
+    Simple function for encapsulation the dealing with different 
+    arguments required for Conv1d and Linear layers. 
+    """
+    
+    if kernel_size is not None:
+        return (arg1, arg2, kernel_size)
+    
+    else:
+        return (arg1, arg2)
 
-        if self.use_deterministic_encoder:
-            self.fc1 = nn.Linear(512, 256)
-            self.fc2 = nn.Linear(256, 128)
-            self.fc_bn1 = nn.BatchNorm1d(256)
-            self.fc_bn2 = nn.BatchNorm1d(128)
-            self.fc3 = nn.Linear(128, zdim)
-        else:
-            #basically, creates a seperate mapping 
-            #for variance and mean for use_deterministic_encoder
-            #only has one mapping which is mean.  
-            # Mapping to [c], cmean
-            self.fc1_m = nn.Linear(512, 256)
-            self.fc2_m = nn.Linear(256, 128)
-            self.fc3_m = nn.Linear(128, zdim)
-            self.fc_bn1_m = nn.BatchNorm1d(256)
-            self.fc_bn2_m = nn.BatchNorm1d(128)
+class AddLayersMixin:  
+    """
+    Class for the common method used by both Encoder and MLPDecoder,
+    for adding sequential layers with common properties like batch normalisation
+    and activation after convolutional layers and linear, fully connected layers.
+    """    
+    def add_layers_seq(self, 
+                       layer_kind,
+                       config,
+                       input_dim,
+                       add_activation = True,
+                       add_batch_normalisation = True,
+                       kernel_size = None):
+        
+        """
+        This methods creates a python array to be later added to nn.Sequential with similar layer block like convolution, activation, batchnorm. Allows the turning of batch normalisation, activation for different functions.
+        
+        Args:
+        
+        layer_kind(str): Kind of layer to use. Can be any string in the 
+        torch.nn module members. Though, only tested for Conv1d, Linear.
+        
+        config (list): List of sizes of layers to be used.
 
-            # Mapping to [c], cmean
-            self.fc1_v = nn.Linear(512, 256)
-            self.fc2_v = nn.Linear(256, 128)
-            self.fc3_v = nn.Linear(128, zdim)
-            self.fc_bn1_v = nn.BatchNorm1d(256)
-            self.fc_bn2_v = nn.BatchNorm1d(128)
+        add_activation (Bool): Whether to add activation, after every 
+        layer_kind layer.
+
+        add_batch_normalisation (Bool): Whether to add batch normalisation, after every 
+        layer_kind layer.
+        
+        kernel_size (int): Kernel size in case of Conv1d.
+        """        
+        layers = []
+        
+        for idx, channel_size in enumerate(config):
+            
+            input_args = []
+            
+            if idx == 0:
+                layers.append(getattr(nn, layer_kind)(*adjust_args(input_dim,
+                                                                  channel_size,
+                                                                  kernel_size)))
+            else:
+                layers.append(getattr(nn, layer_kind)(*adjust_args(config[idx-1],
+                                                                       channel_size,
+                                                                       kernel_size)))    
+            
+            if add_batch_normalisation:
+                layers.append(nn.BatchNorm1d(channel_size))
+            
+            if add_activation:
+                layers.append(nn.ReLU())
+        
+        return layers
+
+class Encoder(AddLayersMixin, nn.Module):
+
+    """
+    Encoder for adding a mixture of convolution layers and fully connected layers.
+    Like the one used here:
+    https://arxiv.org/abs/1906.12320
+    
+    Args:
+        
+    zdim (int): Dimensions of latent space.
+
+    ae_config (str): Configuration of Encoder required. Could deterministic, non_deterministic, or simple.
+
+    conv_layer_config (List): List of sizes of convolutional layers.
+
+    conv_add_bn (Bool): Whether to add batch normalisation after the convolutional layers.
+
+    conv_add_activation (Bool): Whether to add activation function after the convolutional layers.
+
+    kernel_size (int): Kernel size for convolutional layers.
+
+    fc_layer_config (List): List of sizes of fully connected layers.
+
+    fc_add_bn (Bool): Whether to add batch normalisation after the fully connected layers.
+
+    fc_add_activation (Bool): Whether to add activation function after the fully connected layers.
+    
+    """
+    def __init__(self, z_dim,
+                 input_dim = 3,
+                 particles_to_sample=None,
+                 ae_config = "deterministic",
+                 conv_layer_config = [128, 128, 256, 512],
+                 conv_add_bn = True,
+                 conv_add_activation = True,
+                 kernel_size = 1,
+                 fc_layer_config= [256, 256],
+                 fc_add_bn = True,
+                 fc_add_activation = True):
+         
+        super().__init__()
+        
+        conv_layers = self.add_layers_seq("Conv1d",
+                                           conv_layer_config,
+                                           input_dim,
+                                           add_batch_normalisation = conv_add_bn,
+                                           add_activation = conv_add_activation,
+                                           kernel_size = kernel_size)
+        
+        self.ae_config = ae_config
+        
+        self.ll_size = conv_layer_config[-1]
+
+        conv_layers += [nn.AdaptiveMaxPool1d(1),
+                        nn.Flatten()]
+        
+        if ae_config == "deterministic":
+            
+            fc_layers = self.add_layers_seq("Linear",
+                                            fc_layer_config,
+                                            self.ll_size,
+                                            add_batch_normalisation = fc_add_bn,
+                                            add_activation = fc_add_activation)
+            
+            final_layers = conv_layers + fc_layers + \
+                           [nn.Linear(fc_layer_config[-1], z_dim)]
+                       
+            self.layers = nn.Sequential(*final_layers)
+
+        elif ae_config == "non_deterministic":
+
+            self.layers = nn.Sequential(*conv_layers)
+            
+            fc_layers_mean = self.add_layers_seq("Linear",
+                                                 fc_layer_config,
+                                                 self.ll_size,
+                                                 add_batch_normalisation = fc_add_bn,
+                                                 add_activation = fc_add_activation)
+            
+            fc_layers_var = self.add_layers_seq("Linear",
+                                                 fc_layer_config,
+                                                 self.ll_size,
+                                                 add_batch_normalisation = fc_add_bn,
+                                                 add_activation = fc_add_activation)
+            
+            partition_mean = fc_layers_mean + [nn.Linear(fc_layer_config[-1], z_dim)]
+            
+            partition_var = fc_layers_var + [nn.Linear(fc_layer_config[-1], z_dim), nn.Softplus()]
+            
+            self.mean = nn.Sequential(*partition_mean)
+            self.variance = nn.Sequential(*partition_var)
+        
+        elif ae_config == "simple":
+            #take away the maxpool, and flatten
+            final_layers = conv_layers[:-2] + [nn.Conv1d(conv_layer_config[-1], z_dim, kernel_size)] + \
+                                       conv_layers[-2:]
+                       
+            self.layers = nn.Sequential(*final_layers)
+            
 
     def forward(self, x):
-        #x = x.transpose(1, 2)
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = self.bn4(self.conv4(x))
-        x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 512)
-
-        if self.use_deterministic_encoder:
-            ms = F.relu(self.fc_bn1(self.fc1(x)))
-            ms = F.relu(self.fc_bn2(self.fc2(ms)))
-            ms = self.fc3(ms)
-            #mean and variance.
-            m, v = ms, 0
+        x = x.transpose(1, 2)
+        x = self.layers(x)
+        
+        if self.ae_config == "deterministic":
+            return x, 0
+        elif self.ae_config == "non_deterministic":
+            return self.mean(x), self.variance(x) + 1e-8
         else:
-            m = F.relu(self.fc_bn1_m(self.fc1_m(x)))
-            m = F.relu(self.fc_bn2_m(self.fc2_m(m)))
-            m = self.fc3_m(m)
-            v = F.relu(self.fc_bn1_v(self.fc1_v(x)))
-            v = F.relu(self.fc_bn2_v(self.fc2_v(v)))
-            v = self.fc3_v(v)
-            v = F.softplus(v) + 1e-8
-
-        return m, v
+            return x
 
 #decoder design
-class MLP_Decoder(nn.Module):
-    def __init__(self,zdim,n_point,point_dim):
-        super(MLP_Decoder,self).__init__()
-        self.zdim = zdim
-        self.n_point = n_point
-        self.point_dim = point_dim
-        self.n_point_3 = self.point_dim * self.n_point
-        self.fc1 = nn.Linear(self.zdim, 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.final = nn.Linear(256,self.n_point_3)
+class MLPDecoder(AddLayersMixin, nn.Module):
+    """
+    Decoder for adding fully connected layers.
+    Like the one used here:
+    https://arxiv.org/abs/1906.12320
     
-    def forward(self,z):
-        x = F.relu(self.fc1(z))
-        x = F.relu(self.fc2(x))
-        output  =  self.final(x)
-        output = output.reshape(-1,self.point_dim,self.n_point)
-        return output
+    Args:
+        
+    zdim (int): Dimensions of latent space.
+
+    n_point (int): Number of points in the point clouds.
+
+    point_dim (int): Dimension of point cloud.
+    
+    layer_config (List): The list of configuration for decoder setup 
+    
+    """
+
+    def __init__(self, 
+                 z_dim,
+                 particles_to_sample,
+                 input_dim,
+                 ae_config=None,
+                 layer_config = [256],
+                 add_batch_normalisation = False):
+        
+        super().__init__()
+        
+        out_dims = input_dim * particles_to_sample
+        
+        # normalisation was removed in this setup:
+        #https://arxiv.org/abs/1906.12320 see Appendix.
+        layers = self.add_layers_seq("Linear", 
+                                     layer_config,
+                                     z_dim,
+                                     add_batch_normalisation = add_batch_normalisation)
+                
+        layers = layers + [nn.Linear(layer_config[-1], out_dims)]
+        
+        layers = layers + [nn.Flatten(),
+                                nn.Unflatten(1, (particles_to_sample, input_dim))]
+        
+        self.layers = nn.Sequential(*layers)
+    
+    def forward(self, z):
+        return self.layers(z)
+
+class Conv3DDecoder(nn.Module):
+    
+    def __init__(self,):
+        
+        self.layers = nn.Sequential(
+            nn.Unflatten(1, (16,4,4,4)),
+            nn.ConvTranspose3d(16, 4,kernel_size=2, stride=1),
+            nn.ReLU(),
+            nn.ConvTranspose3d(4, self.input_dim,kernel_size=2, stride=2),
+            nn.Flatten(2))
+        
+    def forward(self, z):
+        return self.layers(z)
+        

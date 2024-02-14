@@ -1,51 +1,28 @@
 import torch
 import torch.nn as nn
-from encoder_decoder import Encoder as encoder
-from encoder_decoder import MLP_Decoder as decoder
+from encoder_decoder import Encoder
+from encoder_decoder import MLPDecoder, Conv3DDecoder
 from utilities import sample_gaussian, kl_normal, inspect_and_select
 
-class Reshape(nn.Module):
-    def __init__(self, *args):
-        super().__init__()
-        self.shape = args
-
-    def forward(self, x):
-        return x.view(self.shape)
-    
+# property_ to input_dim
+P2ID = { 
+    "positions":3,
+    "momentum":3,
+    "force":3,
+    "momentum_force":6,
+    "all":9
+    }
 # Define the convolutional autoencoder class
 @inspect_and_select
 class ConvAutoencoder(nn.Module):
-    def __init__(self, loss_function, property_, hidden_size, dim_pool):
+    def __init__(self, encoder, decoder, loss_function, property_, hidden_size, dim_pool):
         super().__init__()
         self.input_dim = 9 if property_ == "all" else 3
         self.loss_function = loss_function
         # Encoder
-        self.encoder = nn.Sequential(
-            nn.Conv1d(self.input_dim, 16, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv1d(16, 32, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv1d(32, 64, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv1d(64, 128, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv1d(128, 256, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv1d(256, 512, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv1d(512, hidden_size, kernel_size=1),
-            nn.AdaptiveMaxPool1d(dim_pool), 
-            nn.Flatten()
-        )
-
+        self.encoder = encoder
         # Decoder
-        self.decoder = nn.Sequential(
-            nn.Unflatten(1, (16,4,4,4)),
-            nn.ConvTranspose3d(16, 8,kernel_size=2, stride=2),
-            nn.ReLU(),
-            nn.ConvTranspose3d(8, self.input_dim,kernel_size=2, stride=2),
-            nn.Flatten(2),
-        )
+        self.decoder = decoder
 
     def forward(self, x):
         y = self.reconstruct_input(x)
@@ -60,41 +37,55 @@ class ConvAutoencoder(nn.Module):
 
 @inspect_and_select
 class VAE(nn.Module):
-    def __init__(self, loss_function = None, 
+    def __init__(self, encoder, decoder, encoder_kwargs, 
+                 decoder_kwargs, loss_function = None, 
                  property_="positions", z_dim=4,
-                 particles_to_sample=4000,
-                 use_deterministic_encoder=True,
+                 particles_to_sample = 4000,
+                 ae_config = "deterministic",
                  use_encoding_in_decoder=True
                  ):
         super().__init__()
-        self.point_dim = 9 if property_ == "all" else 3
-        #Different namings due to terminology in dataloaders
-        self.n_point = particles_to_sample
+        
+        self.input_dim = P2ID[property_]
+        self.particles_to_sample = particles_to_sample
         self.z_dim = z_dim
         self.loss_function = loss_function
-        self.use_deterministic_encoder = use_deterministic_encoder
-        self.use_encoding_in_decoder = use_encoding_in_decoder
-        self.encoder = encoder(self.z_dim,
-                               self.point_dim,
-                               self.use_deterministic_encoder)
         
-        if not self.use_deterministic_encoder and self.use_encoding_in_decoder:
-            self.decoder = decoder(2 *self.z_dim,self.n_point,self.point_dim)
-        else:
-            self.decoder = decoder(self.z_dim,self.n_point,self.point_dim)
+        self.ae_config = ae_config
+        
+        self.use_encoding_in_decoder = use_encoding_in_decoder
+        
+        self.check_kwargs(encoder_kwargs, "encoder")
+        self.check_kwargs(decoder_kwargs, "decoder")
+        
+        if ae_config== "non_deterministic" and use_encoding_in_decoder:
+            decoder_kwargs["z_dim"] = 2*z_dim
+            
+        self.encoder = encoder(**encoder_kwargs)
+        self.decoder = decoder(**decoder_kwargs)
+        
         #set prior parameters of the vae model p(z) with 0 mean and 1 variance.
         self.z_prior_m = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
         self.z_prior_v = torch.nn.Parameter(torch.ones(1), requires_grad=False)
         self.z_prior = (self.z_prior_m, self.z_prior_v)
         self.type = 'VAE'
+
+    def check_kwargs(self, kwargs, type_):
+        for val in ["z_dim", "ae_config", "input_dim", "particles_to_sample"]:
+            network_val = getattr(self, val)
+            if val not in kwargs:
+                kwargs[val] = network_val
+                
+            elif network_val != kwargs[val]:
+                raise ValueError(f"The {val} for {type_} does not match with network:{network_val} not equal {kwargs[val]}")
     
     def forward(self, inputs):
         x = inputs
         m, v = self.encoder(x)
-        if self.use_deterministic_encoder:
+        if self.ae_config == "deterministic":
             y = self.decoder(m)
             kl_loss = torch.zeros(1)
-        else:
+        elif self.ae_config == "non_deterministic":
             z =  sample_gaussian(m,v)
             decoder_input = z if not self.use_encoding_in_decoder else \
             torch.cat((z,m),dim=-1) 
@@ -127,7 +118,7 @@ class VAE(nn.Module):
 
     def reconstruct_input(self, x):
         m, v = self.encoder(x)
-        if self.use_deterministic_encoder:
+        if self.ae_config =="deterministic":
             y = self.decoder(m)
         else:
             z =  sample_gaussian(m,v)

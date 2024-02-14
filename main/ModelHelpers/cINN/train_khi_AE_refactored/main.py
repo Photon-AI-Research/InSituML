@@ -1,8 +1,5 @@
 import wandb
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
-from networks import ConvAutoencoder, VAE
-from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal
-import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as ChamfersLossOptimized
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,19 +7,7 @@ import os
 from trainer import train_AE
 import argparse
 from datetime import datetime
-
-MAPPING_TO_LOSS = {
-    "earthmovers":EarthMoversLoss,
-    "chamfersloss":ChamfersLoss,
-    "chamfersloss_d":ChamfersLossDiagonal,
-    "chamfersloss_o":ChamfersLossOptimized,
-    "mse":nn.MSELoss
-    }
-
-MAPPING_TO_NETWORK = {
-    "convAE":ConvAutoencoder,
-    "VAE":VAE
-    }
+from args_transform import main_args_transform
 
 def train_with_wandb():
     
@@ -34,8 +19,8 @@ def train_with_wandb():
     hidden_size = 1024,
     dim_pool = 1,
     learning_rate = args.learning_rate,
-    num_epochs = 100,
-    val_boxes = [19,5,3],
+    num_epochs = 5,
+    val_boxes =  [19,5,3],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
@@ -45,14 +30,12 @@ def train_with_wandb():
     
     hyperparameter_defaults.update(vars(args))
     
+    hyperparameter_defaults = main_args_transform(hyperparameter_defaults)
     
     print('New session...')
     
     info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_{args.property_}"
-
-    criterion = MAPPING_TO_LOSS[hyperparameter_defaults["loss_function"]](**hyperparameter_defaults["loss_function_params"])
-    hyperparameter_defaults.update({"loss_function": criterion})
-    
+        
     # Pass your defaults to wandb.init
     run = wandb.init(config=hyperparameter_defaults, project=f'newruns_{args.project_kw}', name=info_image_path)
     start_epoch = 0
@@ -62,8 +45,6 @@ def train_with_wandb():
     
     pathpattern1 = config["pathpattern1"]
     pathpattern2 = config["pathpattern2"]
-
-    
 
     data_loader = TrainLoader(pathpattern1=pathpattern1,
                               pathpattern2=pathpattern2,
@@ -81,8 +62,7 @@ def train_with_wandb():
                                                  particles_to_sample = config["particles_to_sample"])
             
     # Initialize the convolutional autoencoder
-    model = MAPPING_TO_NETWORK[config["network"]](**hyperparameter_defaults)
-
+    model = hyperparameter_defaults["model"]
     epoch = data_loader[0]
     
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
@@ -99,7 +79,7 @@ def train_with_wandb():
     else:
         print(f"Directory '{directory}' already exists.")
     
-    train_AE(model, criterion, optimizer, scheduler, epoch, valid_data_loader, wandb, directory,
+    train_AE(model, optimizer, scheduler, epoch, valid_data_loader, wandb, directory,
              property_= args.property_) 
     
 if __name__ == "__main__":
@@ -120,8 +100,23 @@ if __name__ == "__main__":
 
     parser.add_argument('--z_dim',
                         type=int,
-                        default='5',
+                        default='128',
                         help="Set the latent space dimensions")
+    
+    parser.add_argument('--timebatchsize',
+                        type=int,
+                        default='4',
+                        help="Set the timebatchsize")
+    
+    parser.add_argument('--particlebatchsize',
+                        type=int,
+                        default='4',
+                        help="Set the particlebatchsize")
+    
+    parser.add_argument('--val_boxes',
+                        type=str,
+                        default='[19,5,3]',
+                        help="Validation boxes")
     
     parser.add_argument('--lossfunction',
                         type=str,
@@ -138,10 +133,10 @@ if __name__ == "__main__":
                         default='',
                         help="Choose the project keyword for runs")
     
-    parser.add_argument('--use_deterministic_encoder',
-                        type=bool,
-                        default=False,
-                        help="Whether to use a deterministic encoder or otherwise")
+    parser.add_argument('--ae_config',
+                        type=str,
+                        default="deterministic",
+                        help="Three choices for encoder config: simple, non_deterministic, or deterministic")
 
     parser.add_argument('--use_encoding_in_decoder',
                         type=bool,
@@ -153,6 +148,46 @@ if __name__ == "__main__":
                         default=4000,
                         help="How many particles to sample.")
 
+    parser.add_argument('--pathpattern1',
+                        type=str,
+                        default="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
+                        help="Path to the particles data")
+
+    parser.add_argument('--pathpattern2',
+                        type=str,
+                        default= "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
+                        help="Path to radiation data")
+
+    parser.add_argument('--t0',
+                        type=int,
+                        default = 1000,
+                        help="Start time step from the data")
+
+    parser.add_argument('--t1',
+                        type=int,
+                        default = 2001,
+                        help="Last time step from the data")
+
+    parser.add_argument('--encoder_type',
+                        type=str,
+                        default = "encoder_simple",
+                        help="Kind of Encoder")
+
+    parser.add_argument('--encoder_kwargs',
+                        type=str,
+                        default = '{"z_dim":128,"input_dim":3,"ae_config":"deterministic"}',
+                        help="Encoder keyword arguments")
+
+    parser.add_argument('--decoder_type',
+                        type=str,
+                        default = "mlp_decoder",
+                        help="Kind of Decoder")
+
+    parser.add_argument('--decoder_kwargs',
+                        type=str,
+                        default = '{"z_dim":128, "particles_to_sample":4000, "input_dim":3}',
+                        help="Decoder keyword arguments")
+    
     args = parser.parse_args()
     
     train_with_wandb()
