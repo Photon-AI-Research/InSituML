@@ -45,34 +45,38 @@ def filter_dims(phase_space, property_="positions"):
         return phase_space[:,:,6:]
     elif property_ == "momentum_force":
         return phase_space[:,:,3:]
+    elif property_ == "momentum_6":
+        return phase_space[:,:,:3]
+    elif property_ == "force_6":
+        return phase_space[:,:,3:6]
     else:
         return phase_space
     
 def save_visual_multi(*args, property_):
     property_run = ["positions", "momentum", "force"] if property_=="all" else ["momentum", "force"]
-    deque(save_visual(*args, property_, running_all=True) \
-             for property_ in property_run)
+    deque(save_visual(*args, property_1, running6or9=property_) \
+             for property_1 in property_run)
     
-def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, running_all=False):
+def save_visual(model, timebatch, wandb, timeInfo, info_image_path, 
+                property_, running6or9=False):
     
     #avoiding turning on model.eval
     random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
-    
     #if model is being trained on all the dimensions, it changes the order filtering
     # and inference.
-    if running_all:
-        random_input = random_input
-        random_output = model.reconstruct_input(random_input.to(device))
-        
-        random_input = filter_dims(random_input, property_)
-        random_output = filter_dims(random_output, property_)
+    if running6or9:
+        random_input_ri = filter_dims(random_input, running6or9)
+        random_output = model.reconstruct_input(random_input_ri.to(device))
+        dims = "" if running6or9=="all" else "_6"
+        random_input = filter_dims(random_input, property_+dims)
+        random_output = filter_dims(random_output, property_+dims)
         
     else:
         random_input = filter_dims(random_input, property_)
         random_output = model.reconstruct_input(random_input.to(device))
     
     all_var_to_plot = random_input[0].transpose(1,0).tolist() + random_output[0].transpose(1,0).tolist()
-    
+    print(random_input[0].transpose(1,0).shape, random_output[0].transpose(1,0).shape)
     if property_ == "positions":
         create_position_density_plots(*all_var_to_plot, path=info_image_path,
                                       t=timeInfo, wandb=wandb)

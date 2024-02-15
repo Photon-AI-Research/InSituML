@@ -12,6 +12,7 @@ def test_main_e2d():
     args_to_add += '--timebatchsize 2 '
     args_to_add += '--particlebatchsize 2 '
     args_to_add += '--val_boxes [] '
+    args_to_add += '--property_ momentum_force '
     
     os.system("python3 main.py " + args_to_add)
     assert False

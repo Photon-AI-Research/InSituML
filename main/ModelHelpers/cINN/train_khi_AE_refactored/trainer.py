@@ -74,7 +74,7 @@ def train_AE(model, optimizer,
             if timeBatchIndex%log_visual_report_every_tb==0 and property_ not in  ["all","momentum_force"]:
                 save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
             elif timeBatchIndex%log_visual_report_every_tb==0:
-                save_visual_multi(model, timeBatch, wandb, timeInfo, info_image_path, property_)
+                save_visual_multi(model, timeBatch, wandb, timeInfo, info_image_path, property_=property_)
             
             if timeBatchIndex%log_validation_loss_every_tb==0:
                 # Perform validation
