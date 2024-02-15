@@ -177,9 +177,9 @@ def create_momentum_density_plots(px, py, pz,
                                   wandb = None):
     
     # Specify the number of bins for each axis
-    bins_px = np.linspace(min(px), max(px), bins)
-    bins_py = np.linspace(min(py), max(py), bins)
-    bins_pz = np.linspace(min(pz), max(pz), bins)
+    bins_px = np.linspace(-0.4, 0.4, bins)
+    bins_py = np.linspace(-0.4, 0.4, bins)
+    bins_pz = np.linspace(-0.2, 0.2, bins)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 10)) 
