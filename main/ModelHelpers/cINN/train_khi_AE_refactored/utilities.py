@@ -65,8 +65,8 @@ def save_visual(model, timebatch, wandb, timeInfo, info_image_path,
     #if model is being trained on all the dimensions, it changes the order filtering
     # and inference.
     if running6or9:
-        random_input_ri = filter_dims(random_input, running6or9)
-        random_output = model.reconstruct_input(random_input_ri.to(device))
+        random_input = filter_dims(random_input, running6or9)
+        random_output = model.reconstruct_input(random_input.to(device))
         dims = "" if running6or9=="all" else "_6"
         random_input = filter_dims(random_input, property_+dims)
         random_output = filter_dims(random_output, property_+dims)
@@ -76,7 +76,6 @@ def save_visual(model, timebatch, wandb, timeInfo, info_image_path,
         random_output = model.reconstruct_input(random_input.to(device))
     
     all_var_to_plot = random_input[0].transpose(1,0).tolist() + random_output[0].transpose(1,0).tolist()
-    print(random_input[0].transpose(1,0).shape, random_output[0].transpose(1,0).shape)
     if property_ == "positions":
         create_position_density_plots(*all_var_to_plot, path=info_image_path,
                                       t=timeInfo, wandb=wandb)
@@ -257,9 +256,9 @@ def create_force_density_plots(fx, fy, fz,
                                wandb = None):
     
     # Specify the number of bins for each axis
-    bins_fx = np.linspace(min(fx), max(fx), bins)
-    bins_fy = np.linspace(min(fy), max(fy), bins)
-    bins_fz = np.linspace(min(fz), max(fz), bins)
+    bins_fx = np.linspace(-0.006, 0.006, bins)
+    bins_fy = np.linspace(-0.006, 0.006, bins)
+    bins_fz = np.linspace(-0.002, 0.002, bins)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 10))  # Adjust the figure size
