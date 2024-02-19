@@ -8,12 +8,30 @@ It is supposed to behave like a list. That is, it can be accessed and iterated o
 import time
 
 from threading import Thread
-
+import torch
 from ks_helperfuncs import *
+
+try:
+    ## requires submoduling from here:
+    ## https://github.com/elcorto/nmbx
+    from nmbx.convergence import SlopeZero
+
+    conv_control_possible = True
+except ImportError:
+    conv_control_possible = False
+    print("no convergence control possible, we use max_epoch")
+
+import memory
 
 class MafModelTrainer(Thread):
 
-    def __init__(self, batchDataBuffer, totalTimebatchNumber, model, optimizer, scheduler, enable_wandb, wandbRunObject=None):
+    def __init__(self, batchDataBuffer, 
+                 totalTimebatchNumber, model, optimizer, 
+                 scheduler, enable_wandb,
+                 particle_batchsize,
+                 num_epoch = 1,
+                 wandbRunObject=None, use_mem=True, mem_size=2048):
+        
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
@@ -23,11 +41,33 @@ class MafModelTrainer(Thread):
         self.scheduler = scheduler
         self.enable_wandb = enable_wandb
         self.wandb_run = wandbRunObject
+        
+        ## continual learning related required variables        
+        if use_mem:
+            self.er_mem = memory.ExperienceReplay(mem_size=mem_size)
+            # epdisodic memory batch
+            # here http://arxiv.org/abs/1902.10486 it was kept equal 
+            # to regular particle batch size entered.
+            self.epdisodic_mem_bs = particle_batchsize
+            self.n_obs = 0
+            
+        if conv_control_possible:
+            # taking values as they are from here
+            #https://github.com/Photon-AI-Research/InSituML/blob/feature-fix-plotting-toy-cl/examples/streaming_toy_data/toy_cl.py
+            self.conv = SlopeZero(wlen=25, tol=1e-2, wait=20, reduction=np.mean)
+        
+        #counter keeping track of how times training
+        #run has been called
+        self.training_run = 0
 
     def run(self):
+        
+        self.training_run += 1
+        
         i_epoch = int(0)
         tb_count = int(0)
         loss_overall = []
+        
         while True:
             # get a timebatch from the queue
             timebatch = self.data.get()
@@ -37,15 +77,38 @@ class MafModelTrainer(Thread):
 
             start_timebatch = time.time()
             for b in range(len(timebatch)):
+                
                 self.optimizer.zero_grad()
                 phase_space, radiation = timebatch[b]
+                
+                # Don't use memory in first training run since there is nothing to
+                # remember.
+                if self.use_mem and self.training_run > 0:
+                    phase_space_mem, radiation_mem = er_mem.sample(
+                                                     self.epdisodic_mem_bs)
 
-                loss = - self.model.model.log_prob(inputs=phase_space.to(self.model.device),context=radiation.to(self.model.device))
+                    phase_space_clb = torch.vstack((phase_space, phase_space_mem))
+                    radiation_clb = torch.vstack((radiation, radiation_mem))
+                else:
+                    phase_space_clb, radiation_clb = phase_space, radiation
+                
+                
+                #adding the continual learning batch
+                loss = - self.model.model.log_prob(inputs=phase_space_clb.to(self.model.device),
+                                                   context=radiation_clb.to(self.model.device))
 
                 loss = loss.mean()
                 loss_avg.append(loss.item())
                 loss.backward()
                 self.optimizer.step()
+                
+                if self.use_mem:
+                    er_mem.update_memory(phase_space, 
+                                         timebatch,
+                                         self.n_obs,
+                                         self.training_run)
+                    
+                    self.n_obs += self.epdisodic_mem_bs
 
             end_timebatch = time.time()
             elapsed_timebatch = end_timebatch - start_timebatch
@@ -81,4 +144,12 @@ class MafModelTrainer(Thread):
                         "loss_overall_avg": loss_overall_avg,
                         "min_valid_loss": min_valid_loss,
                     })
+                    
+            # termination (reconstruction loss converged, etc)
+            if self.conv_control_possible and self.conv.check(loss_overall):
+                print(f"converged at {i_epoch=}, last {loss_timebatch_avg=}")
+                break
+            elif (i_epoch + 1) == num_epoch:
+                print(f"hit max_epoch, last {loss_timebatch_avg=}")
+                break
 
