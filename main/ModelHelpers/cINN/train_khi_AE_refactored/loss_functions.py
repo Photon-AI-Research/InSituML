@@ -111,8 +111,7 @@ class EarthMoversLoss(SamplesLoss):
         self.reduction = reduction
     
     def forward(self, x, y):
-        
-        loss_per_batch = super().forward(x, y)
+        loss_per_batch = super().forward(x.contiguous(), y.contiguous())
         
         return getattr(loss_per_batch, self.reduction)()
     
