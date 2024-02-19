@@ -15,14 +15,15 @@ P2ID = {
 # Define the convolutional autoencoder class
 @inspect_and_select
 class ConvAutoencoder(nn.Module):
-    def __init__(self, encoder, decoder, loss_function, property_, hidden_size, dim_pool):
+    def __init__(self, encoder, decoder, encoder_kwargs, 
+                 decoder_kwargs, loss_function):
         super().__init__()
-        self.input_dim = 9 if property_ == "all" else 3
+        
         self.loss_function = loss_function
         # Encoder
-        self.encoder = encoder
+        self.encoder = encoder(**encoder_kwargs)
         # Decoder
-        self.decoder = decoder
+        self.decoder = decoder(**decoder_kwargs)
 
     def forward(self, x):
         y = self.reconstruct_input(x)

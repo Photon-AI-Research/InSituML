@@ -230,17 +230,78 @@ class MLPDecoder(AddLayersMixin, nn.Module):
     def forward(self, z):
         return self.layers(z)
 
-class Conv3DDecoder(nn.Module):
+class Conv3DDecoder(AddLayersMixin, nn.Module):
+    """
+    Convolutional 3D Decoder Module.
     
-    def __init__(self,):
+    Args:
+        z_dim (int): Dimension of the latent space.
+        input_dim (int): Dimension of the input.
+        initial_conv3d_size (list): Initial size for unflattening the latent vector.
+        conv3d_layer_config (list): Configuration of convolutional layers.
+        fc_layer_config (list, optional): Configuration of fully connected layers.
+        kernel_size (int, optional): Size of the convolutional kernel.
+        stride (int, optional): Stride of the convolution operation.
+        padding (int, optional): Padding of the convolution operation.
+        add_batch_normalisation (bool): Whether to add batch normalization layers.
+        add_activation (bool): Whether to add activation functions.
+        **kwargs: Additional keyword arguments.
+    """
+    def __init__(self,
+                 z_dim, 
+                 input_dim,
+                 initial_conv3d_size=[16, 4, 4, 4],
+                 conv3d_layer_config=[8],
+                 fc_layer_config=[],
+                 kernel_size=2,
+                 stride=2,
+                 padding = 0,
+                 add_batch_normalisation=True,
+                 add_activation=True,
+                 **kwargs):
         
-        self.layers = nn.Sequential(
-            nn.Unflatten(1, (16,4,4,4)),
-            nn.ConvTranspose3d(16, 4,kernel_size=2, stride=1),
-            nn.ReLU(),
-            nn.ConvTranspose3d(4, self.input_dim,kernel_size=2, stride=2),
-            nn.Flatten(2))
+        super().__init__()
+
+        layers = []
         
+        if fc_layer_config:
+            # Compute the expected size after fully connected layers
+            expected_fc_output_size = torch.tensor(initial_conv3d_size).prod().item()
+            assert fc_layer_config[-1] == expected_fc_output_size, f"Last FC layer output size {fc_layer_config[-1]} does not match the expected size {expected_fc_output_size}"
+
+            fc_layers = self.add_layers_seq("Linear",
+                                    fc_layer_config,
+                                    z_dim,
+                                    add_batch_normalisation=add_batch_normalisation,
+                                    add_activation=add_activation)
+            layers += fc_layers
+            
+        else:
+            expected_unflatten_size = torch.tensor(initial_conv3d_size).prod().item()
+            assert z_dim == expected_unflatten_size, f"z_dim {z_dim} does not match the expected size {expected_unflatten_size}"
+
+        # Unflatten layer to reshape the latent vector
+        layers.append(nn.Unflatten(1, initial_conv3d_size))
+
+        # Add ConvTranspose3d layers
+        in_channels = initial_conv3d_size[0]
+        for out_channels in conv3d_layer_config:
+            layers.append(nn.ConvTranspose3d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding))
+            if add_batch_normalisation:
+                layers.append(nn.BatchNorm3d(out_channels))
+            if add_activation:
+                layers.append(nn.ReLU())
+            in_channels = out_channels
+        
+        # Final layer to adjust to the correct number of output channels
+        layers.append(nn.ConvTranspose3d(out_channels, input_dim, kernel_size=kernel_size, stride=stride, padding=padding))
+
+        # Flatten the output 
+        layers.append(nn.Flatten(2))
+
+        self.layers = nn.Sequential(*layers)
+
     def forward(self, z):
-        return self.layers(z)
-        
+        z = self.layers(z)
+        z = z.transpose(1, 2)
+        return z
