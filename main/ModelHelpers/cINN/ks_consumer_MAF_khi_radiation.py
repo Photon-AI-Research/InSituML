@@ -84,7 +84,7 @@ class MafModelTrainer(Thread):
                 # Don't use memory in first training run since there is nothing to
                 # remember.
                 if self.use_mem and self.training_run > 0:
-                    phase_space_mem, radiation_mem = er_mem.sample(
+                    phase_space_mem, radiation_mem = self.er_mem.sample(
                                                      self.epdisodic_mem_bs)
 
                     phase_space_clb = torch.vstack((phase_space, phase_space_mem))
@@ -103,10 +103,10 @@ class MafModelTrainer(Thread):
                 self.optimizer.step()
                 
                 if self.use_mem:
-                    er_mem.update_memory(phase_space, 
-                                         timebatch,
-                                         self.n_obs,
-                                         self.training_run)
+                    self.er_mem.update_memory(phase_space, 
+                                             timebatch,
+                                             self.n_obs,
+                                             self.training_run)
                     
                     self.n_obs += self.epdisodic_mem_bs
 
