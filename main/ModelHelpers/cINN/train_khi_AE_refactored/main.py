@@ -102,6 +102,11 @@ if __name__ == "__main__":
                         type=int,
                         default='128',
                         help="Set the latent space dimensions")
+
+    parser.add_argument('--num_epochs',
+                        type=int,
+                        default='5',
+                        help="Number of epochs")
     
     parser.add_argument('--timebatchsize',
                         type=int,
