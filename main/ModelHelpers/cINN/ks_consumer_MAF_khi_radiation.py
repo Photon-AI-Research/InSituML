@@ -6,23 +6,31 @@ A timebatch is a list holding particle and radiation data from a number of times
 It is supposed to behave like a list. That is, it can be accessed and iterated over with the `[]` operator and it has a `length`.
 """
 import time
+from threading import Thread
 
-class MafModelTrainer():
+class MafModelTrainer(Thread):
 
     def __init__(self,
-                 train_data_loader,
-                 model, optimizer, scheduler, enable_wandb, wandbRunObject=None):
+                 training_batch,
+                 model, optimizer, scheduler):
+        
+        Thread.__init__(self)
 
         # instantiate all required parameters
-        self.train_data_loader = train_data_loader
+        self.training_batch = training_batch
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
 
-    def train(self):
+    def run(self):
 
-        for phase_space, radiation in self.train_data_loader:
-
+        while True:
+            phase_space_radiation = self.training_batch.get()
+            
+            if phase_space_radiation is None:
+                break
+            
+            phase_space, radiation = phase_space_radiation
             self.optimizer.zero_grad()
             loss = - self.model.model.log_prob(inputs=phase_space.to(self.model.device),
                                             context=radiation.to(self.model.device))

@@ -4,28 +4,34 @@ Consumer of PIConGPU particle and radiation data to create a train dataset buffe
 
 from threading import Thread
 import torch
-from cl_memory import memory
+from cl_memory import ExperienceReplay
 from random import sample
 
-class TrainBuffer(Thread):
+class TrainBatchBuffer(Thread):
 
     def __init__(self,
-                 batchDataBuffer,
+                 openPMDBuffer,
+                 training_batch,
+                 training_bs = 4,
                  buffersize = 10,
                  use_continual_learning=True,
+                 continual_bs = 4,
                  cl_mem_size=2048):
 
         Thread.__init__(self)
 
-        self.data = batchDataBuffer
+        self.openPMDbuffer = openPMDBuffer
+        self.training_batch = training_batch
+
+        self.training_bs = training_bs
+        self.continual_bs = continual_bs
 
         self.use_continual_learning = use_continual_learning
         ## continual learning related required variables
         if self.use_continual_learning:
-            self.er_mem = memory.ExperienceReplay(mem_size=cl_mem_size)
+            self.er_mem = ExperienceReplay(mem_size=cl_mem_size)
             self.n_obs = 0
 
-        self.memory_update = []
         self.buffer_ = []
         self.buffersize = buffersize
 
@@ -33,8 +39,8 @@ class TrainBuffer(Thread):
     def run(self):
 
         while True:
-            # get a timebatch from the queue
-            particles_radition = self.data.get()
+            # get a particles, radiation from the queue
+            particles_radition = self.openPMDbuffer.get()
 
             if particles_radition is None:
                 break
@@ -51,34 +57,23 @@ class TrainBuffer(Thread):
                                               n_obs = self.n_obs,
                                               i_step = self.n_obs) #i_step = n_obs in this case
                     self.n_obs += 1
+                    
+            self.training_batch.put(self.get_batch())
+        
+        self.training_batch.put(None)
 
-class TrainingBatchLoader:
+    def get_batch(self):
+        
+        random_sample = sample(self.trainbuffer.buffer_, self.training_bs)
 
-    def __init__(self,
-                 trainbuffer,
-                 batchsize=4):
+        particles_batch = torch.cat(map(lambda x:x[0], random_sample))
+        radiation_batch = torch.cat(map(lambda x:x[1], random_sample))
 
-        self.batchsize = batchsize
-        self.trainbuffer = trainbuffer
+        if self.trainbuffer.use_continual_learning:
 
-        def __len__(self):
+            mem_part_batch, mem_rad_batch = self.er_mem.sample(self.continual_bs)
 
-            exp_len = len(self.trainbuffer.buffer_)//self.batchsize
+            particle_batch = torch.cat([particle_batch, mem_part_batch])
+            radiation_batch = torch.cat([radiation_batch, mem_rad_batch])
 
-            return 2*exp_len if self.use_continual_learning else exp_len
-
-        def __getitem__(self, idx):
-
-            random_sample = sample(self.trainbuffer.buffer_, self.batchsize)
-
-            particles_batch = torch.cat(map(lambda x:x[0], random_sample))
-            radiation_batch = torch.cat(map(lambda x:x[1], random_sample))
-
-            if self.trainbuffer.use_continual_learning:
-
-                mem_part_batch, mem_rad_batch = trainbuffer.er_mem.sample(self.batchsize)
-
-                particle_batch = torch.cat([particle_batch, mem_part_batch])
-                radiation_batch = torch.cat([radiation_batch, mem_rad_batch])
-
-           return particle_batch, radiation_batch
+        return particle_batch, radiation_batch
