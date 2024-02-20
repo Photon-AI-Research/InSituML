@@ -28,12 +28,13 @@ class ProduceRandomNumbers(Thread):
         # signal that there are no further items
         self.queue.put(None)
         print('Producer: Done')
- 
+
 class ConsumeRandomNumbers(Thread):
     """Consumer task"""
-    def __init__(self, queue):
+    def __init__(self, queue, queue2):
         Thread.__init__(self)
         self.queue = queue
+        self.queue2 = queue2
 
     def run(self):
         print('Consumer: Running')
@@ -48,13 +49,44 @@ class ConsumeRandomNumbers(Thread):
             sleep(item[1])
             # report
             print(f'>consumer got {item}')
+            self.queue2.put(item)
+        # all done
+        self.queue2.put(None)
+        print('Consumer: Done')
+
+class ConsumeConsumer(Thread):
+    """Consumer task"""
+    def __init__(self, queue):
+        Thread.__init__(self)
+        self.queue = queue
+
+    def run(self):
+        print('ConsumeConsumer: Running')
+
+        while True:
+            # get a unit of work
+            item = self.queue.get()
+            # check for stop
+            if item is None:
+                break
+            # block, to simulate effort
+            sleep(item[1])
+            # report
+            print(f'>consume-consumer got {item}')
         # all done
         print('Consumer: Done')
- 
+
 # create the shared queue
 queue = Queue()
+# create the shared queue
+queue2 = Queue()
+
+# start the consume consumeconsumer
+consumeconsumer = ConsumeConsumer(queue2)
+consumeconsumer.start()
+
 # start the consumer
-consumer = ConsumeRandomNumbers(queue)
+consumer = ConsumeRandomNumbers(queue, queue2)
 consumer.start()
 # start the producer
 producer = ProduceRandomNumbers(queue)
@@ -62,4 +94,5 @@ producer.start()
 # wait for all threads to finish
 producer.join()
 consumer.join()
+consumeconsumer.join()
 
