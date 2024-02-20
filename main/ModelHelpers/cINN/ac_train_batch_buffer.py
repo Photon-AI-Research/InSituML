@@ -13,8 +13,8 @@ class TrainBatchBuffer(Thread):
                  openPMDBuffer,
                  training_batch,
                  training_bs = 4,
-                 buffersize = 10,
-                 use_continual_learning=True,
+                 buffersize = 8,
+                 use_continual_learning=False,
                  continual_bs = 4,
                  cl_mem_size=2048):
 
@@ -39,41 +39,44 @@ class TrainBatchBuffer(Thread):
     def run(self):
 
         while True:
+            print("running inside tb, flush=True")
             # get a particles, radiation from the queue
-            particles_radition = self.openPMDbuffer.get()
+            particles_radiation = self.openPMDbuffer.get()
 
-            if particles_radition is None:
+            if particles_radiation is None:
                 break
 
             if len(self.buffer_) < self.buffersize:
-                self.buffer_.append(particles_radition)
+                self.buffer_.append(particles_radiation)
             else:
                 #extracts the first element.
                 last_element = self.buffer_.pop(0)
-                self.buffer_.append(particles_radition)
+                self.buffer_.append(particles_radiation)
 
                 if self.use_continual_learning:
                     self.er_mem.update_memory(*last_element,
                                               n_obs = self.n_obs,
                                               i_step = self.n_obs) #i_step = n_obs in this case
                     self.n_obs += 1
-                    
-            self.training_batch.put(self.get_batch())
+            if len(self.buffer_)>=self.training_bs:
+               print("before batch put")  
+               self.training_batch.put(self.get_batch())
         
         self.training_batch.put(None)
 
     def get_batch(self):
         
-        random_sample = sample(self.trainbuffer.buffer_, self.training_bs)
+        print("in get batch")
+        random_sample = sample(self.buffer_, self.training_bs)
 
-        particles_batch = torch.cat(map(lambda x:x[0], random_sample))
-        radiation_batch = torch.cat(map(lambda x:x[1], random_sample))
+        particles_batch = torch.cat([x[0] for x in random_sample])
+        radiation_batch = torch.cat([x[1] for x in random_sample])
 
-        if self.trainbuffer.use_continual_learning:
+        if self.use_continual_learning:
 
             mem_part_batch, mem_rad_batch = self.er_mem.sample(self.continual_bs)
 
-            particle_batch = torch.cat([particle_batch, mem_part_batch])
+            particles_batch = torch.cat([particles_batch, mem_part_batch])
             radiation_batch = torch.cat([radiation_batch, mem_rad_batch])
 
-        return particle_batch, radiation_batch
+        return particles_batch, radiation_batch

@@ -21,6 +21,7 @@ class MafModelTrainer(Thread):
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
+        self.loss_avg = []
 
     def run(self):
 
@@ -36,11 +37,9 @@ class MafModelTrainer(Thread):
                                             context=radiation.to(self.model.device))
 
             loss = loss.mean()
-            loss_avg.append(loss.item())
+            self.loss_avg.append(loss.item())
             loss.backward()
-            self.optimizer.step()
 
-            loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
-            loss_overall.append(loss_timebatch_avg)
+            self.optimizer.step()
             self.scheduler.step()
 

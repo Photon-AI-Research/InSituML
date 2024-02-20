@@ -1,3 +1,4 @@
+
 from ac_train_batch_buffer import TrainBatchBuffer
 from ks_consumer_MAF_khi_radiation import MafModelTrainer
 from threading import Thread
@@ -16,7 +17,7 @@ number_of_particles = 100
 ps_dims = 9
 
 rad = 100
-rad_dims = 128
+rad_dims = 2
 
 
 class DummyOpenPMDProducer(Thread):
@@ -39,7 +40,7 @@ class DummyOpenPMDProducer(Thread):
             # add to the queue
             self.openPMDBuffer.put(item)
             # report progress
-            print(f'>producer added {item}')
+            print(f'>producer added {i}')
         # signal that there are no further items
         self.openPMDBuffer.put(None)
         print('Producer: Done')
