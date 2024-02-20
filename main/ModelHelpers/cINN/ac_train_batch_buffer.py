@@ -39,7 +39,7 @@ class TrainBatchBuffer(Thread):
     def run(self):
 
         while True:
-            print("running inside tb, flush=True")
+            print("running inside tb", flush=True)
             # get a particles, radiation from the queue
             particles_radiation = self.openPMDbuffer.get()
 
@@ -58,8 +58,9 @@ class TrainBatchBuffer(Thread):
                                               n_obs = self.n_obs,
                                               i_step = self.n_obs) #i_step = n_obs in this case
                     self.n_obs += 1
+                    
             if len(self.buffer_)>=self.training_bs:
-               print("before batch put")  
+               print("before batch put", flush=True)
                self.training_batch.put(self.get_batch())
         
         self.training_batch.put(None)
@@ -72,7 +73,7 @@ class TrainBatchBuffer(Thread):
         particles_batch = torch.cat([x[0] for x in random_sample])
         radiation_batch = torch.cat([x[1] for x in random_sample])
 
-        if self.use_continual_learning:
+        if self.use_continual_learning and self.n_obs>=self.continual_bs:
 
             mem_part_batch, mem_rad_batch = self.er_mem.sample(self.continual_bs)
 
