@@ -13,8 +13,8 @@ class TrainBatchBuffer(Thread):
                  openPMDBuffer,
                  training_batch,
                  training_bs = 4,
-                 buffersize = 8,
-                 use_continual_learning=False,
+                 buffersize = 5,
+                 use_continual_learning=True,
                  continual_bs = 4,
                  cl_mem_size=2048):
 

@@ -31,8 +31,8 @@ class DummyOpenPMDProducer(Thread):
         # generate openpmd stuff.
         for i in range(10):
             # generate a value
-            loaded_particles = torch.rand(number_of_particles, ps_dims)
-            radiation = torch.rand(rad, rad_dims)
+            loaded_particles = torch.rand(1, ps_dims, number_of_particles)
+            radiation = torch.rand(1, rad, rad_dims)
             # block, to simulate effort
             sleep(i)
             # create a tuple
