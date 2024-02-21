@@ -151,8 +151,10 @@ if __name__ == "__main__":
     num_epochs = 20000,
     num_blocks_mat = 2,
     activation = 'gelu',
-    pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
-    pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy"
+    #pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
+    #pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy"
+    pathpattern1 = "/lustre/orion/csc380/proj-shared/vineethg/khi/part_rad/particle_002/{}.npy",
+    pathpattern2 = "/lustre/orion/csc380/proj-shared/vineethg/khi/part_rad/radiation_002_ex/{}.npy"
     )
     
     print('New session...')
@@ -188,7 +190,9 @@ if __name__ == "__main__":
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.9)
 
     
-    directory ='/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/'+str(wandb.run.id)
+    #directory ='/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/'+str(wandb.run.id)
+    directory ='/lustre/orion/csc380/world-shared/checkpoints/maf_khi/'+str(wandb.run.id)
+
     
     if not os.path.exists(directory):
         os.makedirs(directory)

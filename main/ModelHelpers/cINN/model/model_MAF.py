@@ -50,8 +50,8 @@ class PC_MAF(nn.Module):
         '''
 
         super().__init__()
-        #self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.device = device
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        #self.device = device
         self.num_coupling_layers = num_coupling_layers
         self.hidden_size = hidden_size
 

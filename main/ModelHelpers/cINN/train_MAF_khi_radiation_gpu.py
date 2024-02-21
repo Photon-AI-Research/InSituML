@@ -8,17 +8,6 @@ import time
 import wandb
 import sys
 import matplotlib.pyplot as plt
-import math
-
-import torch.distributed as dist
-import torch.nn as nn
-import torch.optim as optim
-import torch.multiprocessing as mp
-
-from torch.utils.data.distributed import DistributedSampler
-from torch.nn.parallel import DistributedDataParallel as DDP
-
-from torch.profiler import profile, record_function, ProfilerActivity
 
     
 def sample_pointcloud(model, p_gt, num_samples, cond):
@@ -149,14 +138,6 @@ class Loader:
 
 
 if __name__ == "__main__":
-    n_gpus = torch.cuda.device_count()
-    #assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
-    world_size = n_gpus
-
-    #setup(rank, world_size)
-    dist.init_process_group("nccl")
-    local_rank = int(os.environ["LOCAL_RANK"])
-    global_rank = int(os.environ["RANK"])
     
     hyperparameter_defaults = dict(
     t0 = 1000,
@@ -166,10 +147,12 @@ if __name__ == "__main__":
     dim_condition = 2048,
     num_coupling_layers = 4,
     hidden_size = 256,
-    lr = 0.00001 ,#* math.sqrt(256 / 32),
-    num_epochs = 2,
+    lr = 0.00001,
+    num_epochs = 20000,
     num_blocks_mat = 2,
     activation = 'gelu',
+    #pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
+    #pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy"
     pathpattern1 = "/lustre/orion/csc380/proj-shared/vineethg/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/lustre/orion/csc380/proj-shared/vineethg/khi/part_rad/radiation_002_ex/{}.npy"
     )
@@ -198,21 +181,18 @@ if __name__ == "__main__":
                                num_blocks_mat = config["num_blocks_mat"],
                                activation = config["activation"]
                              ))
-
-    print(type(model))
-    model = model.to(local_rank)
-    ddp_model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-
-
+    
     # Calculate the total number of parameters
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Total number of parameters: {total_params}")
     
-    optimizer = optim.Adam(ddp_model.parameters(), lr=config["lr"])
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.9)
 
     
+    #directory ='/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/'+str(wandb.run.id)
     directory ='/lustre/orion/csc380/world-shared/checkpoints/maf_khi/'+str(wandb.run.id)
+
     
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -229,37 +209,23 @@ if __name__ == "__main__":
     slow_improvement_count = 0
 
     start_time = time.time()
-
-    """
-
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                #schedule=torch.profiler.schedule(wait=1,warmup=1,active=3,repeat=1), 
-                on_trace_ready=torch.profiler.tensorboard_trace_handler("./log/trace.json"),
-                #with_flops=True,
-                #with_modules=True,
-                with_stack=True,
-                profile_memory=True,
-                use_cuda=True,
-                record_shapes=True) as prof:
-    """
     for i_epoch in range(start_epoch, config["num_epochs"]):   
-        print('i_epoch:', i_epoch)
+        #print('i_epoch:', i_epoch)
         loss_overall = []
         for tb in range(len(epoch)):
             loss_avg = []
             timebatch = epoch[tb]
-            
+            print("Timebatch:", type(timebatch))
             start_timebatch = time.time()
             for b in range(len(timebatch)):
                 optimizer.zero_grad()
                 #print('b',b)
                 phase_space, radiation = timebatch[b]
                 
-                #print('phase_space', phase_space.shape)
-                #print('radiation', radiation.shape)
+                print('phase_space', phase_space.shape, type(phase_space))
+                print('radiation', radiation.shape, type(radiation))
                 
-                #loss = - ddp_model.module.model.log_prob(inputs=phase_space.to(ddp_model.device),context=radiation.to(ddp_model.device))
-                loss = - ddp_model.module.model.log_prob(inputs=phase_space.to(local_rank),context=radiation.to(local_rank))
+                loss = - model.model.log_prob(inputs=phase_space.to(model.device),context=radiation.to(model.device))
 
                 loss = loss.mean()
                 loss_avg.append(loss.item())
@@ -271,7 +237,7 @@ if __name__ == "__main__":
             
             loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
-            #print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
+            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
     
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
@@ -281,7 +247,7 @@ if __name__ == "__main__":
             no_improvement_count = 0
             slow_improvement_count = 0
             # Saving State Dict
-            torch.save(ddp_model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
+            torch.save(model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
         else:
             no_improvement_count += 1
             if loss_overall_avg - min_valid_loss <= 0.001:  # Adjust this threshold as needed
@@ -299,28 +265,11 @@ if __name__ == "__main__":
             "loss_overall_avg": loss_overall_avg,
             "min_valid_loss": min_valid_loss,
         })
+            
         
-
         # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
         #     break  # Stop training
-    """
-    try:
-        prof.export_chrome_trace("./trace1epoch.json")
-    except RuntimeError:
-        print("Runtime error: Trace saving")
         
-
-    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cuda_time_total", row_limit=20))
-    #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
-
-    print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=20))
-
-    prof.export_stacks("./profiler_stacks.txt", "self_cuda_time_total")
-    """
-            
-    dist.barrier()
-    dist.destroy_process_group()
-
     # Code or process to be measured goes here
     end_time = time.time()
     

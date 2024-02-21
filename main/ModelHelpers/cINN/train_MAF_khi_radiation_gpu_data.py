@@ -4,18 +4,19 @@ import numpy as np
 import torch
 from model import model_MAF as model_MAF
 import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader, DistributedSampler
 import time
 import wandb
 import sys
 import matplotlib.pyplot as plt
-import math
+
 
 import torch.distributed as dist
 import torch.nn as nn
 import torch.optim as optim
 import torch.multiprocessing as mp
 
-from torch.utils.data.distributed import DistributedSampler
+#from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from torch.profiler import profile, record_function, ProfilerActivity
@@ -54,7 +55,7 @@ def save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wa
         torch.save(state, path + '/model_' + str(epoch))
 
 
-class Loader:
+class Loader(Dataset):
     def __init__(self, pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/40_80_80_160_0_2/{}.npy", pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex/{}.npy", t0=0, t1=100, timebatchsize=20, particlebatchsize=10240):
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
@@ -126,7 +127,7 @@ class Loader:
                 particles = torch.cat(particles)
                 radiation = torch.cat(radiation)
                 
-                class Timebatch:
+                class Timebatch():
                     def __init__(self, particles, radiation, batchsize):
                         self.batchsize = batchsize
                         self.particles = particles
@@ -148,9 +149,45 @@ class Loader:
         return Epoch(self, self.t0, self.t1, self.timebatchsize, self.particlebatchsize)
 
 
+class CustomDataLoader(DataLoader):
+    def __init__(self, dataset, batch_size=1, shuffle=False, sampler=None,
+                 batch_sampler=None, num_workers=0, collate_fn=None,
+                 pin_memory=False, drop_last=False, timeout=0,
+                 worker_init_fn=None, multiprocessing_context=None):
+        super().__init__(dataset, batch_size=batch_size, shuffle=shuffle, sampler=sampler,
+                         batch_sampler=batch_sampler, num_workers=num_workers, collate_fn=collate_fn,
+                         pin_memory=pin_memory, drop_last=drop_last, timeout=timeout,
+                         worker_init_fn=worker_init_fn, multiprocessing_context=multiprocessing_context)
+        
+    def __len__(self):
+        return len(self.dataset)
+
+    def __iter__(self):
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:  # In single-process data loading
+            return iter(super().__iter__())
+        else:  # In multi-process data loading
+            worker_id = worker_info.id
+            num_workers = worker_info.num_workers
+            worker_rank = worker_info.num_workers
+            split_indices = torch.linspace(0, len(self.dataset), num_workers + 1).long()
+            indices = torch.arange(split_indices[worker_id], split_indices[worker_id + 1])
+            return iter(indices.tolist())
+
+class CustomDistributedSampler(DistributedSampler):
+    def __init__(self, dataset, **kwargs):
+        super().__init__(dataset, **kwargs)
+
+    def __iter__(self):
+        rank = torch.distributed.get_rank()
+        world_size = torch.distributed.get_world_size()
+        num_samples = len(self.dataset) // world_size
+        indices = list(range(rank * num_samples, (rank + 1) * num_samples))
+        return iter(indices)
+
 if __name__ == "__main__":
     n_gpus = torch.cuda.device_count()
-    #assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
+    assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
     world_size = n_gpus
 
     #setup(rank, world_size)
@@ -166,10 +203,12 @@ if __name__ == "__main__":
     dim_condition = 2048,
     num_coupling_layers = 4,
     hidden_size = 256,
-    lr = 0.00001 ,#* math.sqrt(256 / 32),
-    num_epochs = 2,
+    lr = 0.00001,
+    num_epochs = 20000,
     num_blocks_mat = 2,
     activation = 'gelu',
+    #pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
+    #pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy"
     pathpattern1 = "/lustre/orion/csc380/proj-shared/vineethg/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/lustre/orion/csc380/proj-shared/vineethg/khi/part_rad/radiation_002_ex/{}.npy"
     )
@@ -187,6 +226,13 @@ if __name__ == "__main__":
     pathpattern2 = config["pathpattern2"]
     
     l = Loader(pathpattern1=pathpattern1, pathpattern2=pathpattern2, t0=config["t0"], t1=config["t1"], timebatchsize=config["timebatchsize"], particlebatchsize=config["particlebatchsize"])
+
+    print("Length of dataset")
+    print(len(l[0]))
+
+    distributed_sampler = CustomDistributedSampler(l[0])
+
+    data_loader = CustomDataLoader(l[0], sampler=distributed_sampler, batch_size=64)
     
     model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
                                dim_input=90000,
@@ -198,21 +244,21 @@ if __name__ == "__main__":
                                num_blocks_mat = config["num_blocks_mat"],
                                activation = config["activation"]
                              ))
-
-    print(type(model))
+    
     model = model.to(local_rank)
     ddp_model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-
-
+    
     # Calculate the total number of parameters
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Total number of parameters: {total_params}")
     
-    optimizer = optim.Adam(ddp_model.parameters(), lr=config["lr"])
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.9)
 
     
+    #directory ='/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/'+str(wandb.run.id)
     directory ='/lustre/orion/csc380/world-shared/checkpoints/maf_khi/'+str(wandb.run.id)
+
     
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -222,28 +268,81 @@ if __name__ == "__main__":
     
     
     epoch = l[0]
-    
+    print(epoch)
+    print(type(epoch))
+
+    #sys.exit()
+
     patience = 20
     slow_improvement_patience = 10
     no_improvement_count = 0
     slow_improvement_count = 0
 
+
     start_time = time.time()
+    for i_epoch in range(start_epoch, config["num_epochs"]):   
+        #print('i_epoch:', i_epoch)
+        loss_overall = []
+        #data_loader = data_loader[0]
+        for tb in range(len(epoch)):
+            loss_avg = []
+            timebatch = epoch[tb]
+            start_timebatch = time.time()
+            for phase_space, radiation in timebatch:
+                
+                print('phase_space', phase_space.shape)
+                print('radiation', radiation.shape)
 
-    """
+                loss = - ddp_model.module.model.log_prob(inputs=phase_space.to(local_rank),context=radiation.to(local_rank))
 
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                #schedule=torch.profiler.schedule(wait=1,warmup=1,active=3,repeat=1), 
-                on_trace_ready=torch.profiler.tensorboard_trace_handler("./log/trace.json"),
-                #with_flops=True,
-                #with_modules=True,
-                with_stack=True,
-                profile_memory=True,
-                use_cuda=True,
-                record_shapes=True) as prof:
+                loss = loss.mean()
+                loss_avg.append(loss.item())
+                loss.backward()
+                optimizer.step()
+
+            end_timebatch = time.time()
+            elapsed_timebatch = end_timebatch - start_timebatch
+            
+            loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
+            loss_overall.append(loss_timebatch_avg)
+            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
+
+        loss_overall_avg = sum(loss_overall)/len(loss_overall)
+
+        if min_valid_loss > loss_overall_avg:     
+            print(f'Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model')
+            min_valid_loss = loss_overall_avg
+            no_improvement_count = 0
+            slow_improvement_count = 0
+            # Saving State Dict
+            torch.save(model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
+        else:
+            no_improvement_count += 1
+            if loss_overall_avg - min_valid_loss <= 0.001:  # Adjust this threshold as needed
+                slow_improvement_count += 1
+            
+            save_checkpoint(model, optimizer, directory, loss, min_valid_loss, i_epoch, wandb.run.id)
+
+        scheduler.step()
+        
+        # Log the loss and accuracy values at the end of each epoch
+        wandb.log({
+            "Epoch": i_epoch,
+            #"last time batch loss":loss.item(),
+            "loss_timebatch_avg_loss": loss_timebatch_avg,
+            "loss_overall_avg": loss_overall_avg,
+            "min_valid_loss": min_valid_loss,
+        })
+
+    end_time = time.time()
+    dist.destroy_process_group()
+    elapsed_time = end_time - start_time
+    print(f"Total elapsed time: {elapsed_time:.6f} seconds")   
+
+
     """
     for i_epoch in range(start_epoch, config["num_epochs"]):   
-        print('i_epoch:', i_epoch)
+        #print('i_epoch:', i_epoch)
         loss_overall = []
         for tb in range(len(epoch)):
             loss_avg = []
@@ -255,11 +354,10 @@ if __name__ == "__main__":
                 #print('b',b)
                 phase_space, radiation = timebatch[b]
                 
-                #print('phase_space', phase_space.shape)
-                #print('radiation', radiation.shape)
+                print('phase_space', phase_space.shape)
+                print('radiation', radiation.shape)
                 
-                #loss = - ddp_model.module.model.log_prob(inputs=phase_space.to(ddp_model.device),context=radiation.to(ddp_model.device))
-                loss = - ddp_model.module.model.log_prob(inputs=phase_space.to(local_rank),context=radiation.to(local_rank))
+                loss = - model.model.log_prob(inputs=phase_space.to(model.device),context=radiation.to(model.device))
 
                 loss = loss.mean()
                 loss_avg.append(loss.item())
@@ -271,7 +369,7 @@ if __name__ == "__main__":
             
             loss_timebatch_avg = sum(loss_avg)/len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
-            #print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
+            print('i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}'.format(i_epoch,tb,loss.item(), loss_timebatch_avg, elapsed_timebatch))
     
         loss_overall_avg = sum(loss_overall)/len(loss_overall)  
     
@@ -281,7 +379,7 @@ if __name__ == "__main__":
             no_improvement_count = 0
             slow_improvement_count = 0
             # Saving State Dict
-            torch.save(ddp_model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
+            torch.save(model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
         else:
             no_improvement_count += 1
             if loss_overall_avg - min_valid_loss <= 0.001:  # Adjust this threshold as needed
@@ -299,30 +397,14 @@ if __name__ == "__main__":
             "loss_overall_avg": loss_overall_avg,
             "min_valid_loss": min_valid_loss,
         })
+            
         
-
         # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
         #     break  # Stop training
-    """
-    try:
-        prof.export_chrome_trace("./trace1epoch.json")
-    except RuntimeError:
-        print("Runtime error: Trace saving")
         
-
-    print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cuda_time_total", row_limit=20))
-    #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
-
-    print(prof.key_averages(group_by_stack_n=5).table(sort_by="self_cuda_time_total", row_limit=20))
-
-    prof.export_stacks("./profiler_stacks.txt", "self_cuda_time_total")
-    """
-            
-    dist.barrier()
-    dist.destroy_process_group()
-
     # Code or process to be measured goes here
     end_time = time.time()
     
     elapsed_time = end_time - start_time
     print(f"Total elapsed time: {elapsed_time:.6f} seconds")
+"""
