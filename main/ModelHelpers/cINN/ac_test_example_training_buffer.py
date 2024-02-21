@@ -1,4 +1,3 @@
-
 from ac_train_batch_buffer import TrainBatchBuffer
 from ks_consumer_MAF_khi_radiation import MafModelTrainer
 from threading import Thread
@@ -53,18 +52,11 @@ training_batch = Queue()
 openpmdProducer = DummyOpenPMDProducer(openPMDBuffer)
 
 config = dict(
-t0 = 1999,
-t1 = 2001,
-timebatchsize = 2,
-particlebatchsize = 1024,
 dim_condition = rad*rad_dims,
 num_coupling_layers = 6,
 hidden_size = 256,
-lr = 0.00001,
-num_epochs = 20000,
 num_blocks_mat = 6,
 activation = 'relu',
-pathpattern = "60-70-130-140-0-12"
 )
 
 model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],

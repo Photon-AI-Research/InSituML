@@ -1,13 +1,27 @@
-"""
-Consumer of PIConGPU particle and radiation data to create a train dataset buffer. The train dataset buffer is implemented to have some data always there for training of ML Model, while the PIConGPU simulate more timesteps.
-"""
-
 from threading import Thread
 import torch
 from cl_memory import ExperienceReplay
 from random import sample
 
 class TrainBatchBuffer(Thread):
+    """
+    This class creates a ring buffer where oldest enteries produced openPMDProducer are either discarded or sent to Continual Learning based ExperienceReplay memory buffer.
+    
+    Args:
+    
+    openPMDBuffer (Queue): Queue shared between openPMD producer and train buffer.
+     
+    training_batch (Queue): Queue shared between train buffer and MafModelTrainer
+    
+    training_bs (int): training batch size to send to the model to train on.
+
+    buffersize (int): Size of train buffer.
+
+    use_continual_learning (Bool): Whether to use use continual learning or not. If yes, will create memory buffer for the continual learning.
+
+    cl_mem_size (int): Continual learning memory buffer size.
+    
+    """
 
     def __init__(self,
                  openPMDBuffer,
@@ -39,12 +53,12 @@ class TrainBatchBuffer(Thread):
     def run(self):
 
         while True:
-            print("running inside tb", flush=True)
             # get a particles, radiation from the queue
             particles_radiation = self.openPMDbuffer.get()
 
             if particles_radiation is None:
                 break
+            
             particles_radiation = self.reshape(particles_radiation)
 
             if len(self.buffer_) < self.buffersize:
@@ -55,31 +69,36 @@ class TrainBatchBuffer(Thread):
                 self.buffer_.append(particles_radiation)
 
                 if self.use_continual_learning:
+                    #add the last element to memory, if continual learning is
+                    #required.
                     self.er_mem.update_memory(*last_element,
                                               n_obs = self.n_obs,
                                               i_step = self.n_obs) #i_step = n_obs in this case
                     self.n_obs += 1
-                    
+            
+            # no training batch until it has 
+            # batch size of elements
             if len(self.buffer_)>=self.training_bs:
-               print("before batch put", flush=True)
                self.training_batch.put(self.get_batch())
         
         self.training_batch.put(None)
 
     def reshape(self, particles_radiation):
+        # reshapes from (num_part, part_dim) -> (1, num_part*part_dim)
+        # 1 is batch size
         particles, radiation = particles_radiation
         return [particles.reshape(1, -1), radiation.reshape(1, -1)]
     
     def get_batch(self):
         
-        print("in get batch")
+        #random sampling
         random_sample = sample(self.buffer_, self.training_bs)
 
         particles_batch = torch.cat([x[0] for x in random_sample])
         radiation_batch = torch.cat([x[1] for x in random_sample])
 
         if self.use_continual_learning and self.n_obs>=self.continual_bs:
-
+            #sample from memory
             mem_part_batch, mem_rad_batch = self.er_mem.sample(self.continual_bs)
 
             particles_batch = torch.cat([particles_batch, mem_part_batch])

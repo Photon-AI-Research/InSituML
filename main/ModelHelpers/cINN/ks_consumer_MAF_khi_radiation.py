@@ -28,12 +28,12 @@ class MafModelTrainer(Thread):
         while True:
             
             phase_space_radiation = self.training_batch.get()
-            print("Inside Training", flush=True)
+
             if phase_space_radiation is None:
                 break
             
             phase_space, radiation = phase_space_radiation
-            print(phase_space.shape, radiation.shape, flush=True)
+            
             self.optimizer.zero_grad()
             loss = - self.model.model.log_prob(inputs=phase_space.to(self.model.device),
                                             context=radiation.to(self.model.device))
