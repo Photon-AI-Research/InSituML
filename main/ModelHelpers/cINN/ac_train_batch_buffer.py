@@ -66,7 +66,7 @@ class TrainBatchBuffer(Thread):
         
         self.training_batch.put(None)
 
-    def reshape_batch(self, particles_radiation):
+    def reshape(self, particles_radiation):
         particles, radiation = particles_radiation
         return [particles.reshape(1, -1), radiation.reshape(1, -1)]
     
