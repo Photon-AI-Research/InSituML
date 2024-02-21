@@ -57,6 +57,7 @@ num_coupling_layers = 6,
 hidden_size = 256,
 num_blocks_mat = 6,
 activation = 'relu',
+ lr = 0.00001
 )
 
 model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
