@@ -12,7 +12,8 @@ class MafModelTrainer(Thread):
 
     def __init__(self,
                  training_batch,
-                 model, optimizer, scheduler):
+                 model, optimizer, scheduler,
+                 enable_wandb=None, wandbRunObject=None):
         
         Thread.__init__(self)
 
@@ -21,12 +22,16 @@ class MafModelTrainer(Thread):
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.loss_avg = []
-
+        self.losses = []
+        self.enable_wandb = enable_wandb
+        self.wandb_run = wandbRunObject
+        
+        self.batch_passes = 0
+        
     def run(self):
-
+        
         while True:
-            
+            self.batch_passes += 1
             phase_space_radiation = self.training_batch.get()
 
             if phase_space_radiation is None:
@@ -39,9 +44,16 @@ class MafModelTrainer(Thread):
                                             context=radiation.to(self.model.device))
 
             loss = loss.mean()
-            self.loss_avg.append(loss.item())
+            self.losses.append(loss.item())
             loss.backward()
 
             self.optimizer.step()
             self.scheduler.step()
+            
+            if self.enable_wandb is not None:
+                self.wandb_run.log({
+                        "batch_passes": self.batch_passes,
+                        "loss_avg": sum(losses)/len(losses),
+                        "loss": loss,
+                    })
 
