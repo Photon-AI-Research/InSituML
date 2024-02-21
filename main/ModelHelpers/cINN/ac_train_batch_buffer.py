@@ -45,6 +45,7 @@ class TrainBatchBuffer(Thread):
 
             if particles_radiation is None:
                 break
+            particles_radiation = self.reshape(particles_radiation)
 
             if len(self.buffer_) < self.buffersize:
                 self.buffer_.append(particles_radiation)
@@ -65,8 +66,10 @@ class TrainBatchBuffer(Thread):
         
         self.training_batch.put(None)
 
-    def change_to_batch(self, particles_radiation):
-
+    def reshape_batch(self, particles_radiation):
+        particles, radiation = particles_radiation
+        return [particles.reshape(1, -1), radiation.reshape(1, -1)]
+    
     def get_batch(self):
         
         print("in get batch")

@@ -57,7 +57,7 @@ t0 = 1999,
 t1 = 2001,
 timebatchsize = 2,
 particlebatchsize = 1024,
-dim_condition = 2,
+dim_condition = rad*rad_dims,
 num_coupling_layers = 6,
 hidden_size = 256,
 lr = 0.00001,
@@ -68,7 +68,7 @@ pathpattern = "60-70-130-140-0-12"
 )
 
 model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
-                            dim_input=9,
+                            dim_input=number_of_particles*ps_dims,
                             num_coupling_layers=config["num_coupling_layers"],
                             hidden_size=config["hidden_size"],
                             device='cuda',
