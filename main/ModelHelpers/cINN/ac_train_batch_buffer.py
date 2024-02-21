@@ -65,6 +65,8 @@ class TrainBatchBuffer(Thread):
         
         self.training_batch.put(None)
 
+    def change_to_batch(self, particles_radiation):
+
     def get_batch(self):
         
         print("in get batch")
