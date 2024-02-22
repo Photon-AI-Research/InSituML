@@ -32,11 +32,11 @@ dim_condition = 2048,
 num_coupling_layers = 3,
 hidden_size = 64,
 lr = 0.001,
-num_epochs = 2,
+num_epochs = 8,
 num_blocks_mat = 2,
 activation = 'gelu',
-pathpattern1 = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp",
-pathpattern2 = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
+pathpattern1 = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/openPMD/simData_%T.bp5",
+pathpattern2 = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/radiationOpenPMD/e_radAmplitudes.bp5"
 )
 
 enable_wandb = False
@@ -119,7 +119,7 @@ class DummyTimebatchConsumer(Thread):
                 stdout.flush()
                 break
             # block, to simulate effort
-            #sleep(3)
+            sleep(3)
             print(f'>consumer got item')
             print(f'Number of boxes times number of timesteps {len(item)}')
             stdout.flush()

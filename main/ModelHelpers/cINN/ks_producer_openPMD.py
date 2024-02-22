@@ -19,6 +19,8 @@ from torch import transpose as torch_transpose
 from torch import angle as torch_angle
 from torch import abs as torch_abs
 
+from mpi4py import MPI
+
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
@@ -42,15 +44,15 @@ class Loader(Thread):
             batchDataBuffer (e.g. queue.Queue) : buffer to put the data into (where the consumer reads it)
             hyperParameterDefaults (dict) : Defines timesteps, paths to data, etc.
             dataReadPolicy (functor) : Provides particle and radiation data per time step
-            dataTransformationPolicy (functor) : 
+            dataTransformationPolicy (functor) :
         """
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
 #        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
+        self.particlePathpattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/openPMD/simData_%T.bp5"
 #        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
+        self.radiationPathPattern = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5"
         self.t0 = hyperParameterDefaults["t0"]
         self.t1 = hyperParameterDefaults["t1"] # endpoint=false, t1 is not loaded from disk
         self.timebatchSize = hyperParameterDefaults["timebatchsize"]
@@ -60,31 +62,62 @@ class Loader(Thread):
 
         self.totalTimebatchNumber = int((self.t1-self.t0)/self.timebatchSize)
         self.particlePerGPU = np.int64(10000) # MAGIC: Number of randomly choosen particles per GPU
-        
+
         self.rng = np.random.default_rng()
 
     def run(self):
         """Function being executed when thread is started."""
         from sys import stdout
+
+        openpmd_stream_config = """
+            [adios2.engine.parameters]
+            OpenTimeoutSecs = 300
+        """
+
         # Open openPMD particle and radiation series
-        series = opmd.Series(self.particlePathpattern, opmd.Access.read_only)
-        radiationSeries = opmd.Series(self.radiationPathPattern, opmd.Access.read_only)
+        series = opmd.Series(
+            self.particlePathpattern,
+            opmd.Access.read_linear,
+            MPI.COMM_WORLD,
+            openpmd_stream_config)
+        radiationSeries = opmd.Series(
+            self.radiationPathPattern,
+            opmd.Access.read_linear,
+            MPI.COMM_WORLD,
+            openpmd_stream_config)
+
+        # The streams wait until a reader connects.
+        # To avoid deadlocks, we need to open both concurrently
+        # (PIConGPU opens the streams one after the other)
+        t1 = Thread(target=series.parse_base)
+        t2 = Thread(target=radiationSeries.parse_base)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
 
         # start reading data
+        if self.numEpochs != 1:
+            raise RuntimeError("No idea how to deal with epochs in streaming. Will ignore for now, set num of epochs to 1 in order to pass this check.")
+
+        particle_iterations = series.read_iterations().__iter__()
+        radiation_iterations = radiationSeries.read_iterations().__iter__()
+
         i_epoch = int(0)
         i_tb = int(0)
-        perm = self.rng.permutation(self.t1-self.t0)
         while i_epoch < self.numEpochs:
             """Iterate over all timebatches in all epochs."""
             print("Start epoch ", i_epoch)
             ###############################################
             # Fill timebatch with particle and radiation data
-            bi = perm[i_tb:i_tb+self.timebatchSize]
             radiation = []
             particles = []
-            for step in (bi+self.t0):
+            while True:
                 """iterate over all timesteps belonging to a timebatch"""
-                iteration = series.iterations[step]
+                try:
+                    iteration = particle_iterations.__next__()
+                except StopIteration:
+                    break
 
                 ## obtain particle distribution over GPUs ##
                 #
@@ -143,8 +176,6 @@ class Loader(Thread):
                     loaded_particles[3+i_c] = torch_from_numpy(mom_reduced) # momentum in gamma*beta
                     loaded_particles[6+i_c] = torch_from_numpy(mom_reduced - momPrev1_reduced) # force
 
-#                iteration.close() # It is currently not possible to reopen an iteration in openPMD
-                
                 if self.transformPolicy is not None:
                     loaded_particles = self.transformPolicy(loaded_particles)
                 else:
@@ -156,7 +187,18 @@ class Loader(Thread):
 
                 ## obtain radiation data per GPU ##
                 #
-                radIter = radiationSeries.iterations[step]
+                try:
+                    radIter = radiation_iterations.__next__()
+                except StopIteration:
+                    raise RuntimeError(
+                        "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
+                            iteration.iteration_index))
+
+                if iteration.iteration_index != radIter.iteration_index:
+                    raise RuntimeError(
+                        "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
+                            iteration.iteration_index,
+                            radIter.iteration_index))
 
                 cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
                 r_offset = np.empty((len(numParticles), 3)) # shape: (GPUs, components)
@@ -184,16 +226,17 @@ class Loader(Thread):
                     i_direction = 0
                     distributed_amplitudes[i_c] = torch_from_numpy(Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
 
-#                radIter.close() # It is currently not possible to reopen an iteration in openPMD
+                iteration.close()
+                radIter.close() # It is currently not possible to reopen an iteration in openPMD
 
                 # time retardation correction
                 # QUESTION: The `step`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
-                phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
+                phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
                 distributed_amplitudes = distributed_amplitudes/phase_offset
 
                 # Transform to shape: (GPUs, components, frequencies)
                 distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
-                
+
                 # MAGIC: Just look at y&z component
                 r = distributed_amplitudes[:, 1:, :]
 
@@ -205,7 +248,7 @@ class Loader(Thread):
 
                 radiation.append(r)
 
-            
+
             particles = torch_cat(particles)
             radiation = torch_cat(radiation)
 

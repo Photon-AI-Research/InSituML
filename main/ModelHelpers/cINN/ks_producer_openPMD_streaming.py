@@ -5,6 +5,11 @@ The buffer is expected to be fillable by a `put()` method.
 TODO: Furthermore, a policy is taken which describes the data structure that needs to be put in the buffer.
 This policy actually performs the required transformation on the data, if required.
 For example, it performs data normalization and layouts the data as requested for the training.
+
+!!!!!!!
+This file only works with the openPMD-api version installed from this branch:
+    https://github.com/franzpoeschel/openPMD-api/tree/pic_env
+!!!!!!!
 """
 from threading import Thread
 
@@ -19,11 +24,124 @@ from torch import transpose as torch_transpose
 from torch import angle as torch_angle
 from torch import abs as torch_abs
 
+from mpi4py import MPI
+
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
 
 from sys import stdout
+
+def distribution_strategy(dataset_extent,
+                          mpi_rank,
+                          mpi_size,
+                          strategy_identifier=None):
+    import os
+    import re
+    if strategy_identifier is None or not strategy_identifier:
+        if 'OPENPMD_CHUNK_DISTRIBUTION' in os.environ:
+            strategy_identifier = os.environ[
+                'OPENPMD_CHUNK_DISTRIBUTION'].lower()
+        else:
+            strategy_identifier = 'hostname_roundrobinofsourceranks_roundrobinofsourceranks'  # default
+    match = re.search('hostname_(.*)_(.*)', strategy_identifier)
+    if match is not None:
+        inside_node = distribution_strategy(dataset_extent,
+                                            mpi_rank,
+                                            mpi_size,
+                                            strategy_identifier=match.group(1))
+        second_phase = distribution_strategy(
+            dataset_extent,
+            mpi_rank,
+            mpi_size,
+            strategy_identifier=match.group(2))
+        return opmd.FromPartialStrategy(opmd.ByHostname(inside_node), second_phase)
+    elif strategy_identifier == 'roundrobin':
+        return opmd.RoundRobin()
+    elif strategy_identifier == 'roundrobinofsourceranks':
+        return opmd.RoundRobinOfSourceRanks()
+    elif strategy_identifier == 'binpacking':
+        return opmd.BinPacking()
+    elif strategy_identifier == 'slicedataset':
+        return opmd.ByCuboidSlice(opmd.OneDimensionalBlockSlicer(), dataset_extent,
+                                mpi_rank, mpi_size)
+    elif strategy_identifier == 'fail':
+        return opmd.FailingStrategy()
+    elif strategy_identifier == 'discard':
+        return opmd.DiscardingStrategy()
+    else:
+        raise RuntimeError("Unknown distribution strategy: " +
+                           strategy_identifier)
+
+# Specify environment variable OPENPMD_CHUNK_DISTRIBUTION to modify the
+# logic used in this function.
+# Recommendation: set OPENPMD_CHUNK_DISTRIBUTION to
+# `hostname_roundrobinofsourceranks_fail` to ensure failure when openPMD cannot
+# figure out which data chunks are local to the current host.
+# The rank table can be requested in openPMD by setting
+# {"rank_table": "posix_hostname"} in the writer
+#  (functionality not on the dev branch yet!).
+# If the data does not define a rank table, a possible setting for the
+# environment variable is `OPENPMD_CHUNK_DISTRIBUTION=slicedataset`.
+def determine_local_region(record_component, comm, inranks, outranks,
+                          strategy_identifier=None):
+    if isinstance(strategy_identifier, opmd.Strategy):
+        distribution = strategy_identifier
+    else:
+        distribution = distribution_strategy(
+            record_component.shape, comm.rank, comm.size, strategy_identifier)
+    all_chunks = record_component.available_chunks()
+    chunk_distribution = distribution.assign(all_chunks, inranks, outranks)
+    res = dict()
+    for target_rank, chunks in chunk_distribution.items():
+        chunks = chunks.merge_chunks_from_same_sourceID()
+        for source_rank, chunks_from_source_rank in chunks.items():
+            if len(chunks_from_source_rank) != 1:
+                raise RuntimeError(
+                    "Need one contiguous slice of particles to load per source rank, got {} regions from rank {} instead.".format(
+                        len(chunks_from_source_rank), source_rank
+                    )
+                )
+        source_ranks = [source_rank for source_rank in chunks]
+        all_chunks = opmd.ChunkTable(
+            [opmd.WrittenChunkInfo(chunk.offset, chunk.extent, source_rank) \
+                for source_rank, chunks_from_source_rank in chunks.items() \
+                    for chunk in chunks_from_source_rank])
+
+        res[target_rank] = all_chunks
+
+    if comm.rank == 0:
+        for target_rank, table in res.items():
+            for chunk in table:
+                print("Target rank {} loads from source ranks {}, {} - {}".format(
+                    target_rank, chunk.source_id, chunk.offset, chunk.extent))
+    return res
+
+# Assign chunks from the same source ranks as in a previously calculated
+# chunk distribution. Used to keep chunk distribution consistent between:
+#
+# * electron data
+# * electron patches data
+# * radiation data
+class SelectAccordingToChunkDistribution(opmd.Strategy):
+    def __init__(self, electrons_chunk_distribution):
+        super().__init__()
+        self.source_to_target = dict()
+        for target, chunks in electrons_chunk_distribution.items():
+            for chunk in chunks:
+                self.source_to_target[chunk.source_id] = target
+
+    def assign(self, chunks, *_):
+        res = opmd.Assignment()
+        for unassigned_chunk in chunks:
+            # We could theoretically ignore the chunk if the target rank
+            # is different from the current rank, but it's not a huge overhead
+            # and it makes debugging simpler.
+            target_rank = self.source_to_target[unassigned_chunk.source_id]
+            if target_rank not in res:
+                res[target_rank] = opmd.ChunkTable()
+            res[target_rank].append(unassigned_chunk)
+        return res
 
 class StreamLoader(Thread):
     """ Thread providing PIConGPU particle and radiation data from an openPMD stream for the ML model training.
@@ -40,84 +158,209 @@ class StreamLoader(Thread):
             batchDataBuffer (e.g. queue.Queue) : buffer to put the data into (where the consumer reads it)
             hyperParameterDefaults (dict) : Defines timesteps, paths to data, etc.
             dataReadPolicy (functor) : Provides particle and radiation data per time step
-            dataTransformationPolicy (functor) : 
+            dataTransformationPolicy (functor) :
         """
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
 #        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
+        self.particlePathpattern = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst"
 #        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
+        self.radiationPathPattern = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst"
 
         self.rng = np.random.default_rng()
+        self.transformPolicy = None #dataTransformationPolicy
+        self.comm = MPI.COMM_WORLD
 
     def run(self):
         """Function being executed when thread is started."""
         # Open openPMD particle and radiation series
-        series = opmd.Series(self.particlePathpattern, opmd.Access.read_only)
-        radiationSeries = opmd.Series(self.radiationPathPattern, opmd.Access.read_only)
+        openpmd_stream_config = """
+            [adios2.engine.parameters]
+            OpenTimeoutSecs = 300
+        """
+
+        # Open openPMD particle and radiation series
+        series = opmd.Series(
+            self.particlePathpattern,
+            opmd.Access.read_linear,
+            self.comm,
+            openpmd_stream_config)
+        radiationSeries = opmd.Series(
+            self.radiationPathPattern,
+            opmd.Access.read_linear,
+            self.comm,
+            openpmd_stream_config)
+
+        # The streams wait until a reader connects.
+        # To avoid deadlocks, we need to open both concurrently
+        # (PIConGPU opens the streams one after the other)
+        t1 = Thread(target=series.parse_base)
+        t2 = Thread(target=radiationSeries.parse_base)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        inranks = series.get_rank_table(collective=True)
+        if not inranks:
+            import sys
+            print("[WARNING] No chunk table found in data. Will map source to sink ranks somehow, but this might scale terribly in streaming setups.", file=sys.stderr)
+        outranks = opmd.HostInfo.MPI_PROCESSOR_NAME.get_collective(self.comm)
+
+        # We need to use the __iter__() and __next__() manually since both these
+        # iterators need to be processed concurrently.
+        # zip() might also work, but manual iteration is better since it gives
+        # us greater control over when to wait for data (e.g. we can avoid
+        # useless waiting)
+        particle_iterations = series.read_iterations().__iter__()
+        radiation_iterations = radiationSeries.read_iterations().__iter__()
 
         # start reading data
-        for iteration in series.read_iterations():
+        while True:
             """Work on PIConGPU data for this iteration."""
+            try:
+                iteration = particle_iterations.__next__()
+            except StopIteration:
+                break
+
             print("Start processing iteration %i"%(iteration.time))
             stdout.flush()
             ## obtain particle distribution over GPUs ##
             #
             ps = iteration.particles["e_all"] #particle species
 
-            numParticles = ps.particle_patches["numParticles"][opmd.Mesh_Record_Component.SCALAR].load()
-            numParticlesOffsets = ps.particle_patches["numParticlesOffset"][opmd.Mesh_Record_Component.SCALAR].load()
-            series.flush()
-
-            totalParticles = np.sum(numParticles) # numParticlesOffsets[-1] + numParticles[-1]?
-
             # memorize particle distribution over GPUs in array
-            local_region = {"offset": [numParticlesOffsets[0]], "extent": [totalParticles]}
-
-            numParticlesOffsets = np.concatenate((numParticlesOffsets, [-1]), dtype=np.int64) # append to use array for indexing
+            e_pos_x = ps["position"]["x"]
+            chunk_distribution = determine_local_region(
+                e_pos_x, self.comm, inranks, outranks
+            )
+            local_particles_chunks = chunk_distribution[self.comm.rank]
+            num_processed_chunks_per_rank = len(local_particles_chunks)
 
             # Every GPU will hold a different number of particles.
             # But we need to keep the number of particles per GPU constant in order to construct the dataset.
+            numParticles = np.array([chunk.extent[0] for chunk in local_particles_chunks])
             particlePerGPU = numParticles.min()
-            print("particles per GPU", numParticles)
-            print("choose particles", particlePerGPU)
-            randomParticlesPerGPU = np.array([ self.rng.choice(numParticles[i], particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
+            print("particles per GPU", particlePerGPU)
+            randomParticlesPerGPU = np.array([
+                self.rng.choice(numParticles[i], particlePerGPU, replace=False) \
+                    for i in range(num_processed_chunks_per_rank)])
 
-            # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
-            loaded_particles = torch_empty((9, len(numParticles), particlePerGPU), dtype=torch_float32)
+            # Helper object to store enqueued load buffers.
+            # Multiple buffers per component possible when processing data from
+            # multiple GPUs in one (parallel) Python instance.
+            class EnqueuedBuffers(object):
+                def __init__(self):
+                    self.position = []
+                    self.positionOffset = []
+                    self.momentum = []
+                    self.momentumPrev1 = []
+
+            # Workflow:
+            #
+            # 1. Enqueue all load operations on the particles stream and store
+            #    the to-be-filled buffers in the loaded_buffers dict.
+            # 2. Close the iteration with a single flush.
+            #    a) There is only one communication back to the writer.
+            #    b) After closing the iteration, the writer knows that the data
+            #       is no longer needed, can discard the data and go on.
+            # 3. Perform all further computations afterwards.
+            #
+            # This is a compromise: We use a slightly higher amount of host
+            # memory in exchange for loading data once only.
+            loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
                 """Read particle data component-wise to reduce host memory usage.
                    And immediately reshape by subdividing in particles per GPU.
                    Also, reduce to requested number of particles per GPU.
                 """
-                position = (ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
-                    + ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
-                )
-                pos_reduced = np.array([
-                    position[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
-                    for i in np.arange(len(numParticles))
-                ])
-
-                ## TODO:
+                ## TODO: need to scale and normalize these values
                 ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
+                component_buffers = EnqueuedBuffers()
+                for chunk in local_particles_chunks:
+                    component_buffers.position.append(
+                        ps["position"][component].load_chunk(chunk.offset, chunk.extent))
+                    component_buffers.positionOffset.append(
+                        ps["positionOffset"][component].load_chunk(chunk.offset, chunk.extent))
+                    component_buffers.momentum.append(
+                        ps["momentum"][component].load_chunk(chunk.offset, chunk.extent))
+                    component_buffers.momentumPrev1.append(
+                        ps["momentumPrev1"][component].load_chunk(chunk.offset, chunk.extent))
 
-                momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
-                mom_reduced = np.array([
-                    momentum[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
-                    for i in np.arange(len(numParticles))
-                ])
+                loaded_buffers[component] = component_buffers
 
-                momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
-                momPrev1_reduced = np.array([
-                    momentumPrev1[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
-                    for i in np.arange(len(numParticles))
+            # Particle patches are needed further below for determining the GPU bounding box.
+            # This only loads the patch information for the locally processed GPUs.
+            # Do NOT load all of them as this will be a NxN communication pattern,
+            # e.g. it will not scale (I'll talk to the ADIOS2 devs on how we can avoid this
+            # situation in the future).
+            # IF the entire patches info is needed after all, then use MPI to distribute this
+            # local information to all ranks.
+            gpuBoxExtent = dict()
+            gpuBoxOffset = dict()
+            patches_chunk_distribution = determine_local_region(
+                ps.particle_patches["extent"]["x"], self.comm, inranks, outranks,
+                SelectAccordingToChunkDistribution(chunk_distribution)
+            )
+            # import ipdb
+            # ipdb.set_trace(context=30)
+            local_patch_chunk = patches_chunk_distribution[self.comm.rank]
+            local_patch_chunk.merge_chunks()
+            if len(local_patch_chunk) != 1:
+                raise RuntimeError("Patches: Need to load contiguous regions.")
+            else:
+                local_patch_chunk = local_patch_chunk[0]
+
+            for component in ["x", "y", "z"]:
+                gpuBoxExtent[component] = ps.particle_patches["extent"][component].load_chunk(
+                    local_patch_chunk.offset, local_patch_chunk.extent
+                )
+                gpuBoxOffset[component] = ps.particle_patches["offset"][component].load_chunk(
+                    local_patch_chunk.offset, local_patch_chunk.extent
+                )
+            numParticles = ps.particle_patches["numParticles"].load_chunk(
+                local_patch_chunk.offset, local_patch_chunk.extent
+            )
+            numParticlesOffsets = ps.particle_patches["numParticlesOffset"].load_chunk(
+                local_patch_chunk.offset, local_patch_chunk.extent
+            )
+
+            iteration.close() # trigger enqueued data loads
+
+            # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
+            loaded_particles = torch_empty((9, num_processed_chunks_per_rank, particlePerGPU), dtype=torch_float32)
+            for i_c, component in enumerate(["x", "y", "z"]):
+                component_buffers = loaded_buffers[component]
+                position = [ps["position"][component].unit_SI * component_buffers.position[j] \
+                    + ps["positionOffset"][component].unit_SI * component_buffers.positionOffset[j] \
+                        for j in range(num_processed_chunks_per_rank)]
+                del component_buffers.position
+                del component_buffers.positionOffset
+                pos_reduced = np.array([
+                    p[r] for r, p in zip(randomParticlesPerGPU, position)
                 ])
+                del position
+                mom_reduced = ps["momentum"][component].unit_SI * np.array([
+                    m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentum)
+                ])
+                del component_buffers.momentum
+                momPrev1_reduced = ps["momentumPrev1"][component].unit_SI * np.array([
+                    m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentumPrev1)
+                ])
+                del component_buffers.momentumPrev1
+
+                del component_buffers
+                del loaded_buffers[component]
 
                 loaded_particles[0+i_c] = torch_from_numpy(pos_reduced) # absolute position in cells
                 loaded_particles[3+i_c] = torch_from_numpy(mom_reduced) # momentum in gamma*beta
                 loaded_particles[6+i_c] = torch_from_numpy(mom_reduced - momPrev1_reduced) # force
+                del pos_reduced
+                del mom_reduced
+                del momPrev1_reduced
+
+            del loaded_buffers
 
             if self.transformPolicy is not None:
                 loaded_particles = self.transformPolicy(loaded_particles)
@@ -127,45 +370,80 @@ class StreamLoader(Thread):
 
             ## obtain radiation data per GPU ##
             #
-# TODO
-# FRANZ: here we need to get the iteration from the radiation data stream
-            radIter = radiationSeries.iterations[int(iteration.time)]
+            try:
+                radIter = radiation_iterations.__next__()
+            except StopIteration:
+                raise RuntimeError(
+                    "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
+                        iteration.iteration_index))
+
+            if iteration.iteration_index != radIter.iteration_index:
+                raise RuntimeError(
+                    "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
+                        iteration.iteration_index,
+                        radIter.iteration_index))
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
-            r_offset = np.empty((len(numParticles), 3)) # shape: (GPUs, components)
+            r_offset = np.empty((num_processed_chunks_per_rank, 3)) # shape: (local GPUs, components)
             n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (radiation measurement directions along x, components)
 
             DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0]
-            radiationSeries.flush()
+            # radiationSeries.flush()
 
-            distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
+            distributed_amplitudes = torch_empty((3, num_processed_chunks_per_rank, len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, local GPUs, frequencies)
+
+            rad_chunk_distribution = determine_local_region(
+                radIter.meshes["Amplitude_distributed"]["x"], self.comm, inranks, outranks,
+                SelectAccordingToChunkDistribution(chunk_distribution)
+            )
+            local_radiation_chunk = rad_chunk_distribution[self.comm.rank]
+            local_radiation_chunk.merge_chunks()
+            if len(local_radiation_chunk) != 1:
+                raise RuntimeError("Radiation: Need to load contiguous regions.")
+            else:
+                local_radiation_chunk = local_radiation_chunk[0]
+
+            loaded_buffers = dict()
+            for i_c, component in enumerate(["x", "y", "z"]):
+                component_buffers = EnqueuedBuffers()
+                component_buffers.Dist_Amplitude = \
+                    radIter.meshes["Amplitude_distributed"][component].load_chunk(
+                        local_radiation_chunk.offset,
+                        local_radiation_chunk.extent) # shape: (GPUs, directions, frequencies)
+                # MAGIC: only look along one direction
+                component_buffers.DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
+                loaded_buffers[component] = component_buffers
+
+            radIter.close()
+
+            # PLEASE CHECK THE CALCULATIONS BELOW
 
             for i_c, component in enumerate(["x", "y", "z"]):
-                gpuBoxExtent = ps.particle_patches["extent"][component].load()
-                gpuBoxOffset = ps.particle_patches["offset"][component].load()
-                series.flush()
+                component_buffers = loaded_buffers[component]
 
-                Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
-                # MAGIC: only look along one direction
-                DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
-                radiationSeries.flush()
-
-                r_offset[:, i_c] = gpuBoxOffset * iteration.get_attribute(cellExtensionNames[component])
-                n_vec[:, i_c] = DetectorDirection
+                r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
+                n_vec[:, i_c] = radIter.meshes["DetectorDirection"][component].unit_SI *\
+                    component_buffers.DetectorDirection
 
                 # MAGIC: index direction = 0 to get ex vector = [1,0,0]
                 i_direction = 0
-                distributed_amplitudes[i_c] = torch_from_numpy(Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
+                distributed_amplitudes[i_c] = torch_from_numpy(
+                    radIter.meshes["Amplitude_distributed"][component].unit_SI \
+                        * component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (local GPUs, frequencies)
 
 
             # time retardation correction
-            # QUESTION: The `step`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
-            phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
+            # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
+            phase_offset = torch_from_numpy(
+                np.exp(
+                    -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
+                    * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
+                    [:, i_direction, :]
             distributed_amplitudes = distributed_amplitudes/phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
-            distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
-            
+            distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (local GPUs, components, frequencies)
+
             # MAGIC: Just look at y&z component
             r = distributed_amplitudes[:, 1:, :]
 
@@ -181,9 +459,6 @@ class StreamLoader(Thread):
             print("Done loading iteration %i"%(iteration.time))
             stdout.flush()
 
-            iteration.close() # It is currently not possible to reopen an iteration in openPMD
-            radIter.close() # It is currently not possible to reopen an iteration in openPMD
-        
 
         # signal that there are no further items
         print("Processed all iterations")
