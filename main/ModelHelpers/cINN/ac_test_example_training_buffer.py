@@ -23,7 +23,7 @@ ps_dims = 9
 rad = 100
 rad_dims = 2
 
-latent_space_dims = 10
+latent_space_dims = 1024
 
 class DummyOpenPMDProducer(Thread):
     def __init__(self, openPMDBuffer):
