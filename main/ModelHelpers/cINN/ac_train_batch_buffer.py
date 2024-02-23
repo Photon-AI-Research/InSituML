@@ -82,7 +82,7 @@ class TrainBatchBuffer(Thread):
         # reshapes from (num_part, part_dim) -> (1, num_part*part_dim)
         # 1 is batch size
         particles, radiation = particles_radiation
-        return [particles.reshape(1, -1), radiation.reshape(1, -1)]
+        return [torch.unsqueeze(particles, 0), torch.unsqueeze(radiation,0)]
     
     def get_batch(self):
         

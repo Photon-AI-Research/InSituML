@@ -13,15 +13,16 @@ import torch.nn as nn
 from model import model_MAF as model_MAF
 
 from train_khi_AE_refactored.encoder_decoder import Encoder
-from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder
+from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
 from train_khi_AE_refactored.loss_functions import EarthMoversLoss
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 batchsize = 4
 number_of_particles = 100
 ps_dims = 9
 
 rad = 100
-rad_dims = 2
+rad_dims = 9
 
 latent_space_dims = 1024
 
@@ -74,10 +75,10 @@ activation = 'relu',
 #                             num_blocks_mat = config["num_blocks_mat"],
 #                             activation = config["activation"]
 #                             ))
-def ModelFinal(nn.Module):
+class ModelFinal(nn.Module):
     def __init__(self, encoder, decoder, inner_model,
                  loss_function_AE, loss_function_IM):
-        
+        super().__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.inner_model = inner_model
@@ -86,21 +87,22 @@ def ModelFinal(nn.Module):
     
     def forward(self, x, y):
         
-        encoded = self.encoder(x.to(self.encoder.device))
-        decoded = self.decoded(encoded)
+        encoded = self.encoder(x)
+        decoded  = self.decoder(encoded)
         
-        loss_AE = self.loss_function_AE(decoded, phase_space) 
-        
-        loss_IM = self.loss_function_IM(self.inner_model(decoded),
-                                        y.to(self.inner_model.device))
+        loss_AE = self.loss_function_AE(decoded, x) 
+
+        inner_model_out = self.inner_model(encoded)
+        loss_IM = self.loss_function_IM(inner_model_out,
+                                        y)
         return loss_AE + loss_IM
 
-model = ModelFinal(Encoder(z_dim=latent_space_dims,input_dim = ps_dims),
-                   Conv3DDecoder(z_dim=latent_space_dims, input_dim = ps_dims),
-                    Conv3DDecoder(z_dim=latent_space_dims, input_dim = rad_dims),
+model = ModelFinal(Encoder(ae_config="simple", z_dim=latent_space_dims,input_dim = ps_dims),
+                   MLPDecoder(z_dim=latent_space_dims, input_dim = ps_dims, particles_to_sample=number_of_particles),
+                    MLPDecoder(z_dim=latent_space_dims, input_dim = rad_dims, particles_to_sample=number_of_particles),
                     EarthMoversLoss(),
-                    nn.MSE())
-
+                    nn.MSELoss())
+model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=config["lr"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
 

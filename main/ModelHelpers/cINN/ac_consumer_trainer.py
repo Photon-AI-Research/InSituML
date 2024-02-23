@@ -7,6 +7,8 @@ It is supposed to behave like a list. That is, it can be accessed and iterated o
 """
 import time
 from threading import Thread
+import torch
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class ModelTrainer(Thread):
     """
@@ -37,7 +39,7 @@ class ModelTrainer(Thread):
     def __init__(self,
                  training_buffer,
                  model, 
-                 optimizers,
+                 optimizer,
                  scheduler,
                  sleep_before_retry=10,
                  ts_after_stopped_production=10,
@@ -83,8 +85,8 @@ class ModelTrainer(Thread):
             #                                 context=radiation.to(self.model.device))
             
             
-            loss = self.model(phase_space.to(self.model.device),
-                              radiation.to(self.model.device))
+            loss = self.model(phase_space.to(device),
+                              radiation.to(device))
 
             loss = loss.mean()
             self.losses.append(loss.item())
