@@ -171,6 +171,7 @@ class StreamLoader(Thread):
         self.rng = np.random.default_rng()
         self.transformPolicy = None #dataTransformationPolicy
         self.comm = MPI.COMM_WORLD
+        self.hyperParameterDefaults = hyperParameterDefaults
 
     def run(self):
         """Function being executed when thread is started."""
@@ -223,6 +224,32 @@ class StreamLoader(Thread):
                 iteration = particle_iterations.__next__()
             except StopIteration:
                 break
+
+            def get_next_radiation():
+                try:
+                    radIter = radiation_iterations.__next__()
+                except StopIteration:
+                    raise RuntimeError(
+                        "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
+                            iteration.iteration_index))
+
+                if iteration.iteration_index != radIter.iteration_index:
+                    raise RuntimeError(
+                        "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
+                            iteration.iteration_index,
+                            radIter.iteration_index))
+                return radIter
+
+            if not (self.hyperParameterDefaults['t0']
+                    <= iteration.iteration_index
+                    <= self.hyperParameterDefaults['t1']):
+                print("Skipping iteration {} as it is not in the specified range [t0,t1]=[{},{}]".format(
+                    iteration.iteration_index,
+                    self.hyperParameterDefaults['t0'],
+                    self.hyperParameterDefaults['t1']
+                ))
+                get_next_radiation()
+                continue
 
             print("Start processing iteration %i"%(iteration.time))
             stdout.flush()
@@ -370,18 +397,7 @@ class StreamLoader(Thread):
 
             ## obtain radiation data per GPU ##
             #
-            try:
-                radIter = radiation_iterations.__next__()
-            except StopIteration:
-                raise RuntimeError(
-                    "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
-                        iteration.iteration_index))
-
-            if iteration.iteration_index != radIter.iteration_index:
-                raise RuntimeError(
-                    "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
-                        iteration.iteration_index,
-                        radIter.iteration_index))
+            radIter = get_next_radiation()
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
             r_offset = np.empty((num_processed_chunks_per_rank, 3)) # shape: (local GPUs, components)
