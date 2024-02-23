@@ -32,7 +32,6 @@ class TrainBatchBuffer(Thread):
         Thread.__init__(self)
 
         self.openPMDbuffer = openPMDBuffer
-        self.training_batch = training_batch
 
         self.training_bs = training_bs
         self.continual_bs = continual_bs
@@ -54,6 +53,7 @@ class TrainBatchBuffer(Thread):
     def run(self):
 
         while True:
+            print("train_buffer", flush=True)
             # get a particles, radiation from the queue
             particles_radiation = self.openPMDbuffer.get()
 

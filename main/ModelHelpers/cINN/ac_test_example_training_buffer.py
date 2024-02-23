@@ -1,5 +1,5 @@
 from ac_train_batch_buffer import TrainBatchBuffer
-from ks_consumer_MAF_khi_radiation import MafModelTrainer
+from ac_consumer_trainer import ModelTrainer
 from threading import Thread
 import torch
 from time import sleep
@@ -76,8 +76,8 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
 
 
 
-trainBF = TrainBatchBuffer(openPMDBuffer, training_batch)
-modelTrainer = MafModelTrainer(training_batch, model, optimizer, scheduler)
+trainBF = TrainBatchBuffer(openPMDBuffer)
+modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler)
 
 modelTrainer.start()
 trainBF.start()

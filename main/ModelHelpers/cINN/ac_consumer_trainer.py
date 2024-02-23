@@ -11,8 +11,9 @@ from threading import Thread
 class ModelTrainer(Thread):
 
     def __init__(self,
-                 training_batch,
+                 training_buffer,
                  model, optimizer, scheduler,
+                 sleep_before_retry=10,
                  enable_wandb=None, wandbRunObject=None):
         
         Thread.__init__(self)
@@ -24,6 +25,7 @@ class ModelTrainer(Thread):
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.losses = []
+        self.sleep_before_retry = sleep_before_retry
         self.enable_wandb = enable_wandb
         self.wandb_run = wandbRunObject
         
@@ -31,18 +33,22 @@ class ModelTrainer(Thread):
         self.ts_after_stopped_production = 10
         
     def run(self):
-        
+
+        rest_training_left_counter=0
+
         while True:
             
-            self.batch_passes += 1
-            
-            phase_space_radiation = self.training_buffer.getbatch()
+            phase_space_radiation = self.training_buffer.get_batch()
             
             #this is now only indicating that there 
             #is not enough data in the now buffer 
             #for training to begin
             if phase_space_radiation is None:
+                time.sleep(self.sleep_before_retry)
                 continue
+
+            self.batch_passes += 1
+            print(self.batch_passes, end=",", flush=True)
             
             phase_space, radiation = phase_space_radiation
             
@@ -56,7 +62,7 @@ class ModelTrainer(Thread):
 
             self.optimizer.step()
             self.scheduler.step()
-            
+
             if self.enable_wandb is not None:
                 self.wandb_run.log({
                         "batch_passes": self.batch_passes,
@@ -65,6 +71,8 @@ class ModelTrainer(Thread):
                     })
 
 
-            if (self.batch_passes%self.ts_after_stopped_production
-               and self.training_buffer.openpmdProduction == False):
-                break
+            if self.training_buffer.openpmdProduction == False:
+                rest_training_left_counter+=1
+                if rest_training_left_counter>self.ts_after_stopped_production:
+                    break
+
