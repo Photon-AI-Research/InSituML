@@ -9,11 +9,36 @@ import time
 from threading import Thread
 
 class ModelTrainer(Thread):
+    """
+    This class implements a trainer based on extracting random batches from the trainer buffer and training the model.
+    
+    Args:
+    
+    training_buffer (ac_train_batch_buffer.TrainBatchBuffer object): A TrainBatchBuffer class.
+
+    model: Model to be trained.
+
+    optimizer: Optimizer object used for model training.
+
+    scheduler: Scheduler object used for optimizer
+
+    sleep_before_retry(int): As the train buffer is being filled. The trainer waits till it has number of items which are equal to training batch size.
+    
+
+    ts_after_stopped_production (int): After the simulation has stopped, openpmdProducer stops producing for train buffer. The trainer will continue training for this many training steps extracting random batches from last state of the training buffer.
+
+    enable_wandb: Whether to log training params to wandb.
+    
+    wandbRunObject: wandb run object.
+    
+    """
+
 
     def __init__(self,
                  training_buffer,
                  model, optimizer, scheduler,
                  sleep_before_retry=10,
+                 ts_after_stopped_production=10,
                  enable_wandb=None, wandbRunObject=None):
         
         Thread.__init__(self)
@@ -30,7 +55,7 @@ class ModelTrainer(Thread):
         self.wandb_run = wandbRunObject
         
         self.batch_passes = 0
-        self.ts_after_stopped_production = 10
+        self.ts_after_stopped_production = ts_after_stopped_production
         
     def run(self):
 
@@ -48,7 +73,6 @@ class ModelTrainer(Thread):
                 continue
 
             self.batch_passes += 1
-            print(self.batch_passes, end=",", flush=True)
             
             phase_space, radiation = phase_space_radiation
             
