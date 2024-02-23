@@ -432,6 +432,9 @@ class StreamLoader(Thread):
 
             # PLEASE CHECK THE CALCULATIONS BELOW
 
+            amplitude_direction_x = self.hyperParameterDefaults['amplitude_direction_x']
+            amplitude_direction_y = self.hyperParameterDefaults['amplitude_direction_y']
+
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
 
@@ -441,10 +444,7 @@ class StreamLoader(Thread):
 
                 distributed_amplitudes[i_c] = torch_from_numpy(
                     radIter.meshes["Amplitude_distributed"][component].unit_SI \
-                        * component_buffers.Dist_Amplitude[
-                            :,
-                            self.hyperParameterDefaults['amplitude_direction_x'],
-                            self.hyperParameterDefaults['amplitude_direction_y']]) # shape of component i_c: (local GPUs, frequencies)
+                        * component_buffers.Dist_Amplitude[:, amplitude_direction_x, amplitude_direction_y]) # shape of component i_c: (local GPUs, frequencies)
 
 
             # time retardation correction
@@ -453,15 +453,26 @@ class StreamLoader(Thread):
                 np.exp(
                     -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
                     * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
-                    [:, self.hyperParameterDefaults['amplitude_direction_x'],
-                        self.hyperParameterDefaults['amplitude_direction_y']]
+                    [:, amplitude_direction_x, amplitude_direction_y]
             distributed_amplitudes = distributed_amplitudes/phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
             distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (local GPUs, components, frequencies)
 
+            def erase_single_index_from_slice(slice_, len):
+                if isinstance(slice_, slice):
+                    return slice(None)
+                else:
+                    expanded_slice = np.array(range(len))
+                    # remove the single index from the indexes
+                    res = np.setdiff1d(expanded_slice, np.array([slice_]), assume_unique=True)
+                    return res
+
+            inv_x = erase_single_index_from_slice(amplitude_direction_x, distributed_amplitudes.shape[1])
+            inv_y = erase_single_index_from_slice(amplitude_direction_y, distributed_amplitudes.shape[2])
+
             # MAGIC: Just look at y&z component
-            r = distributed_amplitudes[:, 1:, :]
+            r = distributed_amplitudes[:, inv_x, inv_y]
 
             # Compute the phase (angle) of the complex number
             phase = torch_angle(r)
