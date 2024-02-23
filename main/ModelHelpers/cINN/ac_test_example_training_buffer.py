@@ -83,6 +83,6 @@ modelTrainer.start()
 trainBF.start()
 openpmdProducer.start()
 
-openPMDBuffer.join()
+openpmdProducer.join()
 trainBF.join()
 modelTrainer.join()

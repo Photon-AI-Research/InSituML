@@ -10,9 +10,7 @@ class TrainBatchBuffer(Thread):
     Args:
     
     openPMDBuffer (Queue): Queue shared between openPMD producer and train buffer.
-     
-    training_batch (Queue): Queue shared between train buffer and MafModelTrainer
-    
+         
     training_bs (int): training batch size to send to the model to train on.
 
     buffersize (int): Size of train buffer.
@@ -25,7 +23,6 @@ class TrainBatchBuffer(Thread):
 
     def __init__(self,
                  openPMDBuffer,
-                 training_batch,
                  training_bs = 4,
                  buffersize = 5,
                  use_continual_learning=True,
@@ -48,6 +45,10 @@ class TrainBatchBuffer(Thread):
 
         self.buffer_ = []
         self.buffersize = buffersize
+        
+        # to indicate whether there are
+        # still production from openPMD production.
+        self.openpmdProduction = True
 
 
     def run(self):
@@ -75,14 +76,9 @@ class TrainBatchBuffer(Thread):
                                               n_obs = self.n_obs,
                                               i_step = self.n_obs) #i_step = n_obs in this case
                     self.n_obs += 1
+                    
+        self.openpmdProduction = False
             
-            # no training batch until it has 
-            # batch size of elements
-            if len(self.buffer_)>=self.training_bs:
-               self.training_batch.put(self.get_batch())
-        
-        self.training_batch.put(None)
-
     def reshape(self, particles_radiation):
         # reshapes from (num_part, part_dim) -> (1, num_part*part_dim)
         # 1 is batch size
@@ -90,6 +86,10 @@ class TrainBatchBuffer(Thread):
         return [particles.reshape(1, -1), radiation.reshape(1, -1)]
     
     def get_batch(self):
+        
+        # No training until there batch size element in the buffer.
+        if len(self.buffer_)<self.training_bs:
+            return None
         
         #random sampling
         random_sample = sample(self.buffer_, self.training_bs)
