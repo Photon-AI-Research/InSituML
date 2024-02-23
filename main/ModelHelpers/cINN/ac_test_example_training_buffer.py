@@ -74,23 +74,38 @@ activation = 'relu',
 #                             num_blocks_mat = config["num_blocks_mat"],
 #                             activation = config["activation"]
 #                             ))
+def ModelFinal(nn.Module):
+    def __init__(self, encoder, decoder, inner_model,
+                 loss_function_AE, loss_function_IM):
+        
+        self.encoder = encoder
+        self.decoder = decoder
+        self.inner_model = inner_model
+        self.loss_function_AE = loss_function_AE
+        self.loss_function_IM = loss_function_IM
+    
+    def forward(self, x, y):
+        
+        encoded = self.encoder(x.to(self.encoder.device))
+        decoded = self.decoded(encoded)
+        
+        loss_AE = self.loss_function_AE(decoded, phase_space) 
+        
+        loss_IM = self.loss_function_IM(self.inner_model(decoded),
+                                        y.to(self.inner_model.device))
+        return loss_AE + loss_IM
 
-model_requirements = [Encoder(z_dim=latent_space_dims,
-                     input_dim = ps_dims),
-                    Conv3DDecoder(z_dim=latent_space_dims,
-                                input_dim =ps_dims),
-                    Conv3DDecoder(z_dim=latent_space_dims, 
-                                input_dim = rad_dims)]
+model = ModelFinal(Encoder(z_dim=latent_space_dims,input_dim = ps_dims),
+                   Conv3DDecoder(z_dim=latent_space_dims, input_dim = ps_dims),
+                    Conv3DDecoder(z_dim=latent_space_dims, input_dim = rad_dims),
+                    EarthMoversLoss(),
+                    nn.MSE())
 
 optimizer = optim.Adam(model.parameters(), lr=config["lr"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
-loss_function_AE = EarthMoversLoss()
-loss_function_IM = nn.MSE()
-
 
 trainBF = TrainBatchBuffer(openPMDBuffer)
-modelTrainer = ModelTrainer(trainBF, model_requirements, loss_function_AE,
-                            loss_function_IM, optimizer, scheduler)
+modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler)
 
 modelTrainer.start()
 trainBF.start()
