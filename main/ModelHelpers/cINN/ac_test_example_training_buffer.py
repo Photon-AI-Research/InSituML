@@ -8,8 +8,13 @@ from threading import Thread
 from queue import Queue
 
 from torch import optim
+import torch.nn as nn
 
 from model import model_MAF as model_MAF
+
+from train_khi_AE_refactored.encoder_decoder import Encoder
+from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder
+from train_khi_AE_refactored.loss_functions import EarthMoversLoss
 
 batchsize = 4
 number_of_particles = 100
@@ -18,6 +23,7 @@ ps_dims = 9
 rad = 100
 rad_dims = 2
 
+latent_space_dims = 10
 
 class DummyOpenPMDProducer(Thread):
     def __init__(self, openPMDBuffer):
@@ -47,7 +53,6 @@ class DummyOpenPMDProducer(Thread):
 
 
 openPMDBuffer = Queue()
-training_batch = Queue()
 
 openpmdProducer = DummyOpenPMDProducer(openPMDBuffer)
 
@@ -60,24 +65,32 @@ activation = 'relu',
  lr = 0.00001
 )
 
-model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
-                            dim_input=number_of_particles*ps_dims,
-                            num_coupling_layers=config["num_coupling_layers"],
-                            hidden_size=config["hidden_size"],
-                            device='cuda',
-                            weight_particles=False,
-                            num_blocks_mat = config["num_blocks_mat"],
-                            activation = config["activation"]
-                            ))
+# model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
+#                             dim_input=number_of_particles*ps_dims,
+#                             num_coupling_layers=config["num_coupling_layers"],
+#                             hidden_size=config["hidden_size"],
+#                             device='cuda',
+#                             weight_particles=False,
+#                             num_blocks_mat = config["num_blocks_mat"],
+#                             activation = config["activation"]
+#                             ))
 
+model_requirements = [Encoder(z_dim=latent_space_dims,
+                     input_dim = ps_dims),
+                    Conv3DDecoder(z_dim=latent_space_dims,
+                                input_dim =ps_dims),
+                    Conv3DDecoder(z_dim=latent_space_dims, 
+                                input_dim = rad_dims)]
 
 optimizer = optim.Adam(model.parameters(), lr=config["lr"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
-
+loss_function_AE = EarthMoversLoss()
+loss_function_IM = nn.MSE()
 
 
 trainBF = TrainBatchBuffer(openPMDBuffer)
-modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler)
+modelTrainer = ModelTrainer(trainBF, model_requirements, loss_function_AE,
+                            loss_function_IM, optimizer, scheduler)
 
 modelTrainer.start()
 trainBF.start()
