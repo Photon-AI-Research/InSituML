@@ -79,8 +79,8 @@ class TrainBatchBuffer(Thread):
         self.openpmdProduction = False
             
     def reshape(self, particles_radiation):
-        # reshapes from (num_part, part_dim) -> (1, num_part*part_dim)
-        # 1 is batch size
+        # adds a batch dims assuming the data is coming as
+        # (number_of_particles, dims) -> (1, number_of_particles, dims)
         particles, radiation = particles_radiation
         return [torch.unsqueeze(particles, 0), torch.unsqueeze(radiation,0)]
     

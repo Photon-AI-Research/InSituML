@@ -1,9 +1,5 @@
 """
-Consumer of PIConGPU particle and radiation data to train an ML model.
-The data to train on is supposed to be provided in a buffer which allows accessing it by a `get()` method.
-The particle and radiation data itself is expected to be provided as 'timebatches'.
-A timebatch is a list holding particle and radiation data from a number of timesteps.
-It is supposed to behave like a list. That is, it can be accessed and iterated over with the `[]` operator and it has a `length`.
+
 """
 import time
 from threading import Thread
@@ -67,6 +63,13 @@ class ModelTrainer(Thread):
 
         while True:
             
+            if self.enable_wandb is not None:
+                self.wandb_run.log({
+                        "batch_passes": self.batch_passes,
+                        "loss_avg": sum(losses)/len(losses),
+                        "loss": loss,
+                    })
+            
             phase_space_radiation = self.training_buffer.get_batch()
             
             #this is now only indicating that there 
@@ -95,12 +98,6 @@ class ModelTrainer(Thread):
             self.optimizer.step()
             self.scheduler.step()
 
-            if self.enable_wandb is not None:
-                self.wandb_run.log({
-                        "batch_passes": self.batch_passes,
-                        "loss_avg": sum(losses)/len(losses),
-                        "loss": loss,
-                    })
 
 
             if self.training_buffer.openpmdProduction == False:
