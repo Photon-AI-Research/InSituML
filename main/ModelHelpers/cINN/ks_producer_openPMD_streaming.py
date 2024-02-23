@@ -163,10 +163,8 @@ class StreamLoader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-#        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst"
-#        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst"
+        self.particlePathpattern = hyperParameterDefaults['pathpattern1']
+        self.radiationPathPattern = hyperParameterDefaults['pathpattern2']
 
         self.rng = np.random.default_rng()
         self.transformPolicy = None #dataTransformationPolicy
@@ -441,11 +439,12 @@ class StreamLoader(Thread):
                 n_vec[:, i_c] = radIter.meshes["DetectorDirection"][component].unit_SI *\
                     component_buffers.DetectorDirection
 
-                # MAGIC: index direction = 0 to get ex vector = [1,0,0]
-                i_direction = 0
                 distributed_amplitudes[i_c] = torch_from_numpy(
                     radIter.meshes["Amplitude_distributed"][component].unit_SI \
-                        * component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (local GPUs, frequencies)
+                        * component_buffers.Dist_Amplitude[
+                            :,
+                            self.hyperParameterDefaults['amplitude_direction_x'],
+                            self.hyperParameterDefaults['amplitude_direction_y']]) # shape of component i_c: (local GPUs, frequencies)
 
 
             # time retardation correction
@@ -454,7 +453,8 @@ class StreamLoader(Thread):
                 np.exp(
                     -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
                     * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
-                    [:, i_direction, :]
+                    [:, self.hyperParameterDefaults['amplitude_direction_x'],
+                        self.hyperParameterDefaults['amplitude_direction_y']]
             distributed_amplitudes = distributed_amplitudes/phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
