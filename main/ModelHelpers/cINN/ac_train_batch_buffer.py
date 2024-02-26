@@ -25,6 +25,7 @@ class TrainBatchBuffer(Thread):
                  openPMDBuffer,
                  training_bs = 4,
                  buffersize = 5,
+                 max_tb_from_unchanged_now_bf = 3,
                  use_continual_learning=True,
                  continual_bs = 4,
                  cl_mem_size=2048):
@@ -48,17 +49,22 @@ class TrainBatchBuffer(Thread):
         # to indicate whether there are
         # still production from openPMD production.
         self.openpmdProduction = True
-
+        self.noReadCount = 0
+        self.max_tb_from_unchanged_now_bf = max_tb_from_unchanged_now_bf
 
     def run(self):
 
-        while True:
+        openPMDBufferReadCount = 0
+        openPMDBufferSize = self.openPMDbuffer.qsize()
+
+        while openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize):
             # get a particles, radiation from the queue
             particles_radiation = self.openPMDbuffer.get()
 
             if particles_radiation is None:
+                self.openpmdProduction = False
                 break
-            
+
             particles_radiation = self.reshape(particles_radiation)
 
             if len(self.buffer_) < self.buffersize:
@@ -72,12 +78,16 @@ class TrainBatchBuffer(Thread):
                     #add the last element to memory, if continual learning is
                     #required.
                     self.er_mem.update_memory(*last_element,
-                                              n_obs = self.n_obs,
-                                              i_step = self.n_obs) #i_step = n_obs in this case
+                                                n_obs = self.n_obs,
+                                                i_step = self.n_obs) #i_step = n_obs in this case
                     self.n_obs += 1
-                    
-        self.openpmdProduction = False
-            
+
+            openPMDBufferReadCount += 1
+            self.noReadCount = 0
+        
+        else:
+            self.noReadCount += 1
+
     def reshape(self, particles_radiation):
         # adds a batch dims assuming the data is coming as
         # (number_of_particles, dims) -> (1, number_of_particles, dims)
@@ -85,9 +95,11 @@ class TrainBatchBuffer(Thread):
         return [torch.unsqueeze(particles, 0), torch.unsqueeze(radiation,0)]
     
     def get_batch(self):
-        
+
+        self.run()
         # No training until there batch size element in the buffer.
-        if len(self.buffer_)<self.training_bs:
+        if len(self.buffer_)<self.training_bs or (self.noReadCount>self.max_tb_from_unchanged_now_bf and
+                                                  self.openpmdProduction):
             return None
         
         #random sampling
