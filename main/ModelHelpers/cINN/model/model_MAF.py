@@ -107,8 +107,9 @@ class PC_MAF(nn.Module):
 
         return Flow(transform, base_dist).to(self.device)
 
-    def forward(self, x, p):
-        loss = self.model(x, c=p)
+    def forward(self, x, y):
+        loss = - self.model.log_prob(inputs=x, context=y)
+        #loss = self.model(x, c=p)
         return loss
 
     def train_(self, 
