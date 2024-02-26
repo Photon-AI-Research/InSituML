@@ -430,17 +430,14 @@ class StreamLoader(Thread):
 
             radIter.close()
 
-            # PLEASE CHECK THE CALCULATIONS BELOW
-
             amplitude_direction_x = self.hyperParameterDefaults['amplitude_direction_x']
-            amplitude_direction_y = self.hyperParameterDefaults['amplitude_direction_y']
 
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
 
                 r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
                 n_vec[:, i_c] = component_buffers.DetectorDirection
-                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, amplitude_direction_x, amplitude_direction_y]) # shape of component i_c: (local GPUs, frequencies)
+                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, amplitude_direction_x, :]) # shape of component i_c: (local GPUs, frequencies)
 
             # time retardation correction
             # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
@@ -449,7 +446,7 @@ class StreamLoader(Thread):
                 np.exp(
                     -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
                     * (iteration.iteration_index - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
-                    [:, amplitude_direction_x, amplitude_direction_y]
+                    [:, amplitude_direction_x, :]
             distributed_amplitudes = distributed_amplitudes*phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
@@ -465,10 +462,9 @@ class StreamLoader(Thread):
                     return res
 
             inv_x = erase_single_index_from_slice(amplitude_direction_x, distributed_amplitudes.shape[1])
-            inv_y = erase_single_index_from_slice(amplitude_direction_y, distributed_amplitudes.shape[2])
 
             # MAGIC: Just look at y&z component
-            r = distributed_amplitudes[:, inv_x, inv_y]
+            r = distributed_amplitudes[:, inv_x, :]
 
             # Compute the phase (angle) of the complex number
             phase = torch_angle(r)

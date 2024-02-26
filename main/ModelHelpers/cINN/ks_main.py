@@ -37,8 +37,7 @@ num_blocks_mat = 2,
 activation = 'gelu',
 pathpattern1 = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst",
 pathpattern2 = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst",
-amplitude_direction_x=0,
-amplitude_direction_y=slice(None)
+amplitude_direction_x=0
 )
 
 enable_wandb = False
