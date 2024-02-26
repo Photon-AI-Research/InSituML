@@ -28,32 +28,43 @@ def validate_model(model, valid_data_loader, property_, device):
     with torch.no_grad():
         for idx in range(len(valid_data_loader)):
             timestep_index, validation_boxes, p, _ = valid_data_loader[idx]
-            p = filter_dims(p, property_)
+            p = filter_dims[property_](p)
             p = p.to(device)
             val_loss, p_pr = model(p)
             val_loss_avg.append(val_loss.mean().item())
     val_loss_overall_avg = sum(val_loss_avg) / (len(val_loss_avg) + 1e-8)
     return val_loss_overall_avg
 
-def filter_dims(phase_space, property_="positions"):
-    
-    if property_ == "positions":
-        return phase_space[:,:,:3]
-    elif property_ == "momentum":
-        return phase_space[:,:,3:6]
-    elif property_ == "force":
-        return phase_space[:,:,6:]
-    elif property_ == "momentum_force":
-        return phase_space[:,:,3:]
-    elif property_ == "momentum_6":
-        return phase_space[:,:,:3]
-    elif property_ == "force_6":
-        return phase_space[:,:,3:6]
-    else:
-        return phase_space
-    
+# def filter_dims(phase_space, property_="positions"):
+#
+#     if property_ == "positions":
+#         return phase_space[:,:,:3]
+#     elif property_ == "momentum":
+#         return phase_space[:,:,3:6]
+#     elif property_ == "force":
+#         return phase_space[:,:,6:]
+#     elif property_ == "momentum_force":
+#         return phase_space[:,:,3:]
+#     elif property_ == "momentum_6":
+#         return phase_space[:,:,:3]
+#     elif property_ == "force_6":
+#         return phase_space[:,:,3:6]
+#     else:
+#         return phase_space
+
+filter_dims ={
+
+    "positions" : lambda x:x[:,:,:3],
+    "momentum" : lambda x:x[:,:,3:6],
+    "force": lambda x:x[:,:,6:],
+    "momentum_force": lambda x:x[:,:,3:],
+    "momentum_6":lambda x:x[:,:,:3],
+    "force_6":lambda x:x[:,:,3:6],
+    "all":lambda x:x
+    }
 def save_visual_multi(*args, property_):
     property_run = ["positions", "momentum", "force"] if property_=="all" else ["momentum", "force"]
+
     deque(save_visual(*args, property_1, running6or9=property_) \
              for property_1 in property_run)
     
@@ -65,16 +76,18 @@ def save_visual(model, timebatch, wandb, timeInfo, info_image_path,
     #if model is being trained on all the dimensions, it changes the order filtering
     # and inference.
     if running6or9:
-        random_input = filter_dims(random_input, running6or9)
+        random_input = filter_dims[running6or9](random_input)
         random_output = model.reconstruct_input(random_input.to(device))
+
         dims = "" if running6or9=="all" else "_6"
-        random_input = filter_dims(random_input, property_+dims)
-        random_output = filter_dims(random_output, property_+dims)
+
+        random_input = filter_dims[property_+dims](random_input)
+        random_output = filter_dims[property_+dims](random_output)
         
     else:
-        random_input = filter_dims(random_input, property_)
+        random_input = filter_dims[property_](random_input)
         random_output = model.reconstruct_input(random_input.to(device))
-    
+
     all_var_to_plot = random_input[0].transpose(1,0).tolist() + random_output[0].transpose(1,0).tolist()
     if property_ == "positions":
         create_position_density_plots(*all_var_to_plot, path=info_image_path,

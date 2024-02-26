@@ -44,7 +44,7 @@ def train_AE(model, optimizer,
                 phase_space, _ = timeBatch[particleBatchIndex]
                 
                 #TODO do this in the loader. Saves double code.
-                phase_space = filter_dims(phase_space, property_)
+                phase_space = filter_dims[property_](phase_space)
                 
                 phase_space = phase_space.to(device)
                 
