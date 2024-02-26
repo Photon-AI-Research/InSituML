@@ -163,14 +163,13 @@ class StreamLoader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-#        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst"
-#        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst"
+        self.particlePathpattern = hyperParameterDefaults['pathpattern1']
+        self.radiationPathPattern = hyperParameterDefaults['pathpattern2']
 
         self.rng = np.random.default_rng()
         self.transformPolicy = None #dataTransformationPolicy
         self.comm = MPI.COMM_WORLD
+        self.hyperParameterDefaults = hyperParameterDefaults
 
     def run(self):
         """Function being executed when thread is started."""
@@ -224,6 +223,32 @@ class StreamLoader(Thread):
             except StopIteration:
                 break
 
+            def get_next_radiation():
+                try:
+                    radIter = radiation_iterations.__next__()
+                except StopIteration:
+                    raise RuntimeError(
+                        "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
+                            iteration.iteration_index))
+
+                if iteration.iteration_index != radIter.iteration_index:
+                    raise RuntimeError(
+                        "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
+                            iteration.iteration_index,
+                            radIter.iteration_index))
+                return radIter
+
+            if not (self.hyperParameterDefaults['t0']
+                    <= iteration.iteration_index
+                    <= self.hyperParameterDefaults['t1']):
+                print("Skipping iteration {} as it is not in the specified range [t0,t1]=[{},{}]".format(
+                    iteration.iteration_index,
+                    self.hyperParameterDefaults['t0'],
+                    self.hyperParameterDefaults['t1']
+                ))
+                get_next_radiation()
+                continue
+
             print("Start processing iteration %i"%(iteration.time))
             stdout.flush()
             ## obtain particle distribution over GPUs ##
@@ -275,8 +300,6 @@ class StreamLoader(Thread):
                    And immediately reshape by subdividing in particles per GPU.
                    Also, reduce to requested number of particles per GPU.
                 """
-                ## TODO: need to scale and normalize these values
-                ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
                 component_buffers = EnqueuedBuffers()
                 for chunk in local_particles_chunks:
                     component_buffers.position.append(
@@ -332,20 +355,22 @@ class StreamLoader(Thread):
             loaded_particles = torch_empty((9, num_processed_chunks_per_rank, particlePerGPU), dtype=torch_float32)
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
-                position = [ps["position"][component].unit_SI * component_buffers.position[j] \
-                    + ps["positionOffset"][component].unit_SI * component_buffers.positionOffset[j] \
+                position = [component_buffers.position[j] + component_buffers.positionOffset[j] \
                         for j in range(num_processed_chunks_per_rank)]
+                # TODO: Normalize positions on per GPU basis!
+                ## TODO: need to scale and normalize these values
+                ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
                 del component_buffers.position
                 del component_buffers.positionOffset
                 pos_reduced = np.array([
                     p[r] for r, p in zip(randomParticlesPerGPU, position)
                 ])
                 del position
-                mom_reduced = ps["momentum"][component].unit_SI * np.array([
+                mom_reduced = np.array([
                     m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentum)
                 ])
                 del component_buffers.momentum
-                momPrev1_reduced = ps["momentumPrev1"][component].unit_SI * np.array([
+                momPrev1_reduced = np.array([
                     m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentumPrev1)
                 ])
                 del component_buffers.momentumPrev1
@@ -370,18 +395,7 @@ class StreamLoader(Thread):
 
             ## obtain radiation data per GPU ##
             #
-            try:
-                radIter = radiation_iterations.__next__()
-            except StopIteration:
-                raise RuntimeError(
-                    "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
-                        iteration.iteration_index))
-
-            if iteration.iteration_index != radIter.iteration_index:
-                raise RuntimeError(
-                    "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
-                        iteration.iteration_index,
-                        radIter.iteration_index))
+            radIter = get_next_radiation()
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
             r_offset = np.empty((num_processed_chunks_per_rank, 3)) # shape: (local GPUs, components)
@@ -416,36 +430,41 @@ class StreamLoader(Thread):
 
             radIter.close()
 
-            # PLEASE CHECK THE CALCULATIONS BELOW
+            amplitude_direction_x = self.hyperParameterDefaults['amplitude_direction_x']
 
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
 
                 r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
-                n_vec[:, i_c] = radIter.meshes["DetectorDirection"][component].unit_SI *\
-                    component_buffers.DetectorDirection
-
-                # MAGIC: index direction = 0 to get ex vector = [1,0,0]
-                i_direction = 0
-                distributed_amplitudes[i_c] = torch_from_numpy(
-                    radIter.meshes["Amplitude_distributed"][component].unit_SI \
-                        * component_buffers.Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (local GPUs, frequencies)
-
+                n_vec[:, i_c] = component_buffers.DetectorDirection
+                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, amplitude_direction_x, :]) # shape of component i_c: (local GPUs, frequencies)
 
             # time retardation correction
             # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
+            # ANSWER: Calculation is fully in PIConGPU coordinates. All fine.
             phase_offset = torch_from_numpy(
                 np.exp(
                     -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
-                    * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
-                    [:, i_direction, :]
-            distributed_amplitudes = distributed_amplitudes/phase_offset
+                    * (iteration.iteration_index - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
+                    [:, amplitude_direction_x, :]
+            distributed_amplitudes = distributed_amplitudes*phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
             distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (local GPUs, components, frequencies)
 
+            def erase_single_index_from_slice(slice_, len):
+                if isinstance(slice_, slice):
+                    return slice(None)
+                else:
+                    expanded_slice = np.array(range(len))
+                    # remove the single index from the indexes
+                    res = np.setdiff1d(expanded_slice, np.array([slice_]), assume_unique=True)
+                    return res
+
+            inv_x = erase_single_index_from_slice(amplitude_direction_x, distributed_amplitudes.shape[1])
+
             # MAGIC: Just look at y&z component
-            r = distributed_amplitudes[:, 1:, :]
+            r = distributed_amplitudes[:, inv_x, :]
 
             # Compute the phase (angle) of the complex number
             phase = torch_angle(r)

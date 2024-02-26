@@ -35,8 +35,9 @@ lr = 0.001,
 num_epochs = 8,
 num_blocks_mat = 2,
 activation = 'gelu',
-pathpattern1 = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/openPMD/simData_%T.bp5",
-pathpattern2 = "/home/franzpoeschel/git-repos/streamed_analysis/pic_run/radiationOpenPMD/e_radAmplitudes.bp5"
+pathpattern1 = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst",
+pathpattern2 = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst",
+amplitude_direction_x=0
 )
 
 enable_wandb = False
