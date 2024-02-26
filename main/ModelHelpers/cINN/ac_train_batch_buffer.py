@@ -15,6 +15,10 @@ class TrainBatchBuffer(Thread):
 
     buffersize (int): Size of train buffer.
 
+    max_tb_from_unchanged_now_bf (int): Maximum number of training batches that can be extracted from the unchanged
+    state of train(or now) buffer. After extracting these many batches trainer would wait for more data to read from
+    openPMDBuffer. State of train/now buffer only changes once there is more data to be read from the openPMDBuffer.
+
     use_continual_learning (Bool): Whether to use use continual learning or not. If yes, will create memory buffer for the continual learning.
 
     cl_mem_size (int): Continual learning memory buffer size.
