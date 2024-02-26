@@ -300,8 +300,6 @@ class StreamLoader(Thread):
                    And immediately reshape by subdividing in particles per GPU.
                    Also, reduce to requested number of particles per GPU.
                 """
-                ## TODO: need to scale and normalize these values
-                ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
                 component_buffers = EnqueuedBuffers()
                 for chunk in local_particles_chunks:
                     component_buffers.position.append(
@@ -357,20 +355,22 @@ class StreamLoader(Thread):
             loaded_particles = torch_empty((9, num_processed_chunks_per_rank, particlePerGPU), dtype=torch_float32)
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
-                position = [ps["position"][component].unit_SI * component_buffers.position[j] \
-                    + ps["positionOffset"][component].unit_SI * component_buffers.positionOffset[j] \
+                position = [component_buffers.position[j] + component_buffers.positionOffset[j] \
                         for j in range(num_processed_chunks_per_rank)]
+                # TODO: Normalize positions on per GPU basis!
+                ## TODO: need to scale and normalize these values
+                ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
                 del component_buffers.position
                 del component_buffers.positionOffset
                 pos_reduced = np.array([
                     p[r] for r, p in zip(randomParticlesPerGPU, position)
                 ])
                 del position
-                mom_reduced = ps["momentum"][component].unit_SI * np.array([
+                mom_reduced = np.array([
                     m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentum)
                 ])
                 del component_buffers.momentum
-                momPrev1_reduced = ps["momentumPrev1"][component].unit_SI * np.array([
+                momPrev1_reduced = np.array([
                     m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentumPrev1)
                 ])
                 del component_buffers.momentumPrev1
@@ -439,22 +439,18 @@ class StreamLoader(Thread):
                 component_buffers = loaded_buffers[component]
 
                 r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
-                n_vec[:, i_c] = radIter.meshes["DetectorDirection"][component].unit_SI *\
-                    component_buffers.DetectorDirection
-
-                distributed_amplitudes[i_c] = torch_from_numpy(
-                    radIter.meshes["Amplitude_distributed"][component].unit_SI \
-                        * component_buffers.Dist_Amplitude[:, amplitude_direction_x, amplitude_direction_y]) # shape of component i_c: (local GPUs, frequencies)
-
+                n_vec[:, i_c] = component_buffers.DetectorDirection
+                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, amplitude_direction_x, amplitude_direction_y]) # shape of component i_c: (local GPUs, frequencies)
 
             # time retardation correction
             # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
+            # ANSWER: Calculation is fully in PIConGPU coordinates. All fine.
             phase_offset = torch_from_numpy(
                 np.exp(
                     -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
-                    * (iteration.iteration_index + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
+                    * (iteration.iteration_index - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
                     [:, amplitude_direction_x, amplitude_direction_y]
-            distributed_amplitudes = distributed_amplitudes/phase_offset
+            distributed_amplitudes = distributed_amplitudes*phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
             distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (local GPUs, components, frequencies)

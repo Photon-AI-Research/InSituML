@@ -112,28 +112,30 @@ class Loader(Thread):
                        And immediately reshape by subdividing in particles per GPU.
                        Also, reduce to requested number particles per GPU.
                     """
-                    position = (ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
-                        + ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
-                    )
+                    pos = ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    posOffset = ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
+
+                    series.flush()
+
+                    # TODO: Normalize positions on per GPU basis!
+                    position = pos + posOffset
                     pos_reduced = np.array([
                         position[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
                         for i in np.arange(len(numParticles))
                     ])
-
-                    ## Is it required to normalize positions and other phase space componentes?
 
                     #del position #to save memory?
                     # If memory is of concern, I could also first reduce position and delete it,
                     # then load, reduce, and delete positionOffset,
                     # and finally add the two reduced arrays.
 
-                    momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
                     mom_reduced = np.array([
                         momentum[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
                         for i in np.arange(len(numParticles))
                     ])
 
-                    momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
                     momPrev1_reduced = np.array([
                         momentumPrev1[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
                         for i in np.arange(len(numParticles))
@@ -188,8 +190,8 @@ class Loader(Thread):
 
                 # time retardation correction
                 # QUESTION: The `step`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
-                phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
-                distributed_amplitudes = distributed_amplitudes/phase_offset
+                phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
+                distributed_amplitudes = distributed_amplitudes*phase_offset
 
                 # Transform to shape: (GPUs, components, frequencies)
                 distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
