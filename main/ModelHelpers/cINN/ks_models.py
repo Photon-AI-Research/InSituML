@@ -1,0 +1,89 @@
+"""
+Define the AI model
+"""
+from torch import nn
+from torch import sigmoid as t_sigmoid
+from torch import tanh as t_tanh
+from torch.nn import functional as F
+
+from nflows.flows.base import Flow
+from nflows.transforms.standard import AffineTransform
+from nflows.transforms.permutations import ReversePermutation
+from nflows.transforms.autoregressive import MaskedAffineAutoregressiveTransform
+from nflows.transforms.base import CompositeTransform
+from nflows.distributions.normal import StandardNormal as nflows_StandardNormal
+
+class PC_MAF(nn.Module):
+    def __init__(self, 
+                 dim_condition,
+                 dim_input,
+                 num_coupling_layers=1,
+                 hidden_size=128,
+                 device='cpu',
+                 weight_particles=False,
+                 num_blocks_mat = 2,     
+                 activation = 'relu',
+                 random_mask = False):
+        
+        '''
+        Masked autoregressive flows model from https://papers.nips.cc/paper/2017/hash/6c1da886822c67822bcf3679d04369fa-Abstract.html
+        Args:
+            dim_condition(integer): dimensionality of condition
+            dim_input(integer): dimensionality of input
+            num_coupling_blocks(integer): number of coupling blocks in the model
+            hidden_size(integer): number of hidden units per hidden layer in subnetworks
+            device: "cpu" or "cuda"
+
+        '''
+
+        super().__init__()
+        self.device = device
+        self.num_coupling_layers = num_coupling_layers
+        self.hidden_size = hidden_size
+
+        self.dim_input = dim_input
+        self.dim_condition = dim_condition
+        
+        self.num_blocks_mat = num_blocks_mat
+        self.random_mask = random_mask
+        
+        
+        # Activation functions
+        activation_functions = {
+            'relu': F.relu,
+            'sigmoid': t_sigmoid,
+            'tanh': t_tanh,
+            'elu': F.elu,
+            'silu': F.silu,
+            'leaky_relu': F.leaky_relu,
+            'gelu': F.gelu
+        }
+        self.activation = activation_functions.get(activation)
+        
+        if self.activation is None:
+            raise ValueError("Unsupported activation function")
+            
+        self.model = self.init_model().to(self.device)
+        self.weight_particles = weight_particles
+    
+    def init_model(self):
+        base_dist = nflows_StandardNormal(shape=[self.dim_input])
+        
+        transforms = []
+        for _ in range(self.num_coupling_layers):
+            transforms.append(ReversePermutation(features=self.dim_input))
+            transforms.append(MaskedAffineAutoregressiveTransform(features=self.dim_input, 
+                                                                  hidden_features=self.hidden_size, 
+                                                                  context_features=self.dim_condition,
+                                                                  use_residual_blocks=True,  
+                                                                  num_blocks = self.num_blocks_mat,
+                                                                  activation = self.activation,
+                                                                  random_mask = self.random_mask))
+        transform = CompositeTransform(transforms)
+
+        return Flow(transform, base_dist).to(self.device)
+
+    def forward(self, x, p):
+        loss = self.model(x, c=p)
+        return loss
+

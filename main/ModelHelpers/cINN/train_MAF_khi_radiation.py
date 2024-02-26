@@ -88,10 +88,15 @@ class Loader:
                 bi = self.perm[i:i+self.timebatchsize]
                 radiation = []
                 particles = []
+                print("="*60)
+                print("Timebatch: %i"%(i))
                 for time in bi:
                     index = time + self.t0
                     
-                    p = np.load(self.loader.pathpattern1.format(index), allow_pickle = True)
+                    print("    time: %i"%(time))
+                    p_path = self.loader.pathpattern1.format(index)
+                    print("        path: %s"%(p_path))
+                    p = np.load(p_path, allow_pickle = True)
                     
                     p = [random_sample(element, sample_size=10000) for element in p]
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
@@ -140,7 +145,7 @@ class Loader:
 if __name__ == "__main__":
     
     hyperparameter_defaults = dict(
-    t0 = 1000,
+    t0 = 1900,
     t1 = 2001,
     timebatchsize = 4,
     particlebatchsize = 32,
@@ -148,7 +153,7 @@ if __name__ == "__main__":
     num_coupling_layers = 4,
     hidden_size = 256,
     lr = 0.00001,
-    num_epochs = 20000,
+    num_epochs = 200,
     num_blocks_mat = 2,
     activation = 'gelu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
