@@ -33,13 +33,13 @@ class TrainBatchBuffer(Thread):
                  use_continual_learning=True,
                  continual_bs = 4,
                  cl_mem_size=2048,
-                 model_MAF ="False"):
+                 model_MAF=False):
 
         Thread.__init__(self)
 
         self.openPMDbuffer = openPMDBuffer
         #reshaping is assumed to be different in the case of MAF model.
-        self.reshape = self.reshape_MAF if model_MAF else self.reshape
+        self.reshape = self.reshape_MAF if model_MAF else self.reshape_norm
 
         self.training_bs = training_bs
         self.continual_bs = continual_bs
@@ -95,7 +95,7 @@ class TrainBatchBuffer(Thread):
         else:
             self.noReadCount += 1
 
-    def reshape(self, particles_radiation):
+    def reshape_norm(self, particles_radiation):
         # adds a batch dims assuming the data is coming as
         # (number_of_particles, dims) -> (1, number_of_particles, dims)
         particles, radiation = particles_radiation
