@@ -91,6 +91,14 @@ def determine_local_region(record_component, comm, inranks, outranks,
         distribution = distribution_strategy(
             record_component.shape, comm.rank, comm.size, strategy_identifier)
     all_chunks = record_component.available_chunks()
+    # Little hack, the source_id might not be equivalent to the writing MPI rank due to
+    # data aggregation in ADIOS2.
+    # Since we know that each rank writes one chunk in PIConGPU,
+    # we just assign the ranks explicitly here.
+    all_chunks = opmd.ChunkTable([
+        opmd.WrittenChunkInfo(offset=chunk.offset, extent=chunk.extent, rank=i) \
+        for i, chunk in zip(range(len(all_chunks)), all_chunks)
+    ])
     chunk_distribution = distribution.assign(all_chunks, inranks, outranks)
     res = dict()
     for target_rank, chunks in chunk_distribution.items():
@@ -175,6 +183,7 @@ class StreamLoader(Thread):
         """Function being executed when thread is started."""
         # Open openPMD particle and radiation series
         openpmd_stream_config = """
+            defer_iteration_parsing = true
             [adios2.engine.parameters]
             OpenTimeoutSecs = 300
         """
