@@ -183,6 +183,7 @@ class StreamLoader(Thread):
         """Function being executed when thread is started."""
         # Open openPMD particle and radiation series
         openpmd_stream_config = """
+            defer_iteration_parsing = true
             [adios2.engine.parameters]
             OpenTimeoutSecs = 300
         """
