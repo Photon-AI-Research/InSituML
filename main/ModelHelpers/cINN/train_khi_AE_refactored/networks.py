@@ -59,7 +59,7 @@ class VAE(nn.Module):
         self.check_kwargs(encoder_kwargs, "encoder")
         self.check_kwargs(decoder_kwargs, "decoder")
         
-        if ae_config=="non_deterministic" and use_encoding_in_decoder:
+        if ae_config== "non_deterministic" and use_encoding_in_decoder:
             decoder_kwargs["z_dim"] = 2*z_dim
             
         self.encoder = encoder(**encoder_kwargs)
@@ -105,7 +105,8 @@ class VAE(nn.Module):
         nelbo = x_reconst + kl_loss
         #might be useful for later.
         #ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
-        return nelbo, y, z
+        return nelbo, y
+    
 
     def sample_point(self, batch):
         p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)

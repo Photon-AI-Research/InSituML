@@ -14,7 +14,6 @@ from model import model_MAF as model_MAF
 
 from train_khi_AE_refactored.encoder_decoder import Encoder
 from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
-from train_khi_AE_refactored.networks import VAE 
 from train_khi_AE_refactored.loss_functions import EarthMoversLoss
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -70,43 +69,43 @@ activation = 'relu',
 
 class ModelFinal(nn.Module):
     def __init__(self, 
-                 VAE,
+                 encoder,
+                 decoder,
                  inner_model,
+                 loss_function_AE,
                  loss_function_IM = None,
                  weight_AE=1.0,
                  weight_IM=1.0):
         super().__init__()
         
-        self.VAE = VAE
+        self.encoder = encoder
+        self.decoder = decoder
         self.inner_model = inner_model
+        self.loss_function_AE = loss_function_AE
         self.loss_function_IM = loss_function_IM
         self.weight_AE = weight_AE
         self.weight_IM = weight_IM
     
     def forward(self, x, y):
         
-        loss_AE, _, encoded = self.VAE(x)
+        encoded = self.encoder(x)
+        decoded  = self.decoder(encoded)
+        loss_AE = self.loss_function_AE(decoded, x)* self.weight_AE
         loss_IM = self.inner_model(inputs=encoded, context=y)*self.weight_IM
         
-        return loss_AE*self.weight_AE + loss_IM
+        return loss_AE + loss_IM
 
-# encoder = Encoder(ae_config="simple",
-#                   z_dim=latent_space_dims,
-#                   input_dim = ps_dims,
-#                   conv_layer_config = [16, 32, 64, 128, 256, 512],
-#                   conv_add_bn = False)
+encoder = Encoder(ae_config="simple",
+                  z_dim=latent_space_dims,
+                  input_dim = ps_dims,
+                  conv_layer_config = [16, 32, 64, 128, 256, 512],
+                  conv_add_bn = False)
 
-encoder_kwargs = {"ae_config":"non_deterministic",
-                  "z_dim":latent_space_dims,
-                  "input_dim":ps_dims,
-                  "conv_layer_config":[16, 32, 64, 128, 256, 512],
-                  "conv_add_bn": False, 
-                  "fc_layer_config":[]}
+decoder =  Conv3DDecoder(z_dim=latent_space_dims,
+                         input_dim = ps_dims,
+                         add_batch_normalisation = False
+                         )
 
-decoder_kwargs = {"z_dim":latent_space_dims,
-                  "input_dim":ps_dims,
-                  "add_batch_normalisation":False}
-                         
 inner_model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
                            dim_input=config["dim_input"],
                            num_coupling_layers=config["num_coupling_layers"],
@@ -116,16 +115,7 @@ inner_model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
                            activation = config["activation"]
                          ))
 
-VAE = VAE(encoder = Encoder, 
-          encoder_kwargs = encoder_kwargs, 
-          decoder = Conv3DDecoder, 
-          decoder_kwargs = decoder_kwargs,
-          loss_function = EarthMoversLoss(),
-          property_="momentum_force",
-          particles_to_sample = number_of_particles,
-          ae_config="non_deterministic")
-
-model = ModelFinal(VAE, inner_model, EarthMoversLoss())
+model = ModelFinal(encoder, decoder, inner_model, EarthMoversLoss())
 
 model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=config["lr"])
