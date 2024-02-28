@@ -20,7 +20,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 batchsize = 4
 number_of_particles = 100
-ps_dims = 9
+ps_dims = 6
 
 rad = 100
 rad_dims = 512
@@ -101,7 +101,7 @@ encoder_kwargs = {"ae_config":"non_deterministic",
                   "input_dim":ps_dims,
                   "conv_layer_config":[16, 32, 64, 128, 256, 512],
                   "conv_add_bn": False, 
-                  "fc_layer_config":[]}
+                  "fc_layer_config":[256]}
 
 decoder_kwargs = {"z_dim":latent_space_dims,
                   "input_dim":ps_dims,
@@ -119,6 +119,7 @@ inner_model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
 VAE = VAE(encoder = Encoder, 
           encoder_kwargs = encoder_kwargs, 
           decoder = Conv3DDecoder, 
+          z_dim=latent_space_dims,
           decoder_kwargs = decoder_kwargs,
           loss_function = EarthMoversLoss(),
           property_="momentum_force",
