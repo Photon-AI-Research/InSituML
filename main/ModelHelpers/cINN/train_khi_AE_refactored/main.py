@@ -27,7 +27,7 @@ def train_with_wandb():
     loss_function = args.lossfunction,
     loss_function_params = {}
     )
-    
+
     hyperparameter_defaults.update(vars(args))
     
     hyperparameter_defaults = main_args_transform(hyperparameter_defaults)
@@ -102,6 +102,11 @@ if __name__ == "__main__":
                         type=int,
                         default='128',
                         help="Set the latent space dimensions")
+
+    parser.add_argument('--num_epochs',
+                        type=int,
+                        default='5',
+                        help="Number of epochs")
     
     parser.add_argument('--timebatchsize',
                         type=int,
@@ -175,7 +180,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--encoder_kwargs',
                         type=str,
-                        default = '{"z_dim":128,"input_dim":3,"ae_config":"deterministic"}',
+                        default = '{"z_dim":128,"input_dim":6,"ae_config":"deterministic"}',
                         help="Encoder keyword arguments")
 
     parser.add_argument('--decoder_type',
@@ -185,7 +190,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--decoder_kwargs',
                         type=str,
-                        default = '{"z_dim":128, "particles_to_sample":4000, "input_dim":3}',
+                        default = '{"z_dim":128, "particles_to_sample":4000, "input_dim":6}',
                         help="Decoder keyword arguments")
     
     args = parser.parse_args()

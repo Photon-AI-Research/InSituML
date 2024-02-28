@@ -28,51 +28,67 @@ def validate_model(model, valid_data_loader, property_, device):
     with torch.no_grad():
         for idx in range(len(valid_data_loader)):
             timestep_index, validation_boxes, p, _ = valid_data_loader[idx]
-            p = filter_dims(p, property_)
+            p = filter_dims[property_](p)
             p = p.to(device)
             val_loss, p_pr = model(p)
             val_loss_avg.append(val_loss.mean().item())
     val_loss_overall_avg = sum(val_loss_avg) / (len(val_loss_avg) + 1e-8)
     return val_loss_overall_avg
 
-def filter_dims(phase_space, property_="positions"):
-    
-    if property_ == "positions":
-        return phase_space[:,:,:3]
-    elif property_ == "momentum":
-        return phase_space[:,:,3:6]
-    elif property_ == "force":
-        return phase_space[:,:,6:]
-    elif property_ == "momentum_force":
-        return phase_space[:,:,3:]
-    else:
-        return phase_space
-    
+# def filter_dims(phase_space, property_="positions"):
+#
+#     if property_ == "positions":
+#         return phase_space[:,:,:3]
+#     elif property_ == "momentum":
+#         return phase_space[:,:,3:6]
+#     elif property_ == "force":
+#         return phase_space[:,:,6:]
+#     elif property_ == "momentum_force":
+#         return phase_space[:,:,3:]
+#     elif property_ == "momentum_6":
+#         return phase_space[:,:,:3]
+#     elif property_ == "force_6":
+#         return phase_space[:,:,3:6]
+#     else:
+#         return phase_space
+
+filter_dims ={
+
+    "positions" : lambda x:x[:,:,:3],
+    "momentum" : lambda x:x[:,:,3:6],
+    "force": lambda x:x[:,:,6:],
+    "momentum_force": lambda x:x[:,:,3:],
+    "momentum_6":lambda x:x[:,:,:3],
+    "force_6":lambda x:x[:,:,3:6],
+    "all":lambda x:x
+    }
 def save_visual_multi(*args, property_):
     property_run = ["positions", "momentum", "force"] if property_=="all" else ["momentum", "force"]
-    deque(save_visual(*args, property_, running_all=True) \
-             for property_ in property_run)
+
+    deque(save_visual(*args, property_1, running6or9=property_) \
+             for property_1 in property_run)
     
-def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, running_all=False):
+def save_visual(model, timebatch, wandb, timeInfo, info_image_path, 
+                property_, running6or9=False):
     
     #avoiding turning on model.eval
     random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
-    
     #if model is being trained on all the dimensions, it changes the order filtering
     # and inference.
-    if running_all:
-        random_input = random_input
+    if running6or9:
+        random_input = filter_dims[running6or9](random_input)
         random_output = model.reconstruct_input(random_input.to(device))
-        
-        random_input = filter_dims(random_input, property_)
-        random_output = filter_dims(random_output, property_)
+
+        dims = "" if running6or9=="all" else "_6"
+
+        random_input = filter_dims[property_+dims](random_input)
+        random_output = filter_dims[property_+dims](random_output)
         
     else:
-        random_input = filter_dims(random_input, property_)
+        random_input = filter_dims[property_](random_input)
         random_output = model.reconstruct_input(random_input.to(device))
-    
+
     all_var_to_plot = random_input[0].transpose(1,0).tolist() + random_output[0].transpose(1,0).tolist()
-    
     if property_ == "positions":
         create_position_density_plots(*all_var_to_plot, path=info_image_path,
                                       t=timeInfo, wandb=wandb)
@@ -177,9 +193,9 @@ def create_momentum_density_plots(px, py, pz,
                                   wandb = None):
     
     # Specify the number of bins for each axis
-    bins_px = np.linspace(min(px), max(px), bins)
-    bins_py = np.linspace(min(py), max(py), bins)
-    bins_pz = np.linspace(min(pz), max(pz), bins)
+    bins_px = np.linspace(-0.4, 0.4, bins)
+    bins_py = np.linspace(-0.4, 0.4, bins)
+    bins_pz = np.linspace(-0.2, 0.2, bins)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 10)) 
@@ -253,9 +269,9 @@ def create_force_density_plots(fx, fy, fz,
                                wandb = None):
     
     # Specify the number of bins for each axis
-    bins_fx = np.linspace(min(fx), max(fx), bins)
-    bins_fy = np.linspace(min(fy), max(fy), bins)
-    bins_fz = np.linspace(min(fz), max(fz), bins)
+    bins_fx = np.linspace(-0.006, 0.006, bins)
+    bins_fy = np.linspace(-0.006, 0.006, bins)
+    bins_fz = np.linspace(-0.002, 0.002, bins)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 10))  # Adjust the figure size
