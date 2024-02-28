@@ -59,7 +59,7 @@ class VAE(nn.Module):
         self.check_kwargs(encoder_kwargs, "encoder")
         self.check_kwargs(decoder_kwargs, "decoder")
         
-        if ae_config== "non_deterministic" and use_encoding_in_decoder:
+        if ae_config=="non_deterministic" and use_encoding_in_decoder:
             decoder_kwargs["z_dim"] = 2*z_dim
             
         self.encoder = encoder(**encoder_kwargs)
@@ -105,8 +105,7 @@ class VAE(nn.Module):
         nelbo = x_reconst + kl_loss
         #might be useful for later.
         #ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
-        return nelbo, y
-    
+        return nelbo, y, z
 
     def sample_point(self, batch):
         p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)
@@ -127,4 +126,3 @@ class VAE(nn.Module):
             torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
             y = self.decoder(decoder_input)
         return y
-
