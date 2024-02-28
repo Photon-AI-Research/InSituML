@@ -105,6 +105,7 @@ encoder_kwargs = {"ae_config":"non_deterministic",
 
 decoder_kwargs = {"z_dim":latent_space_dims,
                   "input_dim":ps_dims,
+                  "initial_conv3d_size":[16, 8, 4, 4],
                   "add_batch_normalisation":False}
                          
 inner_model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],

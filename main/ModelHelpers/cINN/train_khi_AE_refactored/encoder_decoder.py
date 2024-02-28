@@ -252,7 +252,7 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
     def __init__(self,
                  z_dim, 
                  input_dim,
-                 initial_conv3d_size=[32, 4, 4, 4],
+                 initial_conv3d_size=[16, 4, 4, 4],
                  conv3d_layer_config=[8],
                  fc_layer_config=[],
                  kernel_size=2,
