@@ -22,7 +22,7 @@ number_of_particles = 100
 ps_dims = 9
 
 rad = 100
-rad_dims = 9
+rad_dims = 512
 
 latent_space_dims = 1024
 
@@ -38,7 +38,7 @@ class DummyOpenPMDProducer(Thread):
         for i in range(10):
             # generate a value
             loaded_particles = torch.rand(number_of_particles, ps_dims)
-            radiation = torch.rand(rad, rad_dims)
+            radiation = torch.rand(rad_dims)
             # block, to simulate effort
             sleep(i)
             # create a tuple
@@ -58,50 +58,65 @@ openPMDBuffer = Queue()
 openpmdProducer = DummyOpenPMDProducer(openPMDBuffer)
 
 config = dict(
-dim_condition = rad*rad_dims,
-num_coupling_layers = 6,
+dim_input = 1024,
+dim_condition = rad_dims,
+num_coupling_layers = 4,
 hidden_size = 256,
 num_blocks_mat = 6,
 activation = 'relu',
  lr = 0.00001
 )
 
-# model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
-#                             dim_input=number_of_particles*ps_dims,
-#                             num_coupling_layers=config["num_coupling_layers"],
-#                             hidden_size=config["hidden_size"],
-#                             device='cuda',
-#                             weight_particles=False,
-#                             num_blocks_mat = config["num_blocks_mat"],
-#                             activation = config["activation"]
-#                             ))
 class ModelFinal(nn.Module):
-    def __init__(self, encoder, decoder, inner_model,
-                 loss_function_AE, loss_function_IM):
+    def __init__(self, 
+                 encoder,
+                 decoder,
+                 inner_model,
+                 loss_function_AE,
+                 loss_function_IM = None,
+                 weight_AE=1.0,
+                 weight_IM=1.0):
         super().__init__()
+        
         self.encoder = encoder
         self.decoder = decoder
         self.inner_model = inner_model
         self.loss_function_AE = loss_function_AE
         self.loss_function_IM = loss_function_IM
+        self.weight_AE = weight_AE
+        self.weight_IM = weight_IM
     
     def forward(self, x, y):
         
         encoded = self.encoder(x)
         decoded  = self.decoder(encoded)
+        loss_AE = self.loss_function_AE(decoded, x)* self.weight_AE
+        loss_IM = self.inner_model(inputs=encoded, context=y)*self.weight_IM
         
-        loss_AE = self.loss_function_AE(decoded, x) 
-
-        inner_model_out = self.inner_model(encoded)
-        loss_IM = self.loss_function_IM(inner_model_out,
-                                        y)
         return loss_AE + loss_IM
 
-model = ModelFinal(Encoder(ae_config="simple", z_dim=latent_space_dims,input_dim = ps_dims),
-                   MLPDecoder(z_dim=latent_space_dims, input_dim = ps_dims, particles_to_sample=number_of_particles),
-                    MLPDecoder(z_dim=latent_space_dims, input_dim = rad_dims, particles_to_sample=number_of_particles),
-                    EarthMoversLoss(),
-                    nn.MSELoss())
+encoder = Encoder(ae_config="simple",
+                  z_dim=latent_space_dims,
+                  input_dim = ps_dims,
+                  conv_layer_config = [16, 32, 64, 128, 256, 512],
+                  conv_add_bn = False)
+
+decoder =  Conv3DDecoder(z_dim=latent_space_dims,
+                         input_dim = ps_dims,
+                         add_batch_normalisation = False
+                         )
+
+inner_model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
+                           dim_input=config["dim_input"],
+                           num_coupling_layers=config["num_coupling_layers"],
+                           hidden_size=config["hidden_size"],
+                           device=device,
+                           num_blocks_mat = config["num_blocks_mat"],
+                           activation = config["activation"]
+                         ))
+
+model = ModelFinal(encoder, decoder, inner_model, EarthMoversLoss())
+
 model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=config["lr"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
