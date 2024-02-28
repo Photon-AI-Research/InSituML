@@ -2,7 +2,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import numpy as np
-from .utilities import inspect_and_select
+from utilities import inspect_and_select
+import math
 
 def adjust_args(arg1, arg2, kernel_size):
     """
@@ -245,6 +246,7 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
         padding (int, optional): Padding of the convolution operation.
         add_batch_normalisation (bool): Whether to add batch normalization layers.
         add_activation (bool): Whether to add activation functions.
+        output_points (int): Specify exact number of output points
         **kwargs: Additional keyword arguments.
     """
     def __init__(self,
@@ -258,10 +260,19 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
                  padding = 0,
                  add_batch_normalisation=True,
                  add_activation=True,
+                 output_points=None,
                  **kwargs):
         
         super().__init__()
-
+        
+        self.input_dim = input_dim
+        self.output_points = output_points
+        self.initial_conv3d_size = initial_conv3d_size
+        self.conv3d_layer_config = conv3d_layer_config
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        
         layers = []
         
         if fc_layer_config:
@@ -298,6 +309,10 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
 
         # Flatten the output 
         layers.append(nn.Flatten(2))
+        
+        if self.output_points:
+            self.output_size = self.calculate_output_size()
+            layers.append(nn.Linear(self.output_size,self.output_points))
 
         self.layers = nn.Sequential(*layers)
 
@@ -305,3 +320,11 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
         z = self.layers(z)
         z = z.transpose(1, 2)
         return z
+    
+    def calculate_output_size(self):
+        output_size = list(self.initial_conv3d_size[1:])
+        for _ in range(len(self.conv3d_layer_config)+1):
+            output_size = [(size - 1) * self.stride - 2 * self.padding + self.kernel_size for size in output_size]
+            
+        output_size =  math.prod(output_size)
+        return output_size
