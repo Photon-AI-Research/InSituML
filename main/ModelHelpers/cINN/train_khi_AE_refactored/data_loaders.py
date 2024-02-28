@@ -74,7 +74,7 @@ class TrainLoader:
                     
                     # Load particle data
                     p = np.load(self.loader.pathpattern1.format(index), allow_pickle = True)
-                    
+
                     # Load radiation data
                     if self.loader.load_radiation:
                         r = torch.from_numpy(np.load(self.loader.pathpattern2.format(index)).astype(np.cfloat))
@@ -96,7 +96,7 @@ class TrainLoader:
                     # random sample N points from each box
                     p = [random_sample(element,
                                        sample_size=self.loader.particles_to_sample) for element in p]
-                    
+
                     p = torch.from_numpy(np.array(p, dtype = np.float32))
                     
                     # choose relevant detection directions
@@ -111,9 +111,9 @@ class TrainLoader:
                         amplitude = torch.abs(r)
                         r = torch.cat((amplitude, phase), dim=1).to(torch.float32)
                         radiation.append(r)
-
+            
                     particles.append(p)
-                
+
                 # concatenate particle and radiation data across randomly chosen timesteps
                 particles = torch.cat(particles)
                 if self.loader.load_radiation:
