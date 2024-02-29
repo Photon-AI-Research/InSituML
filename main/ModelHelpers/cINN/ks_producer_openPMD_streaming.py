@@ -10,6 +10,8 @@ For example, it performs data normalization and layouts the data as requested fo
 This file only works with the openPMD-api version installed from this branch:
     https://github.com/franzpoeschel/openPMD-api/tree/pic_env
 !!!!!!!
+
+Authors: Klaus Steiniger, Franz Poeschel
 """
 from threading import Thread
 
@@ -159,7 +161,7 @@ class StreamLoader(Thread):
     This is orchestrated in the run() method.
     """
 
-    def __init__(self, batchDataBuffer, hyperParameterDefaults, dataTransformationPolicy=None):
+    def __init__(self, batchDataBuffer, hyperParameterDefaults, particleDataTransformationPolicy=None, radiationDataTransformationPolicy=None):
         """ Set parameters of the loader
 
         Arguments:
@@ -175,7 +177,8 @@ class StreamLoader(Thread):
         self.radiationPathPattern = hyperParameterDefaults['pathpattern2']
 
         self.rng = np.random.default_rng()
-        self.transformPolicy = None #dataTransformationPolicy
+        self.particleTransformPolicy = particleDataTransformationPolicy
+        self.radiationTransformPolicy = radiationDataTransformationPolicy
         self.comm = MPI.COMM_WORLD
         self.hyperParameterDefaults = hyperParameterDefaults
 
@@ -396,8 +399,8 @@ class StreamLoader(Thread):
 
             del loaded_buffers
 
-            if self.transformPolicy is not None:
-                loaded_particles = self.transformPolicy(loaded_particles)
+            if self.particleTransformPolicy is not None:
+                loaded_particles = self.particleTransformPolicy(loaded_particles)
             else:
                 """transform data to shape (GPUs, phaseSpaceComponents, particlesPerGPU)"""
                 loaded_particles = torch_transpose(loaded_particles, 0, 1)
@@ -408,9 +411,9 @@ class StreamLoader(Thread):
 
             cellExtensionNames = {"x" : "cell_width", "y" : "cell_height", "z" : "cell_depth"}
             r_offset = np.empty((num_processed_chunks_per_rank, 3)) # shape: (local GPUs, components)
-            n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (radiation measurement directions along x, components)
+            n_vec = np.empty((radIter.meshes["DetectorDirection"]["x"].shape[0], 3)) # shape: (N_observer, components)
 
-            DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0]
+            DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][0, :, 0] # shape: (frequencies)
             # radiationSeries.flush()
 
             distributed_amplitudes = torch_empty((3, num_processed_chunks_per_rank, len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, local GPUs, frequencies)
@@ -429,24 +432,27 @@ class StreamLoader(Thread):
             loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = EnqueuedBuffers()
+                # See (https://picongpu.readthedocs.io/en/latest/usage/plugins/radiation.html#openpmd-output)
+                # for a description of the radiation plugin's output structure.
                 component_buffers.Dist_Amplitude = \
                     radIter.meshes["Amplitude_distributed"][component].load_chunk(
                         local_radiation_chunk.offset,
-                        local_radiation_chunk.extent) # shape: (GPUs, directions, frequencies)
-                # MAGIC: only look along one direction
-                component_buffers.DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
+                        local_radiation_chunk.extent) # shape: (GPUs, N_observer, frequencies)
+                # read components of the observation direction vector n_vec
+                component_buffers.DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (N_observer)
                 loaded_buffers[component] = component_buffers
 
             radIter.close()
 
-            amplitude_direction_x = self.hyperParameterDefaults['amplitude_direction_x']
+            amplitude_direction = self.hyperParameterDefaults['amplitude_direction']
 
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
 
                 r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
                 n_vec[:, i_c] = component_buffers.DetectorDirection
-                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, amplitude_direction_x, :]) # shape of component i_c: (local GPUs, frequencies)
+                #  reduce Dist_Amplitude data to single observation direction
+                distributed_amplitudes[i_c] = torch_from_numpy(component_buffers.Dist_Amplitude[:, amplitude_direction, :]) # shape of component i_c: (local GPUs, frequencies)
 
             # time retardation correction
             # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
@@ -455,34 +461,17 @@ class StreamLoader(Thread):
                 np.exp(
                     -1.j * DetectorFrequency[np.newaxis, np.newaxis, :]
                     * (iteration.iteration_index - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))\
-                    [:, amplitude_direction_x, :]
+                    [:, amplitude_direction, :]
             distributed_amplitudes = distributed_amplitudes*phase_offset
 
             # Transform to shape: (GPUs, components, frequencies)
             distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (local GPUs, components, frequencies)
 
-            def erase_single_index_from_slice(slice_, len):
-                if isinstance(slice_, slice):
-                    return slice(None)
-                else:
-                    expanded_slice = np.array(range(len))
-                    # remove the single index from the indexes
-                    res = np.setdiff1d(expanded_slice, np.array([slice_]), assume_unique=True)
-                    return res
-
-            inv_x = erase_single_index_from_slice(amplitude_direction_x, distributed_amplitudes.shape[1])
-
-            # MAGIC: Just look at y&z component
-            r = distributed_amplitudes[:, inv_x, :]
-
-            # Compute the phase (angle) of the complex number
-            phase = torch_angle(r)
-            # Compute the absolute value of the complex number
-            absolute = torch_abs(r)
-            r = torch_cat((absolute, phase), dim=1).to(torch_float32)
+            if self.radiationTransformPolicy is not None:
+                distributed_amplitudes = self.radiationTransformPolicy(distributed_amplitudes)
 
             # Put particle and radiation data in shared buffer
-            self.data.put([loaded_particles, r])
+            self.data.put([loaded_particles, distributed_amplitudes])
 
             print("Done loading iteration %i"%(iteration.time))
             stdout.flush()
