@@ -9,6 +9,10 @@ import argparse
 from geomloss import SamplesLoss
 from scipy.spatial import distance
 import random
+
+import logging
+logger = logging.getLogger(__name__)
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 emd = SamplesLoss(loss="sinkhorn", p=1, blur=.01)
@@ -76,20 +80,15 @@ class GenerateVariableDataset:
             if len(self.relative_dis):
                 self.current_minimum, self.idx_row = torch.min(self.relative_dis[:,2], dim=0)
             return
-        print(self.relative_dis)
         relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd, same=False)
-        print(relative_dis_new)
 
         min_new, idx_row_new = torch.min(relative_dis_new[:,2], dim=0)
-        print("new_min", min_new, "already_min", self.current_minimum)
 
         if min_new > self.current_minimum:
-            print("inside")
             
             [idx_1, idx_2, _] = self.relative_dis[self.idx_row]
             
             idx_remove = int(self.index_to_remove(idx_1, idx_2).item())
-            print(idx_remove)
             
             self.variable_units[idx_remove] = phase_space 
             
@@ -102,11 +101,10 @@ class GenerateVariableDataset:
                                            compute=emd)
             
             self.current_minimum = min_new
-            print("mins",self.current_minimum, torch.min(self.relative_dis[:,2]))
             
     def reiterate_training_batches(self):
 
-        for _ in range(self.num_iterations):
+        for iteration_number in range(self.num_iterations):
         
             for timeBatchIndex in range(len(self.data_loader)):
                 
@@ -118,6 +116,8 @@ class GenerateVariableDataset:
                     
                     if finished:
                         return None
+            if timeBatchIndex%10:
+                logger.info("The current minimum at iteration {num_iterations} and timeBatchIndex {timeBatchIndex} is: {self.current_minimum}")
         
         self.save_files()
 
