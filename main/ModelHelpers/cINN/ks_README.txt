@@ -1,17 +1,15 @@
 In order to train the model do:
 
-1. obtain a gpu node on hemera
-   `srun --time=10:00:00 --ntasks-per-node=1 --cpus-per-task=2 --gres=gpu:1 --mem=128G --partition=gpu --pty bash`
+1. load openPMD environment:
+   fontier: `source /lustre/orion/csc380/proj-shared/openpmd_environment/env.sh`
+   hemera: `source /bigdata/hplsim/scratch/poesch58/InSituML_env/env.sh`
 
-2. `bash`
+2. obtain a gpu (node)
+   both: `getDevice`
+   frontier: `srun --time=10:00:00 --ntasks-per-node=1 --cpus-per-task=2 --gres=gpu:1 --mem=128G --partition=gpu --pty bash`
+   hemera: `srun --time=10:00:00 --ntasks-per-node=1 --cpus-per-task=2 --gres=gpu:1 --mem=128G --partition=gpu --pty bash`
 
-3. `module load git gcc/12.2.0 cuda/12.1; conda activate pytorch-cuda`
-
-4. `ipython -i train_MAF_khi_radiation.py` for the existing training by Jeyhun & Jeffrey
-    or 
-    `ipython -i ks_main.py` for the refactored version using threading by Klaus & Jeyhun & Jeffrey
-
-OR
-
-4. `python train_MAF_khi_radiation.py 2>err.txt | tee out.txt`
+3. run training by continual learning with stream loader (on single gpu):
+   hemera: `mpirun -n 1 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py`
+   frontier: `srun -n 1 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py`
 
