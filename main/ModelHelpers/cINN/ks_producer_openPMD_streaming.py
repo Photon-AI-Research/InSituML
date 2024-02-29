@@ -448,6 +448,8 @@ class StreamLoader(Thread):
 
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = loaded_buffers[component]
+                component_buffers.Dist_Amplitude *= radIter.meshes["Amplitude_distributed"][component].unit_SI
+                component_buffers.DetectorDirection *= radIter.meshes["DetectorDirection"][component].unit_SI
 
                 r_offset[:, i_c] = gpuBoxOffset[component] * iteration.get_attribute(cellExtensionNames[component])
                 n_vec[:, i_c] = component_buffers.DetectorDirection
