@@ -48,33 +48,45 @@ class GenerateVariableDataset:
                         self.current_minimum < self.tolerance_distance):
                 self.save_files()
                 
+    def cdist(self, X, Y, compute):
+        
+        relative_dist = []
+        for idx_x, x in enumerate(X):
+            for idx_y, y in enumerate(Y):
+                relative_distances.append([idx_x, idx_y, compute(x,y)])
+        
+        return torch.Tensor(relative_distances)
+                
+                
     def check_and_add(self,phase_space):
         
         if len(self.variable_units)<2:
             self.variable_units = torch.cat([phase_space, self.variable_units])
             return
         
-        self.relative_dis = distance.cdist(self.variable_units, self.variable_units, metric=emd)
+        self.relative_dis = self.cdist(self.variable_units, self.variable_units, compute=emd)
 
-        relative_dis_new = distance.cdist(self.variable_units, phase_space, metric=emd)
+        relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd)
         
-        min_already = self.relative_dis.min()
+        idx_row, min_already = torch.min(self.relative_dis[:,2])
 
-        min_new = relative_dis_new.min()
+        idx_row_new, min_new = torch.min(relative_dis_new[:,2])
         
         if min_new < min_already:
-            idx_min = random([self.relative_dis.argmin()//len(self.variable_units), 
-                        self.relative_dis.argmin()%len(self.variable_units)], 1)
+            
+            [idx_1, idx_2,_] = relative_dis_new[idx_row_new]
+            
+            idx_remove = random([idx_1, idx_2]) 
             
             self.current_minimum = min_new
             
-            self.variable_units = torch.cat([self.variable_units[:idx_min], 
-                                        self.variable_units[idx_min+1:],
-                                        phase_space])
+            self.variable_units = torch.cat([self.variable_units[:idx_remove], 
+                                            self.variable_units[idx_remove+1:],
+                                            phase_space])
             
-            self.relative_dis = distance.cdist(self.variable_units, 
-                                            self.variable_units, 
-                                            metric=emd)
+            self.relative_dis = self.cdist(self.variable_units, 
+                                           self.variable_units, 
+                                           compute=emd)
         else:
             #only needed for the first iteration
             self.current_minimum = min_already
