@@ -48,32 +48,32 @@ class GenerateVariableDataset:
                         self.current_minimum < self.tolerance_distance):
                 self.save_files()
                 
-    def check_and_add(phase_space):
+    def check_and_add(self,phase_space):
         
         if len(self.variable_units)<2:
             self.variable_units = torch.cat([phase_space, self.variable_units])
             return
         
-        self.relative_dis = distance.cdist(variable_units, variable_units, metric=emd)
+        self.relative_dis = distance.cdist(self.variable_units, self.variable_units, metric=emd)
 
-        relative_dis_new = distance.cdist(variable_units, phase_space, metric=emd)
+        relative_dis_new = distance.cdist(self.variable_units, phase_space, metric=emd)
         
         min_already = self.relative_dis.min()
 
         min_new = relative_dis_new.min()
         
         if min_new < min_already:
-            idx_min = random([relative_dis.argmin()//len(variable_units), 
-                        relative_dis.argmin()%len(variable_units)], 1)
+            idx_min = random([self.relative_dis.argmin()//len(self.variable_units), 
+                        self.relative_dis.argmin()%len(self.variable_units)], 1)
             
             self.current_minimum = min_new
             
-            self.variable_units = torch.cat([variable_units[:idx_min], 
-                                        variable_units[idx_min+1:],
-                                        [phase_space]])
+            self.variable_units = torch.cat([self.variable_units[:idx_min], 
+                                        self.variable_units[idx_min+1:],
+                                        phase_space])
             
-            self.relative_dis = distance.cdist(variable_units, 
-                                            variable_units, 
+            self.relative_dis = distance.cdist(self.variable_units, 
+                                            self.variable_units, 
                                             metric=emd)
         else:
             #only needed for the first iteration
@@ -158,4 +158,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     generator = GenerateVariableDataset(**vars(args))
-    generator.iterate_over_batch_examples()
+    generator.reiterate_training_batches()
