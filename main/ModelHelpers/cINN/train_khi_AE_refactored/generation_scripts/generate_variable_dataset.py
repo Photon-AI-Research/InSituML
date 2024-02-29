@@ -9,6 +9,7 @@ import argparse
 from geomloss import SamplesLoss
 from scipy.spatial import distance
 import random
+from utilities import filter_dims
 
 import logging
 logger = logging.getLogger(__name__)
@@ -20,10 +21,11 @@ emd = SamplesLoss(loss="sinkhorn", p=1, blur=.01)
 class GenerateVariableDataset:
     def __init__(self, pathpattern1, pathpattern2,
                  t0, t1, timebatchsize, particlebatchsize, 
-                 particles_to_sample, size_of_variable_unit,
+                 particles_to_sample, size_of_variable_unit, property_,
                  num_iterations, tolerance_distance, outputfile_name):
         
         self.variable_units = torch.Tensor([]).to(device)
+        self.property_ = property_
         self.current_minimum = -1 
         self.outputfile_name = outputfile_name
         self.tolerance_distance = tolerance_distance
@@ -107,17 +109,17 @@ class GenerateVariableDataset:
         for iteration_number in range(self.num_iterations):
         
             for timeBatchIndex in range(len(self.data_loader)):
-                
+                print(f"timebatchindex:{timeBatchIndex}, current_minimum:{self.current_minimum}")
                 timeBatch = self.data_loader[timeBatchIndex]
                 
                 for particleBatchIndex in range(len(timeBatch)):
                     phase_space, _ = timeBatch[particleBatchIndex]
-                    finished = self.iterate_over_batch_examples(phase_space.to(device))
+                    finished = self.iterate_over_batch_examples(filter_dims[self.property_](phase_space.to(device)))
                     
                     if finished:
                         return None
             if timeBatchIndex%10:
-                logger.info("The current minimum at iteration {num_iterations} and timeBatchIndex {timeBatchIndex} is: {self.current_minimum}")
+                logger.info(f"The current minimum at iteration {num_iterations} and timeBatchIndex {timeBatchIndex} is: {self.current_minimum}")
         
         self.save_files()
 
@@ -161,6 +163,11 @@ if __name__ == "__main__":
                         type=int,
                         default=4000,
                         help="Particle to sample")
+
+    parser.add_argument('--property_',
+                        type=str,
+                        default="positions",
+                        help="property to look for")
 
     parser.add_argument('--size_of_variable_unit',
                         type=int,
