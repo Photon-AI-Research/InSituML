@@ -55,13 +55,19 @@ class GenerateVariableDataset:
         relative_distances = []
         for idx_x, x in enumerate(X):
             for idx_y, y in enumerate(Y):
-                if same and (idx_x==idx_y):
+                if same and (idx_x>=idx_y):
                     continue
                 relative_distances.append([idx_x, idx_y, compute(x,y)])
         
         return torch.Tensor(relative_distances).to(device)
-                
-                
+    
+    def index_to_remove(self, idx_1, idx_2):
+        
+        mean_dist_idx1 = self.relative_dis[:,2][self.relative_dis[:,0]==idx_1].mean()
+        mean_dist_idx2 = self.relative_dis[:,2][self.relative_dis[:,1]==idx_2].mean()
+        
+        return idx_1 if mean_dist_idx1<mean_dist_idx2 else idx_2
+    
     def check_and_add(self,phase_space):
         
         if len(self.variable_units)<self.size_of_variable_unit:
@@ -80,13 +86,15 @@ class GenerateVariableDataset:
             
             [idx_1, idx_2,_] = self.relative_dis[idx_row]
             
-            idx_remove = int(random.sample([idx_1, idx_2], 1)[0].item())
+            idx_remove = int(self.index_to_remove(idx_1, idx_2).item())
 
             self.current_minimum = min_new
             
-            self.variable_units = torch.cat([self.variable_units[:idx_remove], 
-                                            self.variable_units[idx_remove+1:],
-                                            phase_space])
+            self.variable_units[idx_remove] = phase_space 
+            
+            # self.variable_units = torch.cat([self.variable_units[:idx_remove], 
+            #                                 self.variable_units[idx_remove+1:],
+            #                                 phase_space])
             
             self.relative_dis = self.cdist(self.variable_units, 
                                            self.variable_units, 
