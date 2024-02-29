@@ -63,7 +63,13 @@ class GenerateVariableDataset:
             for idx_y, y in enumerate(Y):
                 if same and (idx_x>=idx_y):
                     continue
-                relative_distances.append([idx_x, idx_y, compute(x,y)])
+                distance = compute(x,y)
+                
+                #stop the calculation if minimum below 
+                #the current minimum is already found. 
+                if distance < self.current_minimum:
+                    return None
+                relative_distances.append([idx_x, idx_y, distance])
         
         return torch.Tensor(relative_distances).to(device)
     
@@ -82,8 +88,11 @@ class GenerateVariableDataset:
             if len(self.relative_dis):
                 self.current_minimum, self.idx_row = torch.min(self.relative_dis[:,2], dim=0)
             return
+        
         relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd, same=False)
-
+        
+        if relative_dis_new is None:
+            return
         min_new, idx_row_new = torch.min(relative_dis_new[:,2], dim=0)
 
         if min_new > self.current_minimum:
