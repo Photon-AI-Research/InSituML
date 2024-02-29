@@ -9,6 +9,7 @@ import argparse
 from geomloss import SamplesLoss
 from scipy.spatial import distance
 import random
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 emd = SamplesLoss(loss="sinkhorn", p=1, blur=.01)
 
@@ -18,7 +19,7 @@ class GenerateVariableDataset:
                  particles_to_sample, size_of_variable_unit,
                  num_iterations, tolerance_distance, outputfile_name):
         
-        self.variable_units = torch.Tensor([])
+        self.variable_units = torch.Tensor([]).to(device)
         self.current_minimum = np.inf 
         self.outputfile_name = outputfile_name
         self.tolerance_distance = tolerance_distance
@@ -40,9 +41,10 @@ class GenerateVariableDataset:
         torch.save(self.relative_dis, "relative_dis_"+self.outputfile_name)
 
     def iterate_over_batch_examples(self, phase_space):
-        
-        for example in phase_space:
-            self.check_and_add(example)
+        print(phase_space.shape)
+        for idx in range(len(phase_space)):
+            print(phase_space[idx:idx+1].shape)
+            self.check_and_add(phase_space[idx:idx+1])
             
             if (len(self.variable_units) > self.size_of_variable_unit and
                         self.current_minimum < self.tolerance_distance):
@@ -50,12 +52,13 @@ class GenerateVariableDataset:
                 
     def cdist(self, X, Y, compute):
         
-        relative_dist = []
+        relative_distances = []
         for idx_x, x in enumerate(X):
             for idx_y, y in enumerate(Y):
+                print(x.shape, y.shape)
                 relative_distances.append([idx_x, idx_y, compute(x,y)])
         
-        return torch.Tensor(relative_distances)
+        return torch.Tensor(relative_distances).to(device)
                 
                 
     def check_and_add(self,phase_space):
@@ -63,15 +66,15 @@ class GenerateVariableDataset:
         if len(self.variable_units)<2:
             self.variable_units = torch.cat([phase_space, self.variable_units])
             return
-        
+        print(self.variable_units.shape)
         self.relative_dis = self.cdist(self.variable_units, self.variable_units, compute=emd)
 
         relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd)
-        
-        idx_row, min_already = torch.min(self.relative_dis[:,2])
+        print(self.relative_dis.shape, relative_dis_new.shape, "REL")
+        idx_row, min_already = torch.min(self.relative_dis[:,2], dim=0)
 
-        idx_row_new, min_new = torch.min(relative_dis_new[:,2])
-        
+        idx_row_new, min_new = torch.min(relative_dis_new[:,2], dim=0)
+        print(min_new, min_already)
         if min_new < min_already:
             
             [idx_1, idx_2,_] = relative_dis_new[idx_row_new]
@@ -101,7 +104,7 @@ class GenerateVariableDataset:
                 
                 for particleBatchIndex in range(len(timeBatch)):
                     phase_space, _ = timeBatch[particleBatchIndex]
-                    self.iterate_over_batch_examples(phase_space)
+                    self.iterate_over_batch_examples(phase_space.to(device))
                     
         self.save_files()
 
