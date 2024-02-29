@@ -20,7 +20,7 @@ class GenerateVariableDataset:
                  num_iterations, tolerance_distance, outputfile_name):
         
         self.variable_units = torch.Tensor([]).to(device)
-        self.current_minimum = np.inf 
+        self.current_minimum = -1 
         self.outputfile_name = outputfile_name
         self.tolerance_distance = tolerance_distance
         self.num_iterations = num_iterations
@@ -41,13 +41,10 @@ class GenerateVariableDataset:
         torch.save(self.relative_dis, "relative_dis_"+self.outputfile_name)
 
     def iterate_over_batch_examples(self, phase_space):
-        print(phase_space.shape)
         for idx in range(len(phase_space)):
-            print(phase_space[idx:idx+1].shape)
             self.check_and_add(phase_space[idx:idx+1])
             
-            if (len(self.variable_units) > self.size_of_variable_unit and
-                        self.current_minimum < self.tolerance_distance):
+            if (self.current_minimum > self.tolerance_distance):
                 self.save_files()
                 return True
         
@@ -60,7 +57,6 @@ class GenerateVariableDataset:
             for idx_y, y in enumerate(Y):
                 if same and (idx_x==idx_y):
                     continue
-                print(x.shape, y.shape)
                 relative_distances.append([idx_x, idx_y, compute(x,y)])
         
         return torch.Tensor(relative_distances).to(device)
@@ -68,24 +64,24 @@ class GenerateVariableDataset:
                 
     def check_and_add(self,phase_space):
         
-        if len(self.variable_units)<2:
+        if len(self.variable_units)<self.size_of_variable_unit:
             self.variable_units = torch.cat([phase_space, self.variable_units])
             return
         print(self.variable_units.shape)
         self.relative_dis = self.cdist(self.variable_units, self.variable_units, compute=emd)
-
         relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd, same=False)
-        print(self.relative_dis.shape, relative_dis_new.shape, "REL")
-        idx_row, min_already = torch.min(self.relative_dis[:,2], dim=0)
+        min_already, idx_row = torch.min(self.relative_dis[:,2], dim=0)
 
-        idx_row_new, min_new = torch.min(relative_dis_new[:,2], dim=0)
-        print(min_new, min_already)
-        if min_new < min_already:
+        min_new, idx_row_new = torch.min(relative_dis_new[:,2], dim=0)
+        print("new_min", min_new, "already_min", min_already)
+
+        if min_new > min_already:
+            print("inside")
             
-            [idx_1, idx_2,_] = relative_dis_new[idx_row_new]
+            [idx_1, idx_2,_] = self.relative_dis[idx_row]
             
-            idx_remove = random([idx_1, idx_2]) 
-            
+            idx_remove = int(random.sample([idx_1, idx_2], 1)[0].item())
+
             self.current_minimum = min_new
             
             self.variable_units = torch.cat([self.variable_units[:idx_remove], 
