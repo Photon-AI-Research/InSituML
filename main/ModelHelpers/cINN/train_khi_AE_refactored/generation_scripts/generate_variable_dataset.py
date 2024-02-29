@@ -49,12 +49,17 @@ class GenerateVariableDataset:
             if (len(self.variable_units) > self.size_of_variable_unit and
                         self.current_minimum < self.tolerance_distance):
                 self.save_files()
+                return True
+        
+        return False
                 
-    def cdist(self, X, Y, compute):
+    def cdist(self, X, Y, compute, same=True):
         
         relative_distances = []
         for idx_x, x in enumerate(X):
             for idx_y, y in enumerate(Y):
+                if same and (idx_x==idx_y):
+                    continue
                 print(x.shape, y.shape)
                 relative_distances.append([idx_x, idx_y, compute(x,y)])
         
@@ -69,7 +74,7 @@ class GenerateVariableDataset:
         print(self.variable_units.shape)
         self.relative_dis = self.cdist(self.variable_units, self.variable_units, compute=emd)
 
-        relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd)
+        relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd, same=False)
         print(self.relative_dis.shape, relative_dis_new.shape, "REL")
         idx_row, min_already = torch.min(self.relative_dis[:,2], dim=0)
 
@@ -104,8 +109,11 @@ class GenerateVariableDataset:
                 
                 for particleBatchIndex in range(len(timeBatch)):
                     phase_space, _ = timeBatch[particleBatchIndex]
-                    self.iterate_over_batch_examples(phase_space.to(device))
+                    finished = self.iterate_over_batch_examples(phase_space.to(device))
                     
+                    if finished:
+                        return None
+        
         self.save_files()
 
 if __name__ == "__main__":
