@@ -175,7 +175,7 @@ if __name__ == "__main__":
                         help="Size of dataset to produce")
 
     parser.add_argument('--tolerance_distance',
-                        type=int,
+                        type=float,
                         default=1,
                         help="tolerance minimum emd distance between the dataset points")
 
