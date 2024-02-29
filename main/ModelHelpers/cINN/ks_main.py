@@ -17,6 +17,7 @@ from queue import Queue
 from ks_helperfuncs import *
 from ks_consumer_MAF_khi_radiation import *
 #from ks_models import *
+from ks_transform_policies import *
 from ks_producer_openPMD import *
 from ks_producer_openPMD_streaming import *
 
@@ -24,9 +25,9 @@ print("Done importing modules.")
 
 hyperparameter_defaults = dict(
 t0 = 500,
-t1 = 504, # endpoint=false, t1 is not used in training
+t1 = 501, # endpoint=false, t1 is not used in training
 dim_input = 90000,
-timebatchsize = 2,
+timebatchsize = 1,
 particlebatchsize = 32,
 dim_condition = 2048,
 num_coupling_layers = 3,
@@ -35,9 +36,11 @@ lr = 0.001,
 num_epochs = 8,
 num_blocks_mat = 2,
 activation = 'gelu',
-pathpattern1 = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst",
-pathpattern2 = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst",
-amplitude_direction_x=0
+#pathpattern1 = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst",
+#pathpattern2 = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst",
+pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
+pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
+amplitude_direction=0 # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
 )
 
 enable_wandb = False
@@ -70,8 +73,11 @@ model = (PC_MAF(dim_condition = hyperparameter_defaults["dim_condition"],
                            activation = hyperparameter_defaults["activation"]
                          ))
 """
-# dataTransformationPolicy = BoxesParticlesAttributes()
-dataTransformationPolicy = None
+# particleDataTransformationPolicy = BoxesParticlesAttributes()
+particleDataTransformationPolicy = None
+
+# radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase()
+radiationDataTransformationPolicy = AbsoluteSquare()
 """
 # Calculate the total number of parameters
 total_params = sum(p.numel() for p in model.parameters())
@@ -136,7 +142,7 @@ dummyConsumer.start()
 
 # start the producer
 #timeBatchLoader = Loader(batchDataBuffer, hyperparameter_defaults, dataTransformationPolicy) ## Normal offline data
-timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, dataTransformationPolicy) ## Sreaming  ## Sreaming readyready
+timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 timeBatchLoader.start()
 
 #modelTrainer.join()
@@ -144,7 +150,7 @@ dummyConsumer.join()
 print("Join consumer")
 stdout.flush()
 timeBatchLoader.join()
-print("Join producerer")
+print("Join producer")
 stdout.flush()
 
 end_time = time.time()
