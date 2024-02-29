@@ -173,7 +173,7 @@ class StreamLoader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-        self.particlePathpattern = hyperParameterDefaults['pathpattern1']
+        self.particlePathPattern = hyperParameterDefaults['pathpattern1']
         self.radiationPathPattern = hyperParameterDefaults['pathpattern2']
 
         self.rng = np.random.default_rng()
@@ -181,6 +181,19 @@ class StreamLoader(Thread):
         self.radiationTransformPolicy = radiationDataTransformationPolicy
         self.comm = MPI.COMM_WORLD
         self.hyperParameterDefaults = hyperParameterDefaults
+
+        self.reqPhaseSpaceVars = hyperparameter_defaults["phase_space_variables"]
+        ## check input validity
+        allowedVars = ["position", "momentum", "force"]
+        variablesAllowed = True
+        for var in self.reqPhaseSpaceVars:
+            if var not in allowedVars:
+                variablesAllowed = False
+        if "force" in self.reqPhaseSpaceVars and "momentum" not in self.reqPhaseSpaceVars:
+            variablesAllowed = False
+
+        assert variablesAllowed, f"Requested phase space variables are not in allowed range {allowedVars}"
+
 
     def run(self):
         """Function being executed when thread is started."""
@@ -193,7 +206,7 @@ class StreamLoader(Thread):
 
         # Open openPMD particle and radiation series
         series = opmd.Series(
-            self.particlePathpattern,
+            self.particlePathPattern,
             opmd.Access.read_linear,
             self.comm,
             openpmd_stream_config)
@@ -314,14 +327,17 @@ class StreamLoader(Thread):
                 """
                 component_buffers = EnqueuedBuffers()
                 for chunk in local_particles_chunks:
-                    component_buffers.position.append(
-                        ps["position"][component].load_chunk(chunk.offset, chunk.extent))
-                    component_buffers.positionOffset.append(
-                        ps["positionOffset"][component].load_chunk(chunk.offset, chunk.extent))
-                    component_buffers.momentum.append(
-                        ps["momentum"][component].load_chunk(chunk.offset, chunk.extent))
-                    component_buffers.momentumPrev1.append(
-                        ps["momentumPrev1"][component].load_chunk(chunk.offset, chunk.extent))
+                    if "position" in self.reqPhaseSpaceVars:
+                        component_buffers.position.append(
+                            ps["position"][component].load_chunk(chunk.offset, chunk.extent))
+                        component_buffers.positionOffset.append(
+                            ps["positionOffset"][component].load_chunk(chunk.offset, chunk.extent))
+                    if "momentum" in self.reqPhaseSpaceVars or "force" in self.reqPhaseSpaceVars:
+                        component_buffers.momentum.append(
+                            ps["momentum"][component].load_chunk(chunk.offset, chunk.extent))
+                    if "force" in self.reqPhaseSpaceVars:
+                        component_buffers.momentumPrev1.append(
+                            ps["momentumPrev1"][component].load_chunk(chunk.offset, chunk.extent))
 
                 loaded_buffers[component] = component_buffers
 
@@ -364,38 +380,42 @@ class StreamLoader(Thread):
             iteration.close() # trigger enqueued data loads
 
             # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
-            loaded_particles = torch_empty((9, num_processed_chunks_per_rank, particlePerGPU), dtype=torch_float32)
+            loaded_particles = torch_empty((len(self.reqPhaseSpaceVars)*3, num_processed_chunks_per_rank, particlePerGPU), dtype=torch_float32)
             for i_c, component in enumerate(["x", "y", "z"]):
+                writing_index = 0
                 component_buffers = loaded_buffers[component]
-                position = [component_buffers.position[j] + component_buffers.positionOffset[j] \
+                if "position" in self.reqPhaseSpaceVars:
+                    position = [component_buffers.position[j] + component_buffers.positionOffset[j] \
                         for j in range(num_processed_chunks_per_rank)]
-                # TODO: Normalize positions on per GPU basis!
-                ## TODO: need to scale and normalize these values
-                ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
-                del component_buffers.position
-                del component_buffers.positionOffset
-                pos_reduced = np.array([
-                    p[r] for r, p in zip(randomParticlesPerGPU, position)
-                ])
-                del position
-                mom_reduced = np.array([
-                    m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentum)
-                ])
-                del component_buffers.momentum
-                momPrev1_reduced = np.array([
-                    m[r] for r, m in zip(randomParticlesPerGPU, component_buffers.momentumPrev1)
-                ])
-                del component_buffers.momentumPrev1
+                    # TODO: Normalize positions on per GPU basis!
+                    ## TODO: need to scale and normalize these values
+                    ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
+                    del component_buffers.position
+                    del component_buffers.positionOffset
+                    loaded_particles[writing_index+i_c] = torch_stack([
+                        torch_from_numpy(p[r]) for r, p in zip(randomParticlesPerGPU, position)
+                    ])
+                    del position
+                    writing_index +=3
+
+                if "momentum" in self.reqPhaseSpaceVars or "force" in self.reqPhaseSpaceVars:
+                    loaded_particles[writing_index+i_c] = torch_stack([
+                        torch_from_numpy(m[r]) for r, m in zip(randomParticlesPerGPU, component_buffers.momentum)
+                    ])
+                    del component_buffers.momentum
+                    writing_index +=3
+
+                if "force" in self.reqPhaseSpaceVars:
+                    momPrev1_reduced = torch_stack([
+                        torch_from_numpy(m[r]) for r, m in zip(randomParticlesPerGPU, component_buffers.momentumPrev1)
+                    ])
+                    del component_buffers.momentumPrev1
+                    loaded_particles[writing_index+i_c] = loaded_particles[writing_index-3+i_c] - momPrev1_reduced # force
+                    del momPrev1_reduced
 
                 del component_buffers
                 del loaded_buffers[component]
 
-                loaded_particles[0+i_c] = torch_from_numpy(pos_reduced) # absolute position in cells
-                loaded_particles[3+i_c] = torch_from_numpy(mom_reduced) # momentum in gamma*beta
-                loaded_particles[6+i_c] = torch_from_numpy(mom_reduced - momPrev1_reduced) # force
-                del pos_reduced
-                del mom_reduced
-                del momPrev1_reduced
 
             del loaded_buffers
 
