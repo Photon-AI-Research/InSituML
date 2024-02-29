@@ -12,71 +12,86 @@ import random
 
 emd = SamplesLoss(loss="sinkhorn", p=1, blur=.01)
 
-def save_files(variable_units, relative_dis, outputfile_name):
-    
-    torch.save(variable_units, "variable_units_"+outputfile_name)
-    torch.save(relative_dis, "relative_dis_"+outputfile_name)
-    
-def check_and_add(phase_space, variable_units):
-    
-    #add the first two
-    print(variable_units.shape)
-    relative_dis = distance.cdist(variable_units, variable_units, metric=emd)
-
-    relative_dis_new = distance.cdist(variable_units, [phase_space], metric=emd)
-    
-    min_already = relative_dis.min()
-
-    min_new = relative_dis_new.min()
-    
-    if min_new < min_already:
-        idx_min = random([relative_dis.argmin()//len(variable_units), 
-                      relative_dis.argmin()%len(variable_units)], 1)
+class GenerateVariableDataset:
+    def __init__(self, pathpattern1, pathpattern2,
+                 t0, t1, timebatchsize, particlebatchsize, 
+                 particles_to_sample, size_of_variable_unit,
+                 num_iterations, tolerance_distance, outputfile_name):
         
-        variable_units = torch.cat([variable_units[:idx_min], 
-                                    variable_units[idx_min+1:],
-                                    [phase_space]])
-        relative_dis = distance.cdist(variable_units, 
-                                         variable_units, 
-                                         metric=emd)
+        self.variable_units = torch.Tensor([])
+        self.current_minimum = np.inf 
+        self.outputfile_name = outputfile_name
+        self.tolerance_distance = tolerance_distance
+        self.num_iterations = num_iterations
+        self.size_of_variable_unit = size_of_variable_unit
         
-        return min_new, relative_dis, variable_units
-    else:
-        return min_already, relative_dis, variable_units
-    
-def reiterate_training_batches(
-    pathpattern1, pathpattern2,
-    t0, t1, timebatchsize, particlebatchsize, 
-    particles_to_sample, size_of_variable_unit,
-    num_iterations, tolerance_distance, 
-    outputfile_name 
-    ):
-    
-    variable_units = torch.Tensor([])
-    
-    data_loader = TrainLoader(pathpattern1=pathpattern1,
+        self.data_loader = TrainLoader(pathpattern1=pathpattern1,
                               pathpattern2=pathpattern2,
                               t0=t0, t1=t1,
                               timebatchsize = timebatchsize,
                               particlebatchsize = particlebatchsize,
                               particles_to_sample = particles_to_sample)[0]
-    for _ in range(num_iterations):
-    
-        for timeBatchIndex in range(len(data_loader)):
+
+        
+        
+    def save_files(self):
+        
+        torch.save(self.variable_units, "variable_units_"+self.outputfile_name)
+        torch.save(self.relative_dis, "relative_dis_"+self.outputfile_name)
+
+    def iterate_over_batch_examples(self, phase_space):
+        
+        for example in phase_space:
+            self.check_and_add(example)
             
-            timeBatch = data_loader[timeBatchIndex]
+            if (len(self.variable_units) > self.size_of_variable_unit and
+                        self.current_minimum < self.tolerance_distance):
+                self.save_files()
+                
+    def check_and_add(phase_space):
+        
+        if len(self.variable_units)<2:
+            self.variable_units = torch.cat([phase_space, self.variable_units])
+            return
+        
+        self.relative_dis = distance.cdist(variable_units, variable_units, metric=emd)
+
+        relative_dis_new = distance.cdist(variable_units, phase_space, metric=emd)
+        
+        min_already = self.relative_dis.min()
+
+        min_new = relative_dis_new.min()
+        
+        if min_new < min_already:
+            idx_min = random([relative_dis.argmin()//len(variable_units), 
+                        relative_dis.argmin()%len(variable_units)], 1)
             
-            for particleBatchIndex in range(len(timeBatch)):
-                phase_space, _ = timeBatch[particleBatchIndex]
-                min_of_distances, relative_dis, variable_units = check_and_add(phase_space,
-                                                                            variable_units)
+            self.current_minimum = min_new
+            
+            self.variable_units = torch.cat([variable_units[:idx_min], 
+                                        variable_units[idx_min+1:],
+                                        [phase_space]])
+            
+            self.relative_dis = distance.cdist(variable_units, 
+                                            variable_units, 
+                                            metric=emd)
+        else:
+            #only needed for the first iteration
+            self.current_minimum = min_already
+            
+    def reiterate_training_batches(self):
+
+        for _ in range(self.num_iterations):
+        
+            for timeBatchIndex in range(len(self.data_loader)):
                 
-                if( len(variable_units) > size_of_variable_unit and
-                    min_of_distances < tolerance_distance):
-                    save_files(variable_units, relative_distances, outputfile_name)
-                    return True
+                timeBatch = self.data_loader[timeBatchIndex]
                 
-    save_files(variable_units, relative_distances, outputfile_name)
+                for particleBatchIndex in range(len(timeBatch)):
+                    phase_space, _ = timeBatch[particleBatchIndex]
+                    self.iterate_over_batch_examples(phase_space)
+                    
+        self.save_files()
 
 if __name__ == "__main__":
     
@@ -142,5 +157,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
-    reiterate_training_batches(**vars(args))
-
+    generator = GenerateVariableDataset(**vars(args))
+    generator.iterate_over_batch_examples()
