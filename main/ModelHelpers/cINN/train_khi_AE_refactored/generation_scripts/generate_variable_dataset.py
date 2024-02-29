@@ -72,26 +72,24 @@ class GenerateVariableDataset:
         
         if len(self.variable_units)<self.size_of_variable_unit:
             self.variable_units = torch.cat([phase_space, self.variable_units])
+            self.relative_dis = self.cdist(self.variable_units, self.variable_units, compute=emd)
+            if len(self.relative_dis):
+                self.current_minimum, self.idx_row = torch.min(self.relative_dis[:,2], dim=0)
             return
-        print(self.variable_units.shape)
-        self.relative_dis = self.cdist(self.variable_units, self.variable_units, compute=emd)
         print(self.relative_dis)
         relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd, same=False)
         print(relative_dis_new)
-        min_already, idx_row = torch.min(self.relative_dis[:,2], dim=0)
 
         min_new, idx_row_new = torch.min(relative_dis_new[:,2], dim=0)
-        print("new_min", min_new, "already_min", min_already)
+        print("new_min", min_new, "already_min", self.current_minimum)
 
-        if min_new > min_already:
+        if min_new > self.current_minimum:
             print("inside")
             
-            [idx_1, idx_2,_] = self.relative_dis[idx_row]
+            [idx_1, idx_2, _] = self.relative_dis[self.idx_row]
             
             idx_remove = int(self.index_to_remove(idx_1, idx_2).item())
             print(idx_remove)
-
-            self.current_minimum = min_new
             
             self.variable_units[idx_remove] = phase_space 
             
@@ -102,10 +100,9 @@ class GenerateVariableDataset:
             self.relative_dis = self.cdist(self.variable_units, 
                                            self.variable_units, 
                                            compute=emd)
-            print("min_inside", torch.min(self.relative_dis[:,2]))
-        else:
-            #only needed for the first iteration
-            self.current_minimum = min_already
+            
+            self.current_minimum = min_new
+            print("mins",self.current_minimum, torch.min(self.relative_dis[:,2]))
             
     def reiterate_training_batches(self):
 
