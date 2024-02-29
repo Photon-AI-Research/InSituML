@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+import numpy as np
 import torch
 from data_loaders import TrainLoader
 import argparse
@@ -19,13 +20,10 @@ def save_files(variable_units, relative_dis, outputfile_name):
 def check_and_add(phase_space, variable_units):
     
     #add the first two
-    if (variable_units)<2:
-        variable_units = torch.cat([variable_units, phase_space])
-        return variable_units, False
-    
-    relative_dis = distances.cdist(variable_units, variable_units, metric=emd)
+    print(variable_units.shape)
+    relative_dis = distance.cdist(variable_units, variable_units, metric=emd)
 
-    relative_dis_new = distances.cdist(variable_units, [phase_space], metric=emd)
+    relative_dis_new = distance.cdist(variable_units, [phase_space], metric=emd)
     
     min_already = relative_dis.min()
 
@@ -33,12 +31,12 @@ def check_and_add(phase_space, variable_units):
     
     if min_new < min_already:
         idx_min = random([relative_dis.argmin()//len(variable_units), 
-                      relative_dis.argmin()%len(variable_units], 1)
+                      relative_dis.argmin()%len(variable_units)], 1)
         
         variable_units = torch.cat([variable_units[:idx_min], 
                                     variable_units[idx_min+1:],
                                     [phase_space]])
-        relative_dis = distances.cdist(variable_units, 
+        relative_dis = distance.cdist(variable_units, 
                                          variable_units, 
                                          metric=emd)
         
@@ -73,7 +71,7 @@ def reiterate_training_batches(
                 min_of_distances, relative_dis, variable_units = check_and_add(phase_space,
                                                                             variable_units)
                 
-                if( variable_units > size_of_variable_unit and
+                if( len(variable_units) > size_of_variable_unit and
                     min_of_distances < tolerance_distance):
                     save_files(variable_units, relative_distances, outputfile_name)
                     return True
