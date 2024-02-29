@@ -11,12 +11,17 @@ import random
 
 emd = SamplesLoss(loss="sinkhorn", p=1, blur=.01)
 
+def save_files(variable_units, relative_dis, outputfile_name):
+    
+    torch.save(variable_units, "variable_units_"+outputfile_name)
+    torch.save(relative_dis, "relative_dis_"+outputfile_name)
+    
 def check_and_add(phase_space, variable_units):
     
     #add the first two
     if (variable_units)<2:
         variable_units = torch.cat([variable_units, phase_space])
-        return False
+        return variable_units, False
     
     relative_dis = distances.cdist(variable_units, variable_units, metric=emd)
 
@@ -30,16 +35,24 @@ def check_and_add(phase_space, variable_units):
         idx_min = random([relative_dis.argmin()//len(variable_units), 
                       relative_dis.argmin()%len(variable_units], 1)
         
-        return torch.cat([variable_units[:idx_min], 
-                          variable_units[idx_min+1:], 
-                          [phase_space]])
+        variable_units = torch.cat([variable_units[:idx_min], 
+                                    variable_units[idx_min+1:],
+                                    [phase_space]])
+        relative_dis = distances.cdist(variable_units, 
+                                         variable_units, 
+                                         metric=emd)
+        
+        return min_new, relative_dis, variable_units
     else:
-        return variable_units
+        return min_already, relative_dis, variable_units
     
 def reiterate_training_batches(
     pathpattern1, pathpattern2,
     t0, t1, timebatchsize, particlebatchsize, 
-    particles_to_sample, size_of_variable_unit = 10):
+    particles_to_sample, size_of_variable_unit,
+    num_iterations, tolerance_distance, 
+    outputfile_name 
+    ):
     
     variable_units = torch.Tensor([])
     
@@ -49,17 +62,23 @@ def reiterate_training_batches(
                               timebatchsize = timebatchsize,
                               particlebatchsize = particlebatchsize,
                               particles_to_sample = particles_to_sample)[0]
+    for _ in range(num_iterations):
     
-    for timeBatchIndex in range(len(data_loader)):
-        
-        timeBatch = data_loader[timeBatchIndex]
-        
-        for particleBatchIndex in range(len(timeBatch)):
-            phase_space, _ = timeBatch[particleBatchIndex]
-            variable_units = check_and_add(phase_space, variable_units)
+        for timeBatchIndex in range(len(data_loader)):
             
-            if variable_units >= size_of_variable_unit:
-                return variable_units
+            timeBatch = data_loader[timeBatchIndex]
+            
+            for particleBatchIndex in range(len(timeBatch)):
+                phase_space, _ = timeBatch[particleBatchIndex]
+                min_of_distances, relative_dis, variable_units = check_and_add(phase_space,
+                                                                            variable_units)
+                
+                if( variable_units > size_of_variable_unit and
+                    min_of_distances < tolerance_distance):
+                    save_files(variable_units, relative_distances, outputfile_name)
+                    return True
+                
+    save_files(variable_units, relative_distances, outputfile_name)
 
 if __name__ == "__main__":
     
@@ -101,6 +120,27 @@ if __name__ == "__main__":
                         type=int,
                         default=4000,
                         help="Particle to sample")
+
+    parser.add_argument('--size_of_variable_unit',
+                        type=int,
+                        default=10,
+                        help="Size of dataset to produce")
+
+    parser.add_argument('--tolerance_distance',
+                        type=int,
+                        default=1,
+                        help="tolerance minimum emd distance between the dataset points")
+
+    parser.add_argument('--num_iterations',
+                        type=int,
+                        default=10,
+                        help="""Number of iterations over the training batches
+                                This would correspond to epoch in training case.""")
+
+    parser.add_argument('--outputfile_name',
+                        type=str,
+                        default="dataset.pt",
+                        help="File ending names for tensors to be saved on disk")
 
     args = parser.parse_args()
     
