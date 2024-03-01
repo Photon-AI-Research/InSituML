@@ -26,15 +26,15 @@ class ConvAutoencoder(nn.Module):
         self.decoder = decoder(**decoder_kwargs)
 
     def forward(self, x):
-        y = self.reconstruct_input(x)
-        loss = self.loss_function(y,x)
-        return loss, y
+        y, z = self.reconstruct_input(x)
+        loss = self.loss_function(y, x)
+        return loss, y, z
     
     def reconstruct_input(self, x):
         #z is the latent space.
         z = self.encoder(x)
         y = self.decoder(z)
-        return y
+        return y, z
 
 @inspect_and_select
 class VAE(nn.Module):
@@ -121,7 +121,7 @@ class VAE(nn.Module):
         if self.ae_config =="deterministic":
             y = self.decoder(m)
         else:
-            z =  sample_gaussian(m,v)
+            z = sample_gaussian(m,v)
             decoder_input = z if not self.use_encoding_in_decoder else \
             torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
             y = self.decoder(decoder_input)
