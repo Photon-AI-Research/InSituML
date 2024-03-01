@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from data_loaders import TrainLoader
 import argparse
-from geomloss import SamplesLoss
+from args_transform import MAPPING_TO_LOSS
 from scipy.spatial import distance
 import random
 from utilities import filter_dims
@@ -17,13 +17,12 @@ logger = logging.getLogger(__name__)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-emd = SamplesLoss(loss="sinkhorn", p=1, blur=.01)
 
 class GenerateVariableDataset:
     def __init__(self, pathpattern1, pathpattern2,
                  t0, t1, timebatchsize, particlebatchsize, 
                  particles_to_sample, size_of_variable_unit, property_,
-                 num_iterations, tolerance_distance, outputfile_name):
+                 num_iterations, tolerance_distance, outputfile_name, compute):
         
         self.variable_units = torch.Tensor([]).to(device)
         self.property_ = property_
@@ -32,6 +31,7 @@ class GenerateVariableDataset:
         self.tolerance_distance = tolerance_distance
         self.num_iterations = num_iterations
         self.size_of_variable_unit = size_of_variable_unit
+        self.compute = MAPPING_TO_LOSS[compute](property_=property_)
         
         self.data_loader = TrainLoader(pathpattern1=pathpattern1,
                               pathpattern2=pathpattern2,
@@ -57,14 +57,14 @@ class GenerateVariableDataset:
         
         return False
                 
-    def cdist(self, X, Y, compute, same=True):
+    def cdist(self, X, Y, same=True):
         
         relative_distances = []
         for idx_x, x in enumerate(X):
             for idx_y, y in enumerate(Y):
                 if same and (idx_x>=idx_y):
                     continue
-                distance = compute(x,y)
+                distance = self.compute(x.contiguous(),y.contiguous())
                 
                 #stop the calculation if minimum below 
                 #the current minimum is already found. 
@@ -85,12 +85,12 @@ class GenerateVariableDataset:
         
         if len(self.variable_units)<self.size_of_variable_unit:
             self.variable_units = torch.cat([phase_space, self.variable_units])
-            self.relative_dis = self.cdist(self.variable_units, self.variable_units, compute=emd)
+            self.relative_dis = self.cdist(self.variable_units, self.variable_units)
             if len(self.relative_dis):
                 self.current_minimum, self.idx_row = torch.min(self.relative_dis[:,2], dim=0)
             return
         
-        relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd, same=False)
+        relative_dis_new = self.cdist(self.variable_units, phase_space, same=False)
         
         #if relative_dis_new is None:
         #    return
@@ -109,8 +109,7 @@ class GenerateVariableDataset:
             #                                 phase_space])
             
             self.relative_dis = self.cdist(self.variable_units, 
-                                           self.variable_units, 
-                                           compute=emd)
+                                           self.variable_units)
             
             self.current_minimum = min_new
             
@@ -118,7 +117,7 @@ class GenerateVariableDataset:
 
         for iteration_number in range(self.num_iterations):
         
-            for timeBatchIndex in range(48):
+            for timeBatchIndex in range(10):
                 init_time=time.time()
                 print(f"{len(self.data_loader)},timebatchindex:{timeBatchIndex}, current_minimum:{self.current_minimum}", flush=True)
                 timeBatch = self.data_loader[timeBatchIndex]
@@ -201,7 +200,12 @@ if __name__ == "__main__":
     parser.add_argument('--outputfile_name',
                         type=str,
                         default="dataset.pt",
-                        help="File ending names for tensors to be saved on disk")
+                        help="File ending names for tensors to be saved on disk.")
+
+    parser.add_argument('--compute',
+                        type=str,
+                        default="earthmovers",
+                        help="Which measurement to use to compute distance between the values")
 
     args = parser.parse_args()
     

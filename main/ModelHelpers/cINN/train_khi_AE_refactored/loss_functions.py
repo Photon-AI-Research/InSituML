@@ -1,17 +1,18 @@
 import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
-
+from utilities import inspect_and_select
 import ChamferDistancePytorch.chamfer6D.dist_chamfer_6D as dist_chamfer_6D
 import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as dist_chamfer_3D
 
+@inspect_and_select
 class ChamfersLossOptimized(nn.Module):
     def __init__(self, property_="momentum_force"):
         super().__init__()
         if property_=="momentum_force":
             self.chm_obj = dist_chamfer_6D.chamfer_6DDist()
         elif property_ != "all":
-            self.chm_obj = dist_chamfer_3D.chamfer_6DDist()
+            self.chm_obj = dist_chamfer_3D.chamfer_3DDist()
         else:
             raise ValueError(f"""Either wrong property_ name or property_ 'all' can't
                              be used with ChamfersLossOptimized""")
@@ -23,6 +24,7 @@ class ChamfersLossOptimized(nn.Module):
         
             
 
+@inspect_and_select
 class ChamfersLossDiagonal(nn.Module):
     """
     Custom loss class for Chamfers Distance taken with diagonal things to metrics.
@@ -64,6 +66,7 @@ class ChamfersLossDiagonal(nn.Module):
         return P.min(1)[0], P.min(2)[0]
 
 
+@inspect_and_select
 class ChamfersLoss(nn.Module):
     """
     Custom loss class for Chamfers Distance.
@@ -107,6 +110,7 @@ class ChamfersLoss(nn.Module):
         return reduced_loss
 
 
+@inspect_and_select
 class EarthMoversLoss(SamplesLoss):
     
     """
