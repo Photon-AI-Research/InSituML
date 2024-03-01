@@ -63,8 +63,12 @@ class TrainBatchBuffer(Thread):
 
         openPMDBufferReadCount = 0
         openPMDBufferSize = self.openPMDbuffer.qsize()
-
-        while openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize):
+        condition_to_run = openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize)
+        
+        if condition_to_run:
+            print("Updating the train buffer")
+            
+        while condition_to_run:
             # get a particles, radiation from the queue
             particles_radiation = self.openPMDbuffer.get()
 
@@ -108,11 +112,16 @@ class TrainBatchBuffer(Thread):
         return [particles.reshape(1, -1), radiation.reshape(1, -1)]
 
     def get_batch(self):
-
+        print("Attempting a batch extraction from train buffer")
         self.run()
         # No training until there batch size element in the buffer.
         if len(self.buffer_)<self.training_bs or (self.noReadCount>self.max_tb_from_unchanged_now_bf and
                                                   self.openpmdProduction):
+            print(f"""Batch extraction failed..
+                      Either train buffer has less element than training size
+                      Train Buffer Size: {len(buffer_)}, training batch size: {self.training_bs}
+                      Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: {self.max_tb_from_unchanged_now_bf}
+                      """
             return None
         
         #random sampling

@@ -76,6 +76,8 @@ class ModelTrainer(Thread):
             #is not enough data in the now buffer 
             #for training to begin
             if phase_space_radiation is None:
+                print(f"""Trainer will wait for {self.sleep_before_retry}, for data to be 
+                      streamed before reattempting batch extraction.""" 
                 time.sleep(self.sleep_before_retry)
                 continue
 
@@ -97,10 +99,14 @@ class ModelTrainer(Thread):
 
             self.optimizer.step()
             self.scheduler.step()
-
-
-
+            
+            print("Trained on a batch succesfully")
+            
             if self.training_buffer.openpmdProduction == False:
+                print(f"""Note: The streaming has stopped, the trainer will run for
+                         {self.ts_after_stopped_production} training steps (batch passes)
+                         before stopping. 
+                         Training step:{self.rest_training_left_counter} after stopped streaming."""
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
                     break
