@@ -10,6 +10,7 @@ from geomloss import SamplesLoss
 from scipy.spatial import distance
 import random
 from utilities import filter_dims
+import time
 
 import logging
 logger = logging.getLogger(__name__)
@@ -67,8 +68,8 @@ class GenerateVariableDataset:
                 
                 #stop the calculation if minimum below 
                 #the current minimum is already found. 
-                if distance < self.current_minimum:
-                    return None
+                #if same==False and distance < self.current_minimum:
+                #   return None
                 relative_distances.append([idx_x, idx_y, distance])
         
         return torch.Tensor(relative_distances).to(device)
@@ -91,8 +92,8 @@ class GenerateVariableDataset:
         
         relative_dis_new = self.cdist(self.variable_units, phase_space, compute=emd, same=False)
         
-        if relative_dis_new is None:
-            return
+        #if relative_dis_new is None:
+        #    return
         min_new, idx_row_new = torch.min(relative_dis_new[:,2], dim=0)
 
         if min_new > self.current_minimum:
@@ -117,8 +118,9 @@ class GenerateVariableDataset:
 
         for iteration_number in range(self.num_iterations):
         
-            for timeBatchIndex in range(len(self.data_loader)):
-                print(f"timebatchindex:{timeBatchIndex}, current_minimum:{self.current_minimum}")
+            for timeBatchIndex in range(48):
+                init_time=time.time()
+                print(f"{len(self.data_loader)},timebatchindex:{timeBatchIndex}, current_minimum:{self.current_minimum}", flush=True)
                 timeBatch = self.data_loader[timeBatchIndex]
                 
                 for particleBatchIndex in range(len(timeBatch)):
@@ -127,6 +129,8 @@ class GenerateVariableDataset:
                     
                     if finished:
                         return None
+                elaspsed=(time.time()-init_time)/60.0
+                print(f"Time taken:{elaspsed}")
             if timeBatchIndex%10:
                 logger.info(f"The current minimum at iteration {num_iterations} and timeBatchIndex {timeBatchIndex} is: {self.current_minimum}")
         
@@ -190,7 +194,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--num_iterations',
                         type=int,
-                        default=10,
+                        default=1,
                         help="""Number of iterations over the training batches
                                 This would correspond to epoch in training case.""")
 
