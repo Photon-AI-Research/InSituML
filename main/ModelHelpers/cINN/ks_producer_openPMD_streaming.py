@@ -293,7 +293,8 @@ class StreamLoader(Thread):
             # Every GPU will hold a different number of particles.
             # But we need to keep the number of particles per GPU constant in order to construct the dataset.
             numParticles = np.array([chunk.extent[0] for chunk in local_particles_chunks])
-            particlePerGPU = numParticles.min()
+            #particlePerGPU = numParticles.min()
+            particlePerGPU = self.hyperParameterDefaults['number_particles_per_gpu']
             print("particles per GPU", particlePerGPU)
             randomParticlesPerGPU = np.array([
                 self.rng.choice(numParticles[i], particlePerGPU, replace=False) \
