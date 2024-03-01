@@ -4,7 +4,6 @@ from threading import Thread
 import torch
 from time import sleep
 from random import random
-from threading import Thread
 from queue import Queue
 
 from torch import optim
@@ -92,43 +91,43 @@ class ModelFinal(nn.Module):
 
 
 
-# encoder_kwargs = {"ae_config":"non_deterministic",
-#                   "z_dim":latent_space_dims,
-#                   "input_dim":ps_dims,
-#                   "conv_layer_config":[16, 32, 64, 128, 256, 512],
-#                   "conv_add_bn": False, 
-#                   "fc_layer_config":[256]}
-# 
-# decoder_kwargs = {"z_dim":latent_space_dims,
-#                   "input_dim":ps_dims,
-#                   "initial_conv3d_size":[16, 8, 4, 4],
-#                   "add_batch_normalisation":False}
-#                          
-# VAE = VAE(encoder = Encoder, 
-#           encoder_kwargs = encoder_kwargs, 
-#           decoder = Conv3DDecoder, 
-#           z_dim=latent_space_dims,
-#           decoder_kwargs = decoder_kwargs,
-#           loss_function = EarthMoversLoss(),
-#           property_="momentum_force",
-#           particles_to_sample = number_of_particles,
-#           ae_config="non_deterministic")
+VAE_encoder_kwargs = {"ae_config":"non_deterministic",
+                   "z_dim":latent_space_dims,
+                   "input_dim":ps_dims,
+                   "conv_layer_config":[16, 32, 64, 128, 256, 512],
+                   "conv_add_bn": False, 
+                   "fc_layer_config":[256]}
+ 
+VAE_decoder_kwargs = {"z_dim":latent_space_dims,
+                   "input_dim":ps_dims,
+                   "initial_conv3d_size":[16, 8, 4, 4],
+                   "add_batch_normalisation":False}
+                          
+VAE = VAE(encoder = Encoder, 
+           encoder_kwargs = VAE_encoder_kwargs, 
+           decoder = Conv3DDecoder, 
+           z_dim=latent_space_dims,
+           decoder_kwargs = VAE_decoder_kwargs,
+           loss_function = EarthMoversLoss(),
+           property_="momentum_force",
+           particles_to_sample = number_of_particles,
+           ae_config="non_deterministic")
 
 
-encoder_kwargs = {"ae_config":"simple",
+conv_AE_encoder_kwargs = {"ae_config":"simple",
                   "z_dim":latent_space_dims,
                   "input_dim":ps_dims,
                   "conv_layer_config":[16, 32, 64, 128, 256, 512],
                   "conv_add_bn": False}
 
-decoder_kwargs = {"z_dim":latent_space_dims,
+conv_AE_decoder_kwargs = {"z_dim":latent_space_dims,
                   "input_dim":ps_dims,
                   "add_batch_normalisation":False}
 
 conv_AE = ConvAutoencoder(encoder = Encoder, 
-                          encoder_kwargs = encoder_kwargs, 
+                          encoder_kwargs = conv_AE_encoder_kwargs, 
                           decoder = Conv3DDecoder, 
-                          decoder_kwargs = decoder_kwargs,
+                          decoder_kwargs = conv_AE_decoder_kwargs,
                           loss_function = EarthMoversLoss(),
                           )
 
