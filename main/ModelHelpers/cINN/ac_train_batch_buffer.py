@@ -79,9 +79,11 @@ class TrainBatchBuffer(Thread):
             particles_radiation = self.reshape(particles_radiation)
 
             if len(self.buffer_) < self.buffersize:
-                self.buffer_.append(particles_radiation)
+                self.buffer_ += particles_radiation
             else:
                 #extracts the first element.
+                last_elements = []
+                for _ in particles_radiation
                 last_element = self.buffer_.pop(0)
                 self.buffer_.append(particles_radiation)
 
@@ -104,7 +106,8 @@ class TrainBatchBuffer(Thread):
         # adds a batch dims assuming the data is coming as
         # (number_of_particles, dims) -> (1, number_of_particles, dims)
         particles, radiation = particles_radiation
-        return [torch.unsqueeze(particles, 0), torch.unsqueeze(radiation,0)]
+        particles_radiation = [particles[idx:idx+1], radiation[idx:idx+1] for idx in range(len(particles))]
+        return particle_radiation
 
     def reshape_MAF(self, particles_radiation):
         # adds a batch dims assuming the data is coming as
