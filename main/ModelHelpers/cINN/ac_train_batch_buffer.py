@@ -84,17 +84,21 @@ class TrainBatchBuffer(Thread):
                 self.buffer_ += particles_radiation
             else:
                 #extracts the first elements.
-                last_elements = self.buffer_[:len(particle_radiation)]
-                self.buffer_ = self.buffer_[len(particle_radiation):]
+                last_elements = self.buffer_[:len(particles_radiation)]
+                self.buffer_ = self.buffer_[len(particles_radiation):]
                 
                 self.buffer_ += particles_radiation
 
                 if self.use_continual_learning:
                     #add the last element to memory, if continual learning is
                     #required.
-                    self.er_mem.update_memory(*last_elements,
-                                                n_obs = self.n_obs,
-                                                i_step = self.i_step) 
+                    X = torch.cat([ele[0] for ele in last_elements])
+                    Y = torch.cat([ele[1] for ele in last_elements])
+
+                    self.er_mem.update_memory(X,
+                                              Y,
+                                              n_obs = self.n_obs,
+                                              i_step = self.i_step) 
                     
                     self.n_obs += len(last_elements)
                     self.i_step += 1
@@ -110,10 +114,8 @@ class TrainBatchBuffer(Thread):
         # adds a batch dims assuming the data is coming as
         # (number_of_particles, dims) -> (1, number_of_particles, dims)
         particles, radiation = particles_radiation
-        particles_radiation = [particles[idx:idx+1], radiation[idx:idx+1] for idx in range(len(particles))]
-        
-        print(particle_radiation)
-        return particle_radiation
+        particles_radiation = [[particles[idx:idx+1].permute(0,2,1), radiation[idx:idx+1]] for idx in range(len(particles))]
+        return particles_radiation
 
     def reshape_MAF(self, particles_radiation):
         # adds a batch dims assuming the data is coming as
@@ -143,7 +145,6 @@ class TrainBatchBuffer(Thread):
         if self.use_continual_learning and self.n_obs>=self.continual_bs:
             #sample from memory
             mem_part_batch, mem_rad_batch = self.er_mem.sample(self.continual_bs)
-
             particles_batch = torch.cat([particles_batch, mem_part_batch])
             radiation_batch = torch.cat([radiation_batch, mem_rad_batch])
 
