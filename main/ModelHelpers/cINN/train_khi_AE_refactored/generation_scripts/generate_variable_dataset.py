@@ -46,34 +46,7 @@ class GenerateVariableDataset:
         
         torch.save(self.variable_units, "variable_units_"+self.outputfile_name)
         torch.save(self.relative_dis, "relative_dis_"+self.outputfile_name)
-
-    def iterate_over_batch_examples(self, phase_space):
-        for idx in range(len(phase_space)):
-            self.check_and_add(phase_space[idx:idx+1])
-            
-            if (self.current_minimum > self.tolerance_distance):
-                self.save_files()
-                return True
-        
-        return False
                 
-    def cdist(self, X, Y, same=True):
-        
-        relative_distances = []
-        for idx_x, x in enumerate(X):
-            for idx_y, y in enumerate(Y):
-                if same and (idx_x>=idx_y):
-                    continue
-                distance = self.compute(x.contiguous(),y.contiguous())
-                
-                #stop the calculation if minimum below 
-                #the current minimum is already found. 
-                #if same==False and distance < self.current_minimum:
-                #   return None
-                relative_distances.append([idx_x, idx_y, distance])
-        
-        return torch.Tensor(relative_distances).to(device)
-    
     def index_to_remove(self, idx_1, idx_2):
         
         mean_dist_idx1 = self.relative_dis[:,2][self.relative_dis[:,0]==idx_1].mean()
@@ -81,7 +54,16 @@ class GenerateVariableDataset:
         
         return idx_1 if mean_dist_idx1<mean_dist_idx2 else idx_2
     
-    def check_and_add(self,phase_space):
+    def cdist(self, X, Y):
+        
+        relative_dis_ind = []
+        for _ in range(len(self.permutation_iteration)):
+            perm = torch.randomperm(len(Y))
+            relative_dis_ind.append(perm)
+            shuffled_Y = Y[perm]
+            distances = self.compute(X, shuffled_Y)
+        
+    def check_and_add(self, phase_space):
         
         if len(self.variable_units)<self.size_of_variable_unit:
             self.variable_units = torch.cat([phase_space, self.variable_units])
@@ -92,8 +74,6 @@ class GenerateVariableDataset:
         
         relative_dis_new = self.cdist(self.variable_units, phase_space, same=False)
         
-        #if relative_dis_new is None:
-        #    return
         min_new, idx_row_new = torch.min(relative_dis_new[:,2], dim=0)
 
         if min_new > self.current_minimum:
@@ -103,11 +83,7 @@ class GenerateVariableDataset:
             idx_remove = int(self.index_to_remove(idx_1, idx_2).item())
             
             self.variable_units[idx_remove] = phase_space 
-            
-            # self.variable_units = torch.cat([self.variable_units[:idx_remove], 
-            #                                 self.variable_units[idx_remove+1:],
-            #                                 phase_space])
-            
+                        
             self.relative_dis = self.cdist(self.variable_units, 
                                            self.variable_units)
             
@@ -117,14 +93,14 @@ class GenerateVariableDataset:
 
         for iteration_number in range(self.num_iterations):
         
-            for timeBatchIndex in range(10):
+            for timeBatchIndex in range(len(data_loader)):
                 init_time=time.time()
                 print(f"{len(self.data_loader)},timebatchindex:{timeBatchIndex}, current_minimum:{self.current_minimum}", flush=True)
                 timeBatch = self.data_loader[timeBatchIndex]
                 
                 for particleBatchIndex in range(len(timeBatch)):
                     phase_space, _ = timeBatch[particleBatchIndex]
-                    finished = self.iterate_over_batch_examples(filter_dims[self.property_](phase_space.to(device)))
+                    finished = self.check_and_add(filter_dims[self.property_](phase_space.to(device)))
                     
                     if finished:
                         return None
