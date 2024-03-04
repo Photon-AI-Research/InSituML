@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from encoder_decoder import Encoder
-from encoder_decoder import MLPDecoder, Conv3DDecoder
-from utilities import sample_gaussian, kl_normal, inspect_and_select
+from .encoder_decoder import Encoder
+from .encoder_decoder import MLPDecoder, Conv3DDecoder
+from .utilities import sample_gaussian, kl_normal, inspect_and_select
 
 # property_ to input_dim
 P2ID = { 
@@ -26,15 +26,15 @@ class ConvAutoencoder(nn.Module):
         self.decoder = decoder(**decoder_kwargs)
 
     def forward(self, x):
-        y = self.reconstruct_input(x)
+        y,z = self.reconstruct_input(x)
         loss = self.loss_function(y,x)
-        return loss, y
+        return loss, y, z
     
     def reconstruct_input(self, x):
         #z is the latent space.
         z = self.encoder(x)
         y = self.decoder(z)
-        return y
+        return y,z
 
 @inspect_and_select
 class VAE(nn.Module):
@@ -59,7 +59,7 @@ class VAE(nn.Module):
         self.check_kwargs(encoder_kwargs, "encoder")
         self.check_kwargs(decoder_kwargs, "decoder")
         
-        if ae_config== "non_deterministic" and use_encoding_in_decoder:
+        if ae_config=="non_deterministic" and use_encoding_in_decoder:
             decoder_kwargs["z_dim"] = 2*z_dim
             
         self.encoder = encoder(**encoder_kwargs)
@@ -105,8 +105,7 @@ class VAE(nn.Module):
         nelbo = x_reconst + kl_loss
         #might be useful for later.
         #ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
-        return nelbo, y
-    
+        return nelbo, y, z
 
     def sample_point(self, batch):
         p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)
@@ -127,4 +126,3 @@ class VAE(nn.Module):
             torch.cat((z,m),dim=-1) #BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
             y = self.decoder(decoder_input)
         return y
-

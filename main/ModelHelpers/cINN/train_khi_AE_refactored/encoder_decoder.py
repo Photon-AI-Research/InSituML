@@ -164,9 +164,15 @@ class Encoder(AddLayersMixin, nn.Module):
             self.variance = nn.Sequential(*partition_var)
         
         elif ae_config == "simple":
+            
+            fc_layers = self.add_layers_seq("Linear",
+                                fc_layer_config,
+                                z_dim,
+                                add_batch_normalisation = False,
+                                add_activation = False)
             #take away the maxpool, and flatten
             final_layers = conv_layers[:-2] + [nn.Conv1d(conv_layer_config[-1], z_dim, kernel_size)] + \
-                                       conv_layers[-2:]
+                                       conv_layers[-2:] + fc_layers
                        
             self.layers = nn.Sequential(*final_layers)
             
