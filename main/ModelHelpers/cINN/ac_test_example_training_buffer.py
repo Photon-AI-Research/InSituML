@@ -23,7 +23,6 @@ gpu_boxes = 2
 number_of_particles = 100
 ps_dims = 6
 
-rad = 100
 rad_dims = 512
 
 latent_space_dims = 1024
@@ -39,8 +38,8 @@ class DummyOpenPMDProducer(Thread):
         # generate openpmd stuff.
         for i in range(10):
             # generate a value
-            loaded_particles = torch.rand(gpu_boxes, number_of_particles, ps_dims)
-            radiation = torch.rand(gpu_boxes,rad_dims)
+            loaded_particles = torch.rand(gpu_boxes, ps_dims, number_of_particles)
+            radiation = torch.rand(gpu_boxes, rad_dims)
             # block, to simulate effort
             sleep(i)
             # create a tuple
