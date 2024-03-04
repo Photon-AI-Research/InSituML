@@ -49,7 +49,9 @@ class TrainBatchBuffer(Thread):
         if self.use_continual_learning:
             self.er_mem = ExperienceReplay(mem_size=cl_mem_size)
             self.n_obs = 0
-
+        
+        self.i_step = 0
+        
         self.buffer_ = []
         self.buffersize = buffersize
         
@@ -79,19 +81,27 @@ class TrainBatchBuffer(Thread):
             particles_radiation = self.reshape(particles_radiation)
 
             if len(self.buffer_) < self.buffersize:
-                self.buffer_.append(particles_radiation)
+                self.buffer_ += particles_radiation
             else:
-                #extracts the first element.
-                last_element = self.buffer_.pop(0)
-                self.buffer_.append(particles_radiation)
+                #extracts the first elements.
+                last_elements = self.buffer_[:len(particles_radiation)]
+                self.buffer_ = self.buffer_[len(particles_radiation):]
+                
+                self.buffer_ += particles_radiation
 
                 if self.use_continual_learning:
                     #add the last element to memory, if continual learning is
                     #required.
-                    self.er_mem.update_memory(*last_element,
-                                                n_obs = self.n_obs,
-                                                i_step = self.n_obs) #i_step = n_obs in this case
-                    self.n_obs += 1
+                    X = torch.cat([ele[0] for ele in last_elements])
+                    Y = torch.cat([ele[1] for ele in last_elements])
+
+                    self.er_mem.update_memory(X,
+                                              Y,
+                                              n_obs = self.n_obs,
+                                              i_step = self.i_step) 
+                    
+                    self.n_obs += len(last_elements)
+                    self.i_step += 1
 
             openPMDBufferReadCount += 1
             self.noReadCount = 0
@@ -104,7 +114,8 @@ class TrainBatchBuffer(Thread):
         # adds a batch dims assuming the data is coming as
         # (number_of_particles, dims) -> (1, number_of_particles, dims)
         particles, radiation = particles_radiation
-        return [torch.unsqueeze(particles, 0), torch.unsqueeze(radiation,0)]
+        particles_radiation = [[particles[idx:idx+1].permute(0,2,1), radiation[idx:idx+1]] for idx in range(len(particles))]
+        return particles_radiation
 
     def reshape_MAF(self, particles_radiation):
         # adds a batch dims assuming the data is coming as
@@ -134,7 +145,6 @@ class TrainBatchBuffer(Thread):
         if self.use_continual_learning and self.n_obs>=self.continual_bs:
             #sample from memory
             mem_part_batch, mem_rad_batch = self.er_mem.sample(self.continual_bs)
-
             particles_batch = torch.cat([particles_batch, mem_part_batch])
             radiation_batch = torch.cat([radiation_batch, mem_rad_batch])
 

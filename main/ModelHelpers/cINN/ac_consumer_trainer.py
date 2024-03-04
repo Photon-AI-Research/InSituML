@@ -1,5 +1,6 @@
 """
 
+
 """
 import time
 from threading import Thread
@@ -110,4 +111,3 @@ class ModelTrainer(Thread):
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
                     break
-
