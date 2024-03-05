@@ -2,9 +2,7 @@
 Loader for PIConGPU openPMD particle and radiation data to be used for insitu machine learning model training.
 The data is put in a buffer provided during construction of the producer class.
 The buffer is expected to be fillable by a `put()` method.
-TODO: Furthermore, a policy is taken which describes the data structure that needs to be put in the buffer.
-This policy actually performs the required transformation on the data, if required.
-For example, it performs data normalization and layouts the data as requested for the training.
+Furthermore, policies are taken which transform particle or radiation data from the their standard layouts to the requested layout.
 """
 from threading import Thread
 
@@ -26,8 +24,8 @@ from ks_helperfuncs import *
 class Loader(Thread):
     """ Thread providing PIConGPU particle and radiation data for the ML model training.
 
-    PIConGPU data is provided by a dataReadPolicy on a per-timestep basis as an ndarray
-    of shape (numLocalSubvolumes, phaseSpaceComponents, numParticlesPerSubvolume) (TODO!).
+    PIConGPU data is loaded from openPMD files on a per-timestep basis in Timebatches.
+    The standard format of loaded particle data is a torch.Tensor of shape (numLocalSubvolumes, phaseSpaceComponents, numParticlesPerSubvolume).
     phaseSpaceComponents are: (pos_x, pos_y, pos_z, mom_x, mom_y, mom_z, force_x, force_y, force_z)
     This data can be reshaped according to the needs of the training/model by a dataTransformationPolicy.
     Loaded and reshaped data is put in a buffer which is shared with the training thread.
@@ -35,7 +33,7 @@ class Loader(Thread):
     All of this is orchestrated in the run() method.
     """
 
-    def __init__(self, batchDataBuffer, hyperParameterDefaults, dataTransformationPolicy=None):
+    def __init__(self, batchDataBuffer, hyperParameterDefaults, particleDataTransformationPolicy=None, radiationDataTransformationPolicy=None):
         """ Set parameters of the loader
 
         Arguments:
@@ -56,12 +54,27 @@ class Loader(Thread):
         self.timebatchSize = hyperParameterDefaults["timebatchsize"]
         self.timebatchSliceSize = hyperParameterDefaults["particlebatchsize"]
         self.numEpochs = hyperParameterDefaults["num_epochs"]
-        self.transformPolicy = None #dataTransformationPolicy
+        self.particleTransformPolicy = particleDataTransformationPolicy
+        self.radiationTransformPolicy = radiationDataTransformationPolicy
 
         self.totalTimebatchNumber = int((self.t1-self.t0)/self.timebatchSize)
         self.particlePerGPU = np.int64(10000) # MAGIC: Number of randomly choosen particles per GPU
         
         self.rng = np.random.default_rng()
+
+        self.reqPhaseSpaceVars = hyperParameterDefaults["phase_space_variables"]
+        ## check input validity
+        allowedVars = ["position", "momentum", "force"]
+        variablesAllowed = True
+        for var in self.reqPhaseSpaceVars:
+            if var not in allowedVars:
+                variablesAllowed = False
+        if "force" in self.reqPhaseSpaceVars and "momentum" not in self.reqPhaseSpaceVars:
+            variablesAllowed = False
+            assert variablesAllowed, "Phase space variable 'force' can only be used in combination with 'momentum'"
+
+        assert variablesAllowed, f"Requested phase space variables are not in allowed range {allowedVars}"
+
 
     def run(self):
         """Function being executed when thread is started."""
@@ -107,6 +120,8 @@ class Loader(Thread):
 
                 # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
                 loaded_particles = torch_empty((9, len(numParticles), self.particlePerGPU), dtype=torch_float32)
+                # TODO: Only load the phase space variables requested in self.reqPhaseSpaceVars
+                #loaded_particles = torch_empty((len(self.reqPhaseSpaceVars)*3, len(numParticles), self.particlePerGPU), dtype=torch_float32)
                 for i_c, component in enumerate(["x", "y", "z"]):
                     """Read particle data component-wise to reduce host memory usage.
                        And immediately reshape by subdividing in particles per GPU.
@@ -148,10 +163,7 @@ class Loader(Thread):
 #                iteration.close() # It is currently not possible to reopen an iteration in openPMD
                 
                 if self.transformPolicy is not None:
-                    loaded_particles = self.transformPolicy(loaded_particles)
-                else:
-                    """transform data to shape (GPUs, phaseSpaceComponents, particlesPerGPU)"""
-                    loaded_particles = torch_transpose(loaded_particles, 0, 1)
+                    loaded_particles = self.particleTransformPolicy(loaded_particles)
 
                 particles.append(loaded_particles)
 
