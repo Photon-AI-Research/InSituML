@@ -28,7 +28,7 @@ MAPPING_TO_NETWORK = {
 def list_transform(kwargs):
     
     for k in kwargs:
-        if "layer_config" in k:
+        if "layer_config" in k or "initial_conv3d_size" in k:
             kwargs[k] = ast.literal_eval(kwargs[k])
     
     return kwargs
