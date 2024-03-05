@@ -74,8 +74,7 @@ model = (PC_MAF(dim_condition = hyperparameter_defaults["dim_condition"],
                            activation = hyperparameter_defaults["activation"]
                          ))
 """
-# particleDataTransformationPolicy = BoxesParticlesAttributes()
-particleDataTransformationPolicy = None
+particleDataTransformationPolicy = BoxesAttributesParticles()
 
 # radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase()
 radiationDataTransformationPolicy = AbsoluteSquare()
@@ -142,7 +141,7 @@ dummyConsumer.start()
 
 
 # start the producer
-#timeBatchLoader = Loader(batchDataBuffer, hyperparameter_defaults, dataTransformationPolicy) ## Normal offline data
+#timeBatchLoader = Loader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Normal offline data
 timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 timeBatchLoader.start()
 

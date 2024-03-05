@@ -1,3 +1,11 @@
+"""
+Main file/module to train ML model from PIConGPU openPMD data using streaming and threads.
+"""
+import time
+
+from ks_transform_policies import *
+from ks_producer_openPMD_streaming import *
+
 from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
 from threading import Thread
@@ -13,49 +21,51 @@ from model import model_MAF as model_MAF
 
 from train_khi_AE_refactored.encoder_decoder import Encoder
 from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
-from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
 from train_khi_AE_refactored.loss_functions import EarthMoversLoss
+from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
+
+print("Done importing modules.")
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-batchsize = 4
-gpu_boxes = 2
-number_of_particles = 100
-ps_dims = 6
+openPMDBuffer = Queue() ## Buffer shared between openPMD data loader and model
 
-rad_dims = 512
+
+#######################################
+## openPMD data loader configuration ##
+#######################################
+ps_dims = 6 # Actually used in the model configuration by now
+            # ToDo: Use in StreamingLoader
+
+number_of_particles = 100
+
+streamLoader_config = dict(
+    t0 = 500,
+    t1 = 509, # endpoint=false, t1 is not used in training
+    pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
+    pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
+    amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
+    phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+    number_particles_per_gpu = 1000
+)
+
+#particleDataTransformationPolicy = BoxesAttributesParticles()
+particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
+
+# radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase()
+#radiationDataTransformationPolicy = AbsoluteSquare()
+radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
+
+timeBatchLoader = StreamLoader(openPMDBuffer, streamLoader_config, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+
+
+#########################
+## Model configuration ##
+#########################
+
+rad_dims = 512 # Number of frequencies in radiation data
 
 latent_space_dims = 1024
-
-class DummyOpenPMDProducer(Thread):
-    def __init__(self, openPMDBuffer):
-        Thread.__init__(self)        
-        self.openPMDBuffer = openPMDBuffer
-    
-    def run(self):
-        print('Producer: Running')
-
-        # generate openpmd stuff.
-        for i in range(10):
-            # generate a value
-            loaded_particles = torch.rand(gpu_boxes, ps_dims, number_of_particles)
-            radiation = torch.rand(gpu_boxes, rad_dims)
-            # block, to simulate effort
-            sleep(i)
-            # create a tuple
-            item = [loaded_particles, radiation]
-            # add to the queue
-            self.openPMDBuffer.put(item)
-            # report progress
-            print(f'>producer added {i}')
-        # signal that there are no further items
-        self.openPMDBuffer.put(None)
-        print('Producer: Done')
-
-
-
-openPMDBuffer = Queue()
-
-openpmdProducer = DummyOpenPMDProducer(openPMDBuffer)
 
 config = dict(
 dim_input = 1024,
@@ -150,10 +160,28 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
 trainBF = TrainBatchBuffer(openPMDBuffer)
 modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler)
 
+####################
+## Start training ##
+####################
+start_time = time.time()
+
 modelTrainer.start()
 trainBF.start()
-openpmdProducer.start()
+timeBatchLoader.start()
 
-openpmdProducer.join()
-trainBF.join()
+
 modelTrainer.join()
+print("Join model trainer")
+stdout.flush()
+
+trainBF.join()
+print("Join continual learning buffer")
+stdout.flush()
+timeBatchLoader.join()
+print("Join openPMD data loader")
+stdout.flush()
+
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Total elapsed time: {elapsed_time:.6f} seconds")
+
