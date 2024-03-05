@@ -3,7 +3,32 @@ import torch
 import matplotlib.pyplot as plt
 
 
+# Losses
+def MMD_multiscale(x, y):
+    xx, yy, zz = torch.mm(x,x.t()), torch.mm(y,y.t()), torch.mm(x,y.t())
 
+    rx = (xx.diag().unsqueeze(0).expand_as(xx))
+    ry = (yy.diag().unsqueeze(0).expand_as(yy))
+
+    dxx = rx.t() + rx - 2.*xx
+    dyy = ry.t() + ry - 2.*yy
+    dxy = rx.t() + ry - 2.*zz
+
+    XX, YY, XY = (torch.zeros(xx.shape).to(x.device),
+                  torch.zeros(xx.shape).to(x.device),
+                  torch.zeros(xx.shape).to(x.device))
+
+    for a in [0.05, 0.2, 0.9]:
+        XX += a**2 * (a**2 + dxx)**-1
+        YY += a**2 * (a**2 + dyy)**-1
+        XY += a**2 * (a**2 + dxy)**-1
+
+    return torch.mean(XX + YY - 2.*XY)
+
+
+def fit(input, target):
+    return torch.mean((input - target)**2)
+    
 def create_position_density_plots(x, y, z,
                                   x_pr, y_pr, z_pr,
                                   bins=100, t=1000, path='',

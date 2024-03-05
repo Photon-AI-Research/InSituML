@@ -9,7 +9,8 @@ from queue import Queue
 from torch import optim
 import torch.nn as nn
 
-from model import model_MAF as model_MAF
+from utilities import MMD_multiscale, fit
+from ks_models import PC_MAF, INNModel
 
 from train_khi_AE_refactored.encoder_decoder import Encoder
 from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
@@ -67,6 +68,20 @@ activation = 'relu',
  lr = 0.00001
 )
 
+config_inn = dict(
+y_noise_scale = 1e-1,
+zeros_noise_scale = 5e-2,
+lambd_predict = 3.,
+lambd_latent = 300.,
+lambd_rev = 400.,
+ndim_tot = 1024,
+ndim_x = 1024,
+ndim_y = 512,
+ndim_z = 512,
+num_coupling_layers = 4,
+hidden_size = 256,
+)
+
 class ModelFinal(nn.Module):
     def __init__(self, 
                  base_network,
@@ -85,7 +100,14 @@ class ModelFinal(nn.Module):
     def forward(self, x, y):
         
         loss_AE, _, encoded = self.base_network(x)
-        loss_IM = self.inner_model(inputs=encoded, context=y)*self.weight_IM
+        
+        # Check if the inner model is an instance of INNModel
+        if isinstance(self.inner_model, INNModel):
+            # Use the compute_losses function of INNModel
+            loss_IM = self.inner_model.compute_losses(encoded, y) * self.weight_IM
+        else:
+            # For other types of models, such as MAF
+            loss_IM = self.inner_model(inputs=encoded, context=y) * self.weight_IM
         
         return loss_AE*self.weight_AE + loss_IM
 
@@ -131,14 +153,33 @@ conv_AE = ConvAutoencoder(encoder = Encoder,
                           loss_function = EarthMoversLoss(),
                           )
 
-inner_model = (model_MAF.PC_MAF(dim_condition=config["dim_condition"],
-                           dim_input=config["dim_input"],
-                           num_coupling_layers=config["num_coupling_layers"],
-                           hidden_size=config["hidden_size"],
-                           device=device,
-                           num_blocks_mat = config["num_blocks_mat"],
-                           activation = config["activation"]
-                         ))
+# MAF
+# inner_model = PC_MAF(dim_condition=config["dim_condition"],
+#                            dim_input=config["dim_input"],
+#                            num_coupling_layers=config["num_coupling_layers"],
+#                            hidden_size=config["hidden_size"],
+#                            device=device,
+#                            num_blocks_mat = config["num_blocks_mat"],
+#                            activation = config["activation"]
+#                          )
+
+# INN
+inner_model = INNModel(ndim_tot=config_inn["ndim_tot"],
+                 ndim_x=config_inn["ndim_x"],
+                 ndim_y=config_inn["ndim_y"],
+                 ndim_z=config_inn["ndim_z"],
+                 loss_fit=fit,
+                 loss_latent=MMD_multiscale,
+                 loss_backward=MMD_multiscale,
+                 lambd_predict=config_inn["lambd_predict"],
+                 lambd_latent=config_inn["lambd_latent"],
+                 lambd_rev=config_inn["lambd_rev"],
+                 zeros_noise_scale=config_inn["zeros_noise_scale"],
+                 y_noise_scale=config_inn["y_noise_scale"],
+                 hidden_size=config_inn["hidden_size"],
+                 activation=config["activation"],
+                 num_coupling_layers=config_inn["num_coupling_layers"],
+                 device = device)
 
 #model = ModelFinal(VAE, inner_model, EarthMoversLoss())
 model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
