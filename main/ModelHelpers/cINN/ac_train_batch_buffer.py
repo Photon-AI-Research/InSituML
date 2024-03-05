@@ -22,7 +22,10 @@ class TrainBatchBuffer(Thread):
     use_continual_learning (Bool): Whether to use use continual learning or not. If yes, will create memory buffer for the continual learning.
 
     cl_mem_size (int): Continual learning memory buffer size.
-    
+
+    do_tranpose (bool): Whether to do the transpose of particle data or not. It depends if the producer
+    produces (number_of_particles, particle_dims) or the transposed of this. And the model or trainer requires.
+
     """
 
     def __init__(self,
@@ -33,14 +36,12 @@ class TrainBatchBuffer(Thread):
                  use_continual_learning=True,
                  continual_bs = 4,
                  cl_mem_size=2048,
-                 model_MAF=False):
+                 do_tranpose=True):
 
         Thread.__init__(self)
 
         self.openPMDbuffer = openPMDBuffer
-        #reshaping is assumed to be different in the case of MAF model.
-        self.reshape = self.reshape_MAF if model_MAF else self.reshape_norm
-
+        self.do_tranpose = do_tranpose
         self.training_bs = training_bs
         self.continual_bs = continual_bs
 
@@ -49,7 +50,9 @@ class TrainBatchBuffer(Thread):
         if self.use_continual_learning:
             self.er_mem = ExperienceReplay(mem_size=cl_mem_size)
             self.n_obs = 0
-
+        
+        self.i_step = 0
+        
         self.buffer_ = []
         self.buffersize = buffersize
         
@@ -58,6 +61,23 @@ class TrainBatchBuffer(Thread):
         self.openpmdProduction = True
         self.noReadCount = 0
         self.max_tb_from_unchanged_now_bf = max_tb_from_unchanged_now_bf
+
+    def get_data(self):
+        '''This is an extra failsafe to avoid this thread being blocked because of empty
+            producer queue as batch creation can continue. Seconds to wait before openPMDBuffer.get() throws an empty
+            exception.
+            Reference as Queue.qsize() documentation:
+            https://docs.python.org/3/library/queue.html#queue.Queue.qsize
+            Return the approximate size of the queue. Note, qsize() > 0 doesn’t guarantee that a subsequent get()
+            will not block..
+        '''
+
+        try:
+            particles_radiation = self.openPMDbuffer.get(block=False)
+            return particles_radiation
+        except Exception as ex:
+            print(f"Exception {ex} was raised")
+            return False
 
     def run(self):
 
@@ -70,28 +90,38 @@ class TrainBatchBuffer(Thread):
             
         while openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize):
             # get a particles, radiation from the queue
-            particles_radiation = self.openPMDbuffer.get()
+            particles_radiation = self.get_data()
 
-            if particles_radiation is None:
+            if particles_radiation == False:
+                break
+            elif particles_radiation is None:
                 self.openpmdProduction = False
                 break
 
             particles_radiation = self.reshape(particles_radiation)
 
             if len(self.buffer_) < self.buffersize:
-                self.buffer_.append(particles_radiation)
+                self.buffer_ += particles_radiation
             else:
-                #extracts the first element.
-                last_element = self.buffer_.pop(0)
-                self.buffer_.append(particles_radiation)
+                #extracts the first elements.
+                last_elements = self.buffer_[:len(particles_radiation)]
+                self.buffer_ = self.buffer_[len(particles_radiation):]
+                
+                self.buffer_ += particles_radiation
 
                 if self.use_continual_learning:
                     #add the last element to memory, if continual learning is
                     #required.
-                    self.er_mem.update_memory(*last_element,
-                                                n_obs = self.n_obs,
-                                                i_step = self.n_obs) #i_step = n_obs in this case
-                    self.n_obs += 1
+                    X = [ele[0] for ele in last_elements]
+                    Y = [ele[1] for ele in last_elements]
+
+                    self.er_mem.update_memory(X,
+                                              Y,
+                                              n_obs = self.n_obs,
+                                              i_step = self.i_step) 
+                    
+                    self.n_obs += len(last_elements)
+                    self.i_step += 1
 
             openPMDBufferReadCount += 1
             self.noReadCount = 0
@@ -100,17 +130,19 @@ class TrainBatchBuffer(Thread):
             self.noReadCount += 1
         if updating: print("Train Buffer Updated")
 
-    def reshape_norm(self, particles_radiation):
-        # adds a batch dims assuming the data is coming as
-        # (number_of_particles, dims) -> (1, number_of_particles, dims)
+    def reshape(self, particles_radiation):
+        # reshapes from gpu box indices to buffer
+        # (gpu_box, number_of_particles, dims) ->
+        # (number_of_particles_box_1, dims_box_1, number_of_particles_box_2, dims_box_2..)
         particles, radiation = particles_radiation
-        return [torch.unsqueeze(particles, 0), torch.unsqueeze(radiation,0)]
 
-    def reshape_MAF(self, particles_radiation):
-        # adds a batch dims assuming the data is coming as
-        # (number_of_particles, dims) -> (1, number_of_particles*dims)
-        particles, radiation = particles_radiation
-        return [particles.reshape(1, -1), radiation.reshape(1, -1)]
+        if self.do_tranpose:
+            particles_radiation = [[particles[idx].permute(1,0), radiation[idx]] for idx in range(len(particles))]
+        else:
+            particles_radiation = [[particles[idx], radiation[idx]] for idx in range(len(particles))]
+
+        return particles_radiation
+
 
     def get_batch(self):
         print("Attempting a batch extraction from train buffer")
@@ -128,13 +160,12 @@ class TrainBatchBuffer(Thread):
         #random sampling
         random_sample = sample(self.buffer_, self.training_bs)
 
-        particles_batch = torch.cat([x[0] for x in random_sample])
-        radiation_batch = torch.cat([x[1] for x in random_sample])
+        particles_batch = torch.stack([x[0] for x in random_sample])
+        radiation_batch = torch.stack([x[1] for x in random_sample])
 
         if self.use_continual_learning and self.n_obs>=self.continual_bs:
             #sample from memory
             mem_part_batch, mem_rad_batch = self.er_mem.sample(self.continual_bs)
-
             particles_batch = torch.cat([particles_batch, mem_part_batch])
             radiation_batch = torch.cat([radiation_batch, mem_rad_batch])
 
