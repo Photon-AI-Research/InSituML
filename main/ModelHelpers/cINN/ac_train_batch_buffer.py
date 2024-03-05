@@ -93,8 +93,8 @@ class TrainBatchBuffer(Thread):
                 if self.use_continual_learning:
                     #add the last element to memory, if continual learning is
                     #required.
-                    X = torch.cat([ele[0] for ele in last_elements])
-                    Y = torch.cat([ele[1] for ele in last_elements])
+                    X = [ele[0] for ele in last_elements]
+                    Y = [ele[1] for ele in last_elements]
 
                     self.er_mem.update_memory(X,
                                               Y,
@@ -118,9 +118,9 @@ class TrainBatchBuffer(Thread):
         particles, radiation = particles_radiation
 
         if self.do_tranpose:
-            particles_radiation = [[particles[idx:idx+1].permute(0,2,1), radiation[idx:idx+1]] for idx in range(len(particles))]
+            particles_radiation = [[particles[idx].permute(1,0), radiation[idx]] for idx in range(len(particles))]
         else:
-            particles_radiation = [[particles[idx:idx+1], radiation[idx:idx+1]] for idx in range(len(particles))]
+            particles_radiation = [[particles[idx], radiation[idx]] for idx in range(len(particles))]
 
         return particles_radiation
 
@@ -141,8 +141,8 @@ class TrainBatchBuffer(Thread):
         #random sampling
         random_sample = sample(self.buffer_, self.training_bs)
 
-        particles_batch = torch.cat([x[0] for x in random_sample])
-        radiation_batch = torch.cat([x[1] for x in random_sample])
+        particles_batch = torch.stack([x[0] for x in random_sample])
+        radiation_batch = torch.stack([x[1] for x in random_sample])
 
         if self.use_continual_learning and self.n_obs>=self.continual_bs:
             #sample from memory
