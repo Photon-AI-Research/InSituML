@@ -46,14 +46,15 @@ streamLoader_config = dict(
     pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
-    number_particles_per_gpu = 10000
+    number_particles_per_gpu = 1000
 )
 
-# particleDataTransformationPolicy = BoxesParticlesAttributes()
-particleDataTransformationPolicy = None
+#particleDataTransformationPolicy = BoxesAttributesParticles()
+particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
 
 # radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase()
-radiationDataTransformationPolicy = AbsoluteSquare()
+#radiationDataTransformationPolicy = AbsoluteSquare()
+radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
 timeBatchLoader = StreamLoader(openPMDBuffer, streamLoader_config, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 
