@@ -22,10 +22,7 @@ from torch import stack as torch_stack
 from torch import float32 as torch_float32
 from torch import complex64 as torch_complex64
 from torch import empty as torch_empty
-from torch import zeros as torch_zeros
 from torch import transpose as torch_transpose
-from torch import angle as torch_angle
-from torch import abs as torch_abs
 
 from mpi4py import MPI
 
@@ -424,9 +421,6 @@ class StreamLoader(Thread):
 
             if self.particleTransformPolicy is not None:
                 loaded_particles = self.particleTransformPolicy(loaded_particles)
-            else:
-                """transform data to shape (GPUs, phaseSpaceComponents, particlesPerGPU)"""
-                loaded_particles = torch_transpose(loaded_particles, 0, 1)
 
             ## obtain radiation data per GPU ##
             #
