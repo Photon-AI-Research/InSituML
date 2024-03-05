@@ -62,6 +62,23 @@ class TrainBatchBuffer(Thread):
         self.noReadCount = 0
         self.max_tb_from_unchanged_now_bf = max_tb_from_unchanged_now_bf
 
+    def get_data(self):
+        '''This is an extra failsafe to avoid this thread being blocked because of empty
+            producer queue as batch creation can continue. Seconds to wait before openPMDBuffer.get() throws an empty
+            exception.
+            Reference as Queue.qsize() documentation:
+            https://docs.python.org/3/library/queue.html#queue.Queue.qsize
+            Return the approximate size of the queue. Note, qsize() > 0 doesn’t guarantee that a subsequent get()
+            will not block..
+        '''
+
+        try:
+            particles_radiation = self.openPMDbuffer.get(block=False)
+            return particles_radiation
+        except Exception as ex:
+            print(f"Exception {ex} was raised")
+            return False
+
     def run(self):
 
         openPMDBufferReadCount = 0
@@ -73,9 +90,11 @@ class TrainBatchBuffer(Thread):
             
         while openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize):
             # get a particles, radiation from the queue
-            particles_radiation = self.openPMDbuffer.get()
+            particles_radiation = self.get_data()
 
-            if particles_radiation is None:
+            if particles_radiation == False:
+                break
+            elif particles_radiation is None:
                 self.openpmdProduction = False
                 break
 
