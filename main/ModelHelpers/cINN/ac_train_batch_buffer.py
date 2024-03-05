@@ -22,7 +22,10 @@ class TrainBatchBuffer(Thread):
     use_continual_learning (Bool): Whether to use use continual learning or not. If yes, will create memory buffer for the continual learning.
 
     cl_mem_size (int): Continual learning memory buffer size.
-    
+
+    do_tranpose (bool): Whether to do the transpose of particle data or not. It depends if the producer
+    produces (number_of_particles, particle_dims) or the transposed of this. And the model or trainer requires.
+
     """
 
     def __init__(self,
@@ -33,14 +36,12 @@ class TrainBatchBuffer(Thread):
                  use_continual_learning=True,
                  continual_bs = 4,
                  cl_mem_size=2048,
-                 model_MAF=False):
+                 do_tranpose=True):
 
         Thread.__init__(self)
 
         self.openPMDbuffer = openPMDBuffer
-        #reshaping is assumed to be different in the case of MAF model.
-        self.reshape = self.reshape_MAF if model_MAF else self.reshape_norm
-
+        self.do_tranpose = do_tranpose
         self.training_bs = training_bs
         self.continual_bs = continual_bs
 
@@ -110,18 +111,19 @@ class TrainBatchBuffer(Thread):
             self.noReadCount += 1
         if updating: print("Train Buffer Updated")
 
-    def reshape_norm(self, particles_radiation):
-        # adds a batch dims assuming the data is coming as
-        # (number_of_particles, dims) -> (1, number_of_particles, dims)
+    def reshape(self, particles_radiation):
+        # reshapes from gpu box indices to buffer
+        # (gpu_box, number_of_particles, dims) ->
+        # (number_of_particles_box_1, dims_box_1, number_of_particles_box_2, dims_box_2..)
         particles, radiation = particles_radiation
-        particles_radiation = [[particles[idx:idx+1].permute(0,2,1), radiation[idx:idx+1]] for idx in range(len(particles))]
+
+        if self.do_tranpose:
+            particles_radiation = [[particles[idx:idx+1].permute(0,2,1), radiation[idx:idx+1]] for idx in range(len(particles))]
+        else:
+            particles_radiation = [[particles[idx:idx+1], radiation[idx:idx+1]] for idx in range(len(particles))]
+
         return particles_radiation
 
-    def reshape_MAF(self, particles_radiation):
-        # adds a batch dims assuming the data is coming as
-        # (number_of_particles, dims) -> (1, number_of_particles*dims)
-        particles, radiation = particles_radiation
-        return [particles.reshape(1, -1), radiation.reshape(1, -1)]
 
     def get_batch(self):
         print("Attempting a batch extraction from train buffer")
