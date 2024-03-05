@@ -23,6 +23,8 @@ class TrainBatchBuffer(Thread):
 
     cl_mem_size (int): Continual learning memory buffer size.
 
+    gpu_boxes (bool): Whether the producer will the data with the gpu box as the first dimension or not.
+
     do_tranpose (bool): Whether to do the transpose of particle data or not. It depends if the producer
     produces (number_of_particles, particle_dims) or the transposed of this. And the model or trainer requires.
 
@@ -35,7 +37,8 @@ class TrainBatchBuffer(Thread):
                  max_tb_from_unchanged_now_bf = 3,
                  use_continual_learning=True,
                  continual_bs = 4,
-                 cl_mem_size=2048,
+                 cl_mem_size = 2048,
+                 gpu_boxes = True,
                  do_tranpose=True):
 
         Thread.__init__(self)
@@ -44,6 +47,8 @@ class TrainBatchBuffer(Thread):
         self.do_tranpose = do_tranpose
         self.training_bs = training_bs
         self.continual_bs = continual_bs
+
+        self.reshape = self.reshape_gpu_boxes if self.gpu_boxes else self.reshape
 
         self.use_continual_learning = use_continual_learning
         ## continual learning related required variables
@@ -131,6 +136,13 @@ class TrainBatchBuffer(Thread):
         if updating: print("Train Buffer Updated")
 
     def reshape(self, particles_radiation):
+
+        if self.transpose:
+            return [particles_radiation[0].permute(1,0), particles_radiation[1]]
+        else:
+            return particles_radiation
+
+    def reshape_gpu_boxes(self, particles_radiation):
         # reshapes from gpu box indices to buffer
         # (gpu_box, number_of_particles, dims) ->
         # (number_of_particles_box_1, dims_box_1, number_of_particles_box_2, dims_box_2..)
