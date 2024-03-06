@@ -117,7 +117,7 @@ class GenerateVariableDataset:
 
         for iteration_number in range(self.num_iterations):
         
-            for timeBatchIndex in range(10):
+            for timeBatchIndex in range(len(self.data_loader)):
                 init_time=time.time()
                 print(f"{len(self.data_loader)},timebatchindex:{timeBatchIndex}, current_minimum:{self.current_minimum}", flush=True)
                 timeBatch = self.data_loader[timeBatchIndex]
@@ -130,8 +130,6 @@ class GenerateVariableDataset:
                         return None
                 elaspsed=(time.time()-init_time)/60.0
                 print(f"Time taken:{elaspsed}")
-            if timeBatchIndex%10:
-                logger.info(f"The current minimum at iteration {num_iterations} and timeBatchIndex {timeBatchIndex} is: {self.current_minimum}")
         
         self.save_files()
 
