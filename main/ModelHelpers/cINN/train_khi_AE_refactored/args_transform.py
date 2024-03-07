@@ -28,7 +28,7 @@ MAPPING_TO_NETWORK = {
 def list_transform(kwargs):
     
     for k in kwargs:
-        if "layer_config" in k:
+        if "layer_config" in k or 'initial_conv3d_size' in k:
             kwargs[k] = ast.literal_eval(kwargs[k])
     
     return kwargs
@@ -36,7 +36,7 @@ def list_transform(kwargs):
 
 def main_args_transform(hd):
     
-    criterion = MAPPING_TO_LOSS[hd["loss_function"]](**hd["loss_function_params"])
+    criterion = MAPPING_TO_LOSS[hd["loss_function"]](**ast.literal_eval(hd["loss_function_params"]))
     hd.update({"loss_function": criterion})
     
     #security checks    

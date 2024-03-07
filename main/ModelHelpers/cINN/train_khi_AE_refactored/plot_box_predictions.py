@@ -6,12 +6,16 @@ from utilities import ( Normalizer,
                        create_force_density_plots,
                        create_momentum_density_plots)
 import wandb
+import argparse
 from args import get_args
 from args_transform import main_args_transform
+import numpy as np
+import ast
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 @inspect_and_select
 def load_particles(file_pattern="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
-                box_indices =[19,34]
+                box_indices =[19,34],
                 t0 = 1900,
                 t1 = 2001,
                 t_step = 2,
@@ -20,12 +24,12 @@ def load_particles(file_pattern="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/partic
                 norm_method = 'mean_6d',
                 property_ = "momentum_force"):
     particles = []
-    for time in range(t0, t1, t_step):
+    for time_step in range(t0, t1, t_step):
         
         #things a man has to do..
-        p = np.load(file_pattern.format(index), allow_pickle = True)
-        p = [p_loaded[idx] for idx in box_indices]
-        p = [normalizer(element, method=norm_method) for element in p]
+        p = np.load(file_pattern.format(time_step), allow_pickle = True)
+        p = [p[idx] for idx in box_indices]
+        p = [normalizer.normalize_data(element, method=norm_method) for element in p]
         p = np.array(p, dtype=object)
         p = [random_sample(element, sample_size=particles_to_sample) for element in p]
         p = torch.from_numpy(np.array(p, dtype = np.float32))
@@ -33,7 +37,7 @@ def load_particles(file_pattern="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/partic
         #filter dims
         p = filter_dims[property_](p)
         
-        particles.append([ts, p])
+        particles.append([time_step, p])
     
     return particles
 
@@ -42,15 +46,15 @@ def plot_particles(model, particles, wandb_obj, box_indices):
     
     for [ts, particles] in particles:
         for idx, phase_space in enumerate(particles):
-            predictions = model(phase_space)
+            _, predictions = model(torch.unsqueeze(phase_space, 0).to(device))
             
-            momentum_pred = predictions[:,:3]
+            momentum_pred = predictions[0][:,:3]
             momentum_gt = phase_space[:,:3]
 
-            force_pred = predictions[:,3:6]
+            force_pred = predictions[0][:,3:6]
             force_gt = phase_space[:,3:6]
             
-            timeInfo = "timestep_{ts}_box_{box_indices[idx]}"
+            timeInfo = f"timestep_{ts}_box_{box_indices[idx]}"
             
             create_momentum_density_plots(*(momentum_gt.T.tolist()+ momentum_pred.T.tolist()),
                                           path="",
@@ -84,17 +88,21 @@ if __name__ == "__main__":
                         help="no help")
     
     args = vars(get_args(parser))
-    
+    args["box_indices"] = ast.literal_eval(args["box_indices"])    
     args = main_args_transform(args)
     
     # load the trained model
     model = args["model"]
-    model.load_state_dict(torch.load(model_path))
+
+    model.load_state_dict(torch.load(args["model_path"]))
+    model.to(device)
     model.eval()
-    
-    wandb.init(config = {for k, v in args if in ["box_indices", "model_path",
-                                                        "t_step", "t0", "t1"]}, 
-                     project = f'newruns_{args["project_kw"]}')
+    config = {k:v for k, v in args.items() if k in ["box_indices", "model_path",
+                                                        "t_step", "t0", "t1"]}
+
+    wandb.init(config = config, 
+               project = f'newruns_{args["project_kw"]}',
+               name="_".join([str(k)+"_"+str(v) for k,v in config.items()]))
     
     args["wandb_obj"] = wandb
     particles = load_particles(**args)

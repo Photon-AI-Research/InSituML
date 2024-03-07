@@ -105,7 +105,7 @@ class Encoder(AddLayersMixin, nn.Module):
                  particles_to_sample=None,
                  ae_config = "deterministic",
                  conv_layer_config = [128, 128, 256, 512],
-                 conv_add_bn = True,
+                 conv_add_bn = False,
                  conv_add_activation = True,
                  kernel_size = 1,
                  fc_layer_config= [256, 256],
@@ -258,7 +258,7 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
                  kernel_size=2,
                  stride=2,
                  padding = 0,
-                 add_batch_normalisation=True,
+                 add_batch_normalisation=False,
                  add_activation=True,
                  output_points=None,
                  **kwargs):

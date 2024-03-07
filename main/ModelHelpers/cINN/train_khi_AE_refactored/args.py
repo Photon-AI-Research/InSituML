@@ -27,6 +27,7 @@ def get_args(parser=None):
                         default='5',
                         help="Number of epochs")
     
+    
     parser.add_argument('--timebatchsize',
                         type=int,
                         default='4',
@@ -42,10 +43,15 @@ def get_args(parser=None):
                         default='[19,5,3]',
                         help="Validation boxes")
     
-    parser.add_argument('--lossfunction',
+    parser.add_argument('--loss_function',
                         type=str,
                         default='chamfersloss',
                         help="Choose the loss function")
+
+    parser.add_argument('--loss_function_params',
+                        type=str,
+                        default='{}',
+                        help="Parameter for loss function")
 
     parser.add_argument('--network',
                         type=str,
