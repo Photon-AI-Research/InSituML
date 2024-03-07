@@ -7,8 +7,8 @@ from utilities import save_visual, save_visual_multi, filter_dims, validate_mode
 
 def train_AE(model, optimizer,
              scheduler, epoch, valid_data_loader, wandb, directory,
-             info_image_path=".", property_ = "positions",
-             log_visual_report_every_tb = 120,
+             info_image_path="", property_ = "positions",
+             log_visual_report_every_tb = 30,
              log_validation_loss_every_tb = 30
              ):
     
