@@ -4,6 +4,7 @@ import numpy as np
 import time
 import random
 from utilities import save_visual, save_visual_multi, filter_dims, validate_model
+from plot_box_predictions import load_particles, plot_particles
 
 def train_AE(model, optimizer,
              scheduler, epoch, valid_data_loader, wandb, directory,
@@ -72,7 +73,9 @@ def train_AE(model, optimizer,
             }
 
             if timeBatchIndex%log_visual_report_every_tb==0 and property_ not in  ["all","momentum_force"]:
-                save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
+                particles = load_particles()
+                plot_box_predictions(particles, model, wandb)
+                #save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
             elif timeBatchIndex%log_visual_report_every_tb==0:
                 save_visual_multi(model, timeBatch, wandb, timeInfo, info_image_path, property_=property_)
             

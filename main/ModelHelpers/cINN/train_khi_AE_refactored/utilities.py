@@ -8,6 +8,17 @@ from collections import deque
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import inspect
 
+filter_dims ={
+
+    "positions" : lambda x:x[:,:,:3],
+    "momentum" : lambda x:x[:,:,3:6],
+    "force": lambda x:x[:,:,6:],
+    "momentum_force": lambda x:x[:,:,3:],
+    "momentum_6":lambda x:x[:,:,:3],
+    "force_6":lambda x:x[:,:,3:6],
+    "all":lambda x:x
+    }
+
 class Normalizer:
     def __init__(self,
                  global_mean_std_file='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_002/global_stats.npz',
@@ -164,33 +175,6 @@ def validate_model(model, valid_data_loader, property_, device):
     val_loss_overall_avg = sum(val_loss_avg) / (len(val_loss_avg) + 1e-8)
     return val_loss_overall_avg
 
-# def filter_dims(phase_space, property_="positions"):
-#
-#     if property_ == "positions":
-#         return phase_space[:,:,:3]
-#     elif property_ == "momentum":
-#         return phase_space[:,:,3:6]
-#     elif property_ == "force":
-#         return phase_space[:,:,6:]
-#     elif property_ == "momentum_force":
-#         return phase_space[:,:,3:]
-#     elif property_ == "momentum_6":
-#         return phase_space[:,:,:3]
-#     elif property_ == "force_6":
-#         return phase_space[:,:,3:6]
-#     else:
-#         return phase_space
-
-filter_dims ={
-
-    "positions" : lambda x:x[:,:,:3],
-    "momentum" : lambda x:x[:,:,3:6],
-    "force": lambda x:x[:,:,6:],
-    "momentum_force": lambda x:x[:,:,3:],
-    "momentum_6":lambda x:x[:,:,:3],
-    "force_6":lambda x:x[:,:,3:6],
-    "all":lambda x:x
-    }
 def save_visual_multi(*args, property_):
     property_run = ["positions", "momentum", "force"] if property_=="all" else ["momentum", "force"]
 

@@ -1,7 +1,6 @@
 from networks import ConvAutoencoder, VAE
 from encoder_decoder import Encoder, MLPDecoder, Conv3DDecoder
 from loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal 
-#,ChamfersLossOptimized
 import ast
 import torch.nn as nn
 
@@ -10,9 +9,15 @@ MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
     "chamfersloss":ChamfersLoss,
     "chamfersloss_d":ChamfersLossDiagonal,
-#    "chamfersloss_o":ChamfersLossOptimized,
     "mse":nn.MSELoss
     }
+
+
+try:
+    from loss_function import ChamfersLossOptimized
+    MAPPING_TO_LOSS["chamfersloss_o"] = ChamfersLossOptimized
+except:
+    print("Chamfer loss optimized is not loaded")
 
 MAPPING_TO_ED = {
     "encoder_simple":Encoder,
