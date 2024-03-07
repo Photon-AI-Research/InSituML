@@ -8,6 +8,7 @@ from trainer import train_AE
 import argparse
 from datetime import datetime
 from args_transform import main_args_transform
+from utilities import Normalizer
 
 def train_with_wandb():
     
@@ -45,14 +46,24 @@ def train_with_wandb():
     
     pathpattern1 = config["pathpattern1"]
     pathpattern2 = config["pathpattern2"]
-
+    
     data_loader = TrainLoader(pathpattern1=pathpattern1,
-                              pathpattern2=pathpattern2,
-                              t0=config["t0"], t1=config["t1"],
-                              timebatchsize=config["timebatchsize"],
-                              particlebatchsize=config["particlebatchsize"],
-                              blacklist_box = config["val_boxes"], 
-                              particles_to_sample = config["particles_to_sample"])
+                            pathpattern2=pathpattern2,
+                            t0=config["t0"],
+                            t1=config["t1"],
+                            timebatchsize=config["timebatchsize"],
+                            particlebatchsize=config["particlebatchsize"],
+                            blacklist_box = config["val_boxes"],
+                            particles_to_sample = config["particles_to_sample"],
+                            normalisation = Normalizer(),
+                            norm_method = 'mean_6d')
+    # data_loader = TrainLoader(pathpattern1=pathpattern1,
+    #                           pathpattern2=pathpattern2,
+    #                           t0=config["t0"], t1=config["t1"],
+    #                           timebatchsize=config["timebatchsize"],
+    #                           particlebatchsize=config["particlebatchsize"],
+    #                           blacklist_box = config["val_boxes"], 
+    #                           particles_to_sample = config["particles_to_sample"])
     
     valid_data_loader = ValidationFixedBoxLoader(pathpattern1,
                                                  pathpattern2,
