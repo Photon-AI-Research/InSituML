@@ -157,6 +157,7 @@ if __name__ == "__main__":
     dist.init_process_group("nccl")
     local_rank = int(os.environ["LOCAL_RANK"])
     global_rank = int(os.environ["RANK"])
+    torch.cuda.set_device(global_rank)
     
     hyperparameter_defaults = dict(
     t0 = 1000,
