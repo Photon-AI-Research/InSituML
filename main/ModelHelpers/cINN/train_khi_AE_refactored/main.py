@@ -70,7 +70,9 @@ def train_with_wandb():
                                                  config["val_boxes"],
                                                  t0=config["t0"],
                                                  t1=config["t1"],
-                                                 particles_to_sample = config["particles_to_sample"])
+                                                 particles_to_sample = config["particles_to_sample"],
+                                                 normalisation = Normalizer(),
+                                                 norm_method = 'mean_6d')
             
     # Initialize the convolutional autoencoder
     model = hyperparameter_defaults["model"]

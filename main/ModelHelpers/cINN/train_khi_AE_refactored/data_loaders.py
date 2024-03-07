@@ -16,7 +16,7 @@ class TrainLoader:
                  particlebatchsize=10240,
                  particles_to_sample=150000,
                  blacklist_box=None,
-                 data_stats_path ='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_002/global_stats.npz'
+                 data_stats_path ='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_002/global_stats.npz',
                  load_radiation=False):
         self.normalisation = normalisation
         self.norm_method = norm_method
@@ -132,17 +132,17 @@ class TrainLoader:
                         self.particles = particles
                         self.radiation = radiation
                         
-                        self.perm = torch.randperm(self.radiation.shape[0])
+                        self.perm = torch.randperm(self.particles.shape[0])
                         
                     def __len__(self):
-                        return self.radiation.shape[0] // self.batchsize
+                        return self.particles.shape[0] // self.batchsize
 
                     def __getitem__(self_tb, batch):
-                        i = self.batchsize*batch
-                        bi = self.perm[i:i+self.batchsize]
+                        i = self_tb.batchsize*batch
+                        bi = self_tb.perm[i:i+self_tb.batchsize]
 
                         if self.loader.load_radiation:
-                            return self_tb.particles[bi], self_local.radiation[bi]
+                            return self_tb.particles[bi], self_tb.radiation[bi]
                         else:
                             return self_tb.particles[bi], None
                 
