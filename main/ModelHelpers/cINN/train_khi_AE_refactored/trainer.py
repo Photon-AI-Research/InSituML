@@ -9,7 +9,7 @@ from plot_box_predictions import load_particles, plot_particles
 def train_AE(model, optimizer,
              scheduler, epoch, valid_data_loader, wandb, directory,
              info_image_path="", property_ = "positions",
-             log_visual_report_every_tb = 30,
+             log_visual_report_every_tb = 2,
              log_validation_loss_every_tb = 30
              ):
     
@@ -73,11 +73,11 @@ def train_AE(model, optimizer,
             }
 
             if timeBatchIndex%log_visual_report_every_tb==0 and property_ not in  ["all","momentum_force"]:
-                particles = load_particles()
-                plot_box_predictions(particles, model, wandb)
-                #save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
+                save_visual(model, timeBatch, wandb, timeInfo, info_image_path, property_)
             elif timeBatchIndex%log_visual_report_every_tb==0:
-                save_visual_multi(model, timeBatch, wandb, timeInfo, info_image_path, property_=property_)
+                particles = load_particles()
+                plot_particles(particles=particles, model=model, wandb_obj=wandb)
+                #save_visual_multi(model, timeBatch, wandb, timeInfo, info_image_path, property_=property_)
             
             if timeBatchIndex%log_validation_loss_every_tb==0:
                 # Perform validation

@@ -7,7 +7,7 @@ from utilities import ( Normalizer,
                        create_momentum_density_plots)
 import wandb
 import argparse
-from args import get_args
+#from args import get_args
 from args_transform import main_args_transform
 import numpy as np
 import ast
@@ -17,8 +17,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def load_particles(file_pattern="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
                 box_indices =[3,19],
                 t0 = 1900,
-                t1 = 2001,
-                t_step = 2,
+                t1 = 2000,
+                t_step = 50,
                 particles_to_sample=150000,
                 normalizer = Normalizer(),
                 norm_method = 'mean_6d',
@@ -43,7 +43,7 @@ def load_particles(file_pattern="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/partic
 
 @inspect_and_select
 def plot_particles(model, particles, wandb_obj, box_indices=[3,19]):
-    
+    model.eval()
     for [ts, particles] in particles:
         for idx, phase_space in enumerate(particles):
             _, predictions = model(torch.unsqueeze(phase_space, 0).to(device))

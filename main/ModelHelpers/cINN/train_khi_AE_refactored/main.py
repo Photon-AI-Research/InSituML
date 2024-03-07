@@ -103,7 +103,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--property_',
                         type=str,
-                        default='positions',
+                        default='momentum_force',
                         help="Whether to train on positions, momentum, forces or all")
 
     parser.add_argument('--learning_rate',
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--particlebatchsize',
                         type=int,
-                        default='4',
+                        default='2',
                         help="Set the particlebatchsize")
     
     parser.add_argument('--val_boxes',
@@ -178,7 +178,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--t0',
                         type=int,
-                        default = 1000,
+                        default = 1994,
                         help="Start time step from the data")
 
     parser.add_argument('--t1',
