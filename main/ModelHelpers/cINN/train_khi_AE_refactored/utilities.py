@@ -8,6 +8,135 @@ from collections import deque
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import inspect
 
+class Normalizer:
+    def __init__(self,
+                 global_mean_std_file='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_002/global_stats.npz',
+                 mean_std_file='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_002/global_stats_1900_2001.npz',
+                 mean_std_per_time_file='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_002/global_stats_per_time.npz',
+                 minmax_file='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/minmax_002.npy'):
+        
+        self.global_mean_std_file = global_mean_std_file
+        self.mean_std_file = mean_std_file
+        self.mean_std_per_time_file = mean_std_per_time_file
+        self.minmax_file = minmax_file
+
+    def normalize_data(self, original_array, method='positions', *args, **kwargs):
+        if method == 'positions':
+            return self.normalize_positions(original_array)
+        elif method == 'global_mean_6d':
+            return self.normalize_global_mean_6d(original_array)
+        elif method == 'mean_6d':
+            return self.normalize_mean_6d(original_array)
+        elif method == 'mean_per_time_6d':
+            if 'timestep_index' in kwargs:
+                return self.normalize_mean_per_time_6d(original_array, kwargs['timestep_index'])
+            else:
+                raise ValueError("timestep_index must be specified for mean_per_time_6d normalization.")
+        elif method == 'min_max_6d':
+            return self.normalize_min_max_6d(original_array)
+        else:
+            raise ValueError("Invalid normalization method specified.")
+
+
+    def normalize_positions(self, original_array):
+        xyz_columns = original_array[:, :3]
+        mins = xyz_columns.min(axis=0)
+        maxs = xyz_columns.max(axis=0)
+        normalized_xyz_columns = (xyz_columns - mins) / (maxs - mins)
+        normalized_array = np.concatenate((normalized_xyz_columns, original_array[:, 3:]), axis=1)
+        return normalized_array
+    
+    
+    def normalize_global_mean_6d(self, original_array):
+        data_stats = np.load(self.global_mean_std_file)
+        # Extract global mean and standard deviation
+        global_mean = np.concatenate((data_stats['mean_momentum'], data_stats['mean_force']))
+        global_std = np.concatenate((data_stats['std_momentum'], data_stats['std_force']))
+        
+        # Normalize x, y, z positions
+        xyz_columns = original_array[:, :3]
+        mins = xyz_columns.min(axis=0)
+        maxs = xyz_columns.max(axis=0)
+        xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
+
+        # Mean normalization for the rest of the dimensions (momentum and force components)
+        other_columns_normalized = (original_array[:, 3:] - global_mean) / global_std
+        
+        # Combine the normalized columns into one array
+        normalized_array = np.concatenate((xyz_columns_normalized, other_columns_normalized), axis=1)
+        return normalized_array
+
+    def normalize_mean_6d(self, original_array):
+        data_stats = np.load(self.mean_std_file)
+        # Extract global mean and standard deviation
+        global_mean_momentum = data_stats['mean_momentum']
+        global_mean_force = data_stats['mean_force']
+        global_std_momentum = data_stats['std_momentum']
+        global_std_force = data_stats['std_force']
+
+        # Normalize x, y, z positions
+        xyz_columns = original_array[:, :3]
+        mins = xyz_columns.min(axis=0)
+        maxs = xyz_columns.max(axis=0)
+        xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
+
+        # Mean normalization for momentum dimensions (assuming they are next 3 columns)
+        momentum_columns_normalized = (original_array[:, 3:6] - global_mean_momentum) / global_std_momentum
+
+        # Mean normalization for force dimensions (assuming they are the last 3 columns)
+        force_columns_normalized = (original_array[:, 6:9] - global_mean_force) / global_std_force
+
+        # Combine the normalized columns into one array
+        normalized_array = np.concatenate((xyz_columns_normalized, momentum_columns_normalized, force_columns_normalized), axis=1)
+        return normalized_array
+
+
+    def normalize_mean_per_time_6d(self, original_array, timestep_index):
+        """
+        Normalize the input array at the given timestep index using mean and standard deviation from the file.
+        """
+        data_stats = np.load(self.mean_std_per_time_file)
+        # Extract mean and standard deviation for the given timestep
+        global_mean = np.concatenate((data_stats['mean_momentum'][timestep_index], data_stats['mean_force'][timestep_index]))
+        global_std = np.concatenate((data_stats['std_momentum'][timestep_index], data_stats['std_force'][timestep_index]))
+
+        # Normalize x, y, z positions
+        xyz_columns = original_array[:, :3]
+        mins = xyz_columns.min(axis=0)
+        maxs = xyz_columns.max(axis=0)
+        xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
+
+        # Mean normalization for the rest of the dimensions (momentum and force components)
+        other_columns_normalized = (original_array[:, 3:] - global_mean) / global_std
+
+        # Combine the normalized columns into one array
+        normalized_array = np.concatenate((xyz_columns_normalized, other_columns_normalized), axis=1)
+        return normalized_array
+
+
+    def normalize_min_max_6d(self, original_array):
+        """
+        Normalize the input array using min-max values from the given file.
+        """
+        # Normalize x, y, z columns between 0 and 1
+        xyz_columns = original_array[:, :3]
+        mins = xyz_columns.min(axis=0)
+        maxs = xyz_columns.max(axis=0)
+        xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
+
+        # Normalize the other 6 columns between -1 and 1
+        other_columns = original_array[:, 3:]
+        min_max = np.load(self.minmax_file)
+        min_vals = min_max[0, 3:]
+        max_vals = min_max[1, 3:]
+        normalized_other_columns = 2 * (other_columns - min_vals) / (max_vals - min_vals) - 1
+
+        # Concatenate normalized columns with x, y, z columns
+        normalized_array = np.concatenate((xyz_columns_normalized, normalized_other_columns), axis=1)
+        normalized_array = np.array(normalized_array, dtype = np.float32)
+        
+        return normalized_array
+    
 
 def inspect_and_select(base):
     
