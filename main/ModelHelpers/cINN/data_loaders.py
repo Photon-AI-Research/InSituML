@@ -100,7 +100,7 @@ class TrainLoader:
                     r = amp_x**2 + amp_y**2 + amp_z**2
                     
                     #log transformation
-                    r = torch.log(r+1)
+                    r = torch.log(r+1e-9)
 
 #                     # choose relevant directions
 #                     r = r[:, 1:, :]
@@ -201,7 +201,7 @@ class ValidationFixedBoxLoader:
             r = amp_x**2 + amp_y**2 + amp_z**2
 
             #log transformation
-            r = torch.log(r+1)
+            r = torch.log(r+1e-9)
             
             r = r[self.validation_boxes, :]
             

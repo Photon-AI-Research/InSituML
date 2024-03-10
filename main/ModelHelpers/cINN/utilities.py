@@ -459,61 +459,63 @@ def smooth_data(data, window_size=5):
     """Smooth data using a moving average."""
     return uniform_filter1d(data, size=window_size, mode='nearest')
 
-def plot_radiation(ground_truth_intensity, predicted_intensity=None, t=1000, gpu_box =0, path='',
-                                  enable_wandb = False):
+
+def plot_radiation(ground_truth_intensity, predicted_intensity=None, t=1000, gpu_box=0, path='',
+                   enable_wandb=False):
     """
-    Plot radiation intensity against frequency.
+    Plot radiation intensity against frequency and compute MSE and relative MSE
+    between ground truth and prediction.
 
     Parameters:
-    - intensity: A tensor of radiation spectra values.
-
+    - ground_truth_intensity: A tensor of ground truth radiation spectra values.
+    - predicted_intensity: A tensor of predicted radiation spectra values (optional).
+    - t: Time step for the title (default=1000).
+    - gpu_box: Identifier for the GPU box (default=0).
+    - path: Path to save the plot (optional).
+    - enable_wandb: Enable logging to Weights & Biases (default=False).
     """
     
     frequency = np.load("/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/omega.npy")
     ground_truth_intensity = ground_truth_intensity.cpu().numpy()
     ground_truth_smoothed = smooth_data(ground_truth_intensity)
-    # print('ground_truth_intensity', ground_truth_intensity.max())
+    
     plt.figure(figsize=(10, 6))
+    plt.plot(frequency,ground_truth_intensity, label='GT Radiation Intensity (Raw)', color='blue', linewidth=2)
     
-    # Plot smoothed ground truth intensity
-    # plt.plot(frequency, ground_truth_smoothed, label='GT Radiation Intensity (Smoothed)', color='blue', linewidth=2)
+    mse, rel_mse = 0, 0  # Initialize MSE and Relative MSE
     
-    # Plot raw ground truth intensity with lower opacity
-    plt.plot(ground_truth_intensity, label='GT Radiation Intensity (Raw)', color='blue', linewidth=2)
-    # plt.plot(frequency, ground_truth_intensity, label='GT Radiation Intensity (Raw)', color='blue', linewidth=1, alpha=0.3)
-    
-    
-    # Plot predicted intensity if provided
     if predicted_intensity is not None:
         predicted_intensity = predicted_intensity.cpu().numpy()
         predicted_smoothed = smooth_data(predicted_intensity)
-        # print('predicted_intensity', predicted_intensity.max())
         
-        # Plot smoothed predicted intensity
-        plt.plot(predicted_smoothed, label='Predicted Radiation Intensity (Smoothed)', linestyle='--', color='red', marker='o', markersize=5, zorder=1)
+        plt.plot(frequency, predicted_smoothed, label='Predicted Radiation Intensity (Smoothed)', linestyle='--', color='red', marker='o', markersize=5, zorder=1)
+        plt.plot(frequency,predicted_intensity, label='Predicted Radiation Intensity (Raw)', linestyle='--', color='red', alpha=0.3, zorder=0, markersize=3)
         
-        # Plot raw predicted intensity with lower opacity
-        plt.plot(predicted_intensity, label='Predicted Radiation Intensity (Raw)', linestyle='--', color='red', alpha=0.3, zorder=0, markersize=3)
+        # Compute MSE
+        mse = np.mean((ground_truth_intensity - predicted_intensity) ** 2)
+        
+        # Compute Relative MSE
+        rel_mse = mse / np.mean(ground_truth_intensity ** 2)
     
+    # Update plot title with MSE and Relative MSE if prediction is provided
+    if predicted_intensity is not None:
+        plt.title(f'Radiation Intensity vs. Frequency t = {t}, box = {gpu_box}\nMSE = {mse:.2e}, Relative MSE = {rel_mse:.2e}')
+    else:
+        plt.title(f'Radiation Intensity vs. Frequency t = {t}, box = {gpu_box}')
     
     plt.xlabel('Frequency')
     plt.ylabel('Intensity (log scale)')
-    plt.title('Radiation Intensity vs. Frequency t = {}, box = {}'.format(t,gpu_box))
     plt.legend()
     plt.grid(True)
     
-    # Save the plots as image files
     if path:
-        plt.savefig(path + '/radiation_plots_{}_{}.png'.format(t,gpu_box))
+        plt.savefig(path + '/radiation_plots_{}_{}.png'.format(t, gpu_box))
     
-    if enable_wandb == True:
-        # Log the overlapping histogram plot
-        wandb.log({"Radiation (t={},box={})".format(t,gpu_box): wandb.Image(plt)})
-            
+    if enable_wandb:
+        wandb.log({"Radiation (t={},box={})".format(t, gpu_box): wandb.Image(plt)})
         plt.close()
-    else:    
-        plt.show() 
-
+    else:
+        plt.show()
         
 def plot_1d_histograms(p_gt, p_pr, bins=30, alpha=0.5, t=1000, gpu_box =0, path='',
                                   enable_wandb = False):

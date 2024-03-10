@@ -341,12 +341,13 @@ if __name__ == "__main__":
     #latent_space_dims = 1024,
     #num_blocks_mat = 2,
     activation = 'gelu',
-    #load_ae_model = '1oux6p2o',
+    load_ae_model = '2kzvomhc',
     grad_clamp = 5.00,
     weight_AE = 1.0,
     weight_IM = 0.001,
     rad_eps = 1e-9,
     network = 'INN_VAE',
+    freeze_ae_weights = True,
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     pathpattern_valid1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_003/{}.npy",
@@ -355,7 +356,8 @@ if __name__ == "__main__":
 
 
     # Specify which hyperparameters to include in the run name
-    included_hparams = ['network', 'lr', 'hidden_size','lambd_predict','lambd_latent','lambd_rev','weight_AE','weight_IM']
+    # included_hparams = ['network', 'lr', 'hidden_size','lambd_predict','lambd_latent','lambd_rev','weight_AE','weight_IM']
+    included_hparams = ['network','num_coupling_layers', 'lr', 'hidden_size','lambd_predict','lambd_latent','lambd_rev','weight_AE','weight_IM','grad_clamp']
 
     # Generate a name for the run
     def generate_run_name(hparams, included_keys):
@@ -508,6 +510,37 @@ if __name__ == "__main__":
               ae_config="non_deterministic",
               use_encoding_in_decoder=False)
     
+    inner_model = INNModel(ndim_tot=1024,
+                 ndim_x=1024,
+                 ndim_y=512,
+                 ndim_z=512,
+                 loss_fit=loss_fit,
+                 loss_latent=loss_latent,
+                 loss_backward=loss_backward,
+                 lambd_predict=3.,
+                 lambd_latent=300.,
+                 lambd_rev=400.,
+                 zeros_noise_scale=5e-2,
+                 y_noise_scale=1e-1,
+                 hidden_size=1024,
+                 activation='gelu',
+                 num_coupling_layers=1,
+                 device = device)
+    
+    model = ModelFinal(VAE, inner_model)
+    
+    # Load a pre-trained model
+    filepath = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/{}/best_model_'
+
+    model.load_state_dict(torch.load(filepath.format(config["load_ae_model"])))
+    
+    if config["freeze_ae_weights"] == True:
+        for param in model.VAE.parameters():
+            param.requires_grad = False
+    
+    
+    VAE = model.VAE
+    
     inner_model = INNModel(ndim_tot=config["ndim_tot"],
                      ndim_x=config["ndim_x"],
                      ndim_y=config["ndim_y"],
@@ -529,7 +562,7 @@ if __name__ == "__main__":
     # model = ModelFinal(encoder, decoder, inner_model, EarthMoversLoss())
     model = ModelFinal(VAE, inner_model, weight_AE=config["weight_AE"],
                      weight_IM=config["weight_IM"])
-    
+
     model.to(device)
 
     # Calculate the total number of parameters
@@ -565,7 +598,7 @@ if __name__ == "__main__":
     no_improvement_count = 0
     slow_improvement_count = 0
     batch_tot_idx = 0
-    plot_every = 10
+    plot_every = 500
 
     start_time = time.time()
     for i_epoch in range(start_epoch, config["num_epochs"]):

@@ -35,6 +35,16 @@ trap "TERM" SIGTERM
 
 # python train_MAF_AE_khi_box_ex.py 
 # python train_MAF_VAE_khi_box_ex.py
-
 # python train_INN_AE_khi_box_ex.py
-python train_INN_VAE_khi_box_ex.py
+# python train_INN_VAE_khi_box_ex.py
+#python train_INN_VAE_khi_box_ex-ank.py
+#python train_VAE_khi_box.py
+#python train_VAE_khi_box_new.py
+# python train_INN_VAE_khi_box_ex-full_pretrain.py
+# python train_INN_AE_khi_box_ex-ae_pretrain.py
+# python -m wandb agent jeyhun/khi_public/pvt9nfb1
+# python train_INN_AE_khi_box_ex-ae_pretrain-addloss.py
+# python -m wandb agent jeyhun/khi_public_final/kpqz0f58
+python -m wandb agent jeyhun/khi_public_final/o78s0ocr
+
+

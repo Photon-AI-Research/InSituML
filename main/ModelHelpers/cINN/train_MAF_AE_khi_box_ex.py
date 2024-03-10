@@ -50,7 +50,8 @@ def generate_plots_maf(model, t_index,gpu_index,pathpattern1,pathpattern2, confi
     r = r[gpu_index]
 
     #log transformation
-    r = torch.log(r+1)
+    # r = torch.log(r+1)
+    r = torch.log(r+config["rad_eps"])
         
     if epoch == 0 and pbatch+1 == plot_every:
         # print('pbatch', pbatch)
@@ -173,17 +174,27 @@ if __name__ == "__main__":
     grad_clamp = 5.00,
     weight_AE = 1.0,
     weight_IM = 0.00001,
+    rad_eps = 1e-9,
+    network = 'MAF_VAE',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     pathpattern_valid1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_003/{}.npy",
     pathpattern_valid2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_003/{}.npy"
     )
 
+    # Specify which hyperparameters to include in the run name
+    included_hparams = ['network', 'lr', 'hidden_size_maf','weight_AE','weight_IM']
 
+    # Generate a name for the run
+    def generate_run_name(hparams, included_keys):
+        name_parts = [f"{key}={hparams[key]}" for key in included_keys if key in hparams]
+        return ",".join(name_parts)
+
+    run_name = generate_run_name(hyperparameter_defaults, included_hparams)
 
     print('New session...')
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults, project="khi_public")
+    wandb.init(config=hyperparameter_defaults, project="khi_public", name=run_name)
     start_epoch = 0
     min_valid_loss = np.inf
 

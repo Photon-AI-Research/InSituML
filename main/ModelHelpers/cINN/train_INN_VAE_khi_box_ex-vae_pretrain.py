@@ -68,7 +68,7 @@ def generate_plots(model, t_index,gpu_index,pathpattern1,pathpattern2, config,no
     model.eval()
     with torch.no_grad():
         pc_pr, lat_z_pred = model.reconstruct_inn(p_gt_clone, cond)
-        _, pc_pr_ae, z_encoded = model.VAE(p_gt_clone)
+        _,_,_, pc_pr_ae, z_encoded = model.VAE(p_gt_clone)
         with torch.no_grad():
             output = model.inner_model(z_encoded)
 
@@ -341,12 +341,14 @@ if __name__ == "__main__":
     #latent_space_dims = 1024,
     #num_blocks_mat = 2,
     activation = 'gelu',
-    #load_ae_model = '1oux6p2o',
+    load_ae_model = 'hnfmwy2a',
     grad_clamp = 5.00,
     weight_AE = 1.0,
     weight_IM = 0.001,
+    weight_kl = 0.001,
     rad_eps = 1e-9,
     network = 'INN_VAE',
+    freeze_ae_weights = True,
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     pathpattern_valid1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_003/{}.npy",
@@ -355,7 +357,8 @@ if __name__ == "__main__":
 
 
     # Specify which hyperparameters to include in the run name
-    included_hparams = ['network', 'lr', 'hidden_size','lambd_predict','lambd_latent','lambd_rev','weight_AE','weight_IM']
+    # included_hparams = ['network', 'lr', 'hidden_size','lambd_predict','lambd_latent','lambd_rev','weight_AE','weight_IM']
+    included_hparams = ['network','num_coupling_layers', 'lr', 'hidden_size','lambd_predict','lambd_latent','lambd_rev','weight_AE','weight_IM','grad_clamp']
 
     # Generate a name for the run
     def generate_run_name(hparams, included_keys):
@@ -366,7 +369,7 @@ if __name__ == "__main__":
 
     print('New session...')
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults, project="khi_public", name=run_name)
+    wandb.init(config=hyperparameter_defaults, project="khi_public_final", name=run_name)
     start_epoch = 0
     min_valid_loss = np.inf
 
@@ -443,7 +446,6 @@ if __name__ == "__main__":
     loss_latent = MMD_multiscale
     loss_fit = fit
 
-
     
     class ModelFinal(nn.Module):
         def __init__(self, 
@@ -463,7 +465,7 @@ if __name__ == "__main__":
 
         def forward(self, x, y):
 
-            loss_AE, _, encoded = self.VAE(x)       
+            loss_AE,_,_, _, encoded = self.VAE(x)       
 
             loss_IM, l_fit,l_latent,l_rev = self.inner_model.compute_losses(encoded,y)
 
@@ -487,14 +489,15 @@ if __name__ == "__main__":
     encoder_kwargs = {"ae_config":"non_deterministic",
                       "z_dim":config["latent_space_dims"],
                       "input_dim":point_dim,
-                      "conv_layer_config":[16, 32, 64, 128, 256, 512],
+                      "conv_layer_config":[16, 32, 64, 128, 256, 512,1024],
                       "conv_add_bn": False, 
-                      "fc_layer_config":[256]}
+                      "fc_layer_config":[1024]}
 
     decoder_kwargs = {"z_dim":config["latent_space_dims"],
                       "input_dim":point_dim,
                       "initial_conv3d_size":[16, 4, 4, 4],
-                      "add_batch_normalisation":False}
+                      "add_batch_normalisation":False,
+                      "fc_layer_config":[1024]}
 
     
     VAE = VAE(encoder = Encoder, 
@@ -506,8 +509,20 @@ if __name__ == "__main__":
               property_="momentum_force",
               particles_to_sample = config["particles_to_sample"],
               ae_config="non_deterministic",
-              use_encoding_in_decoder=False)
+              use_encoding_in_decoder=False,
+              weight_kl = config["weight_kl"])
+
     
+    # Load a pre-trained model
+    filepath = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/{}/best_model_'
+
+    VAE.load_state_dict(torch.load(filepath.format(config["load_ae_model"])))
+    print('Loaded VAE successfully')
+    if config["freeze_ae_weights"] == True:
+        for param in VAE.parameters():
+            param.requires_grad = False
+    
+        
     inner_model = INNModel(ndim_tot=config["ndim_tot"],
                      ndim_x=config["ndim_x"],
                      ndim_y=config["ndim_y"],
@@ -529,7 +544,7 @@ if __name__ == "__main__":
     # model = ModelFinal(encoder, decoder, inner_model, EarthMoversLoss())
     model = ModelFinal(VAE, inner_model, weight_AE=config["weight_AE"],
                      weight_IM=config["weight_IM"])
-    
+
     model.to(device)
 
     # Calculate the total number of parameters
@@ -537,8 +552,6 @@ if __name__ == "__main__":
     print(f"Total number of parameters: {total_params}")
     wandb.config.update({'total_params': total_params})
     
-    
-
 
     # Set up loss function and optimizer
     # criterion = nn.MSELoss()
@@ -565,7 +578,7 @@ if __name__ == "__main__":
     no_improvement_count = 0
     slow_improvement_count = 0
     batch_tot_idx = 0
-    plot_every = 10
+    plot_every = 500
 
     start_time = time.time()
     for i_epoch in range(start_epoch, config["num_epochs"]):

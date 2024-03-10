@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from geomloss import SamplesLoss 
 from utilities import *
-from networks import *
 from model import model_MAF as model_MAF
 from data_loaders import TrainLoader, ValidationFixedBoxLoader
 
@@ -54,7 +53,8 @@ def generate_plots(model, t_index,gpu_index,pathpattern1,pathpattern2, config,no
     r = r[gpu_index]
 
     #log transformation
-    r = torch.log(r+1)
+    # r = torch.log(r+1)
+    r = torch.log(r+config["rad_eps"])
         
     # if epoch == 0 and pbatch+1 == plot_every:
     #     # print('pbatch', pbatch)
@@ -149,7 +149,7 @@ def validate_model(model, valid_data_loader, property_, device):
             p = filter_dims(p, property_)
             p = p.to(device)
             r = r.to(device)
-            val_loss,_,_ = model(x=p,y=r)
+            val_loss,_,_,_,_,_ = model(x=p,y=r)
             val_loss_avg.append(val_loss.mean().item())
     val_loss_overall_avg = sum(val_loss_avg) / len(val_loss_avg)
     return val_loss_overall_avg
@@ -273,7 +273,7 @@ class INNModel(nn.Module):
                 
         total_loss += l_rev
 
-        return total_loss
+        return total_loss, l_fit,l_latent,l_rev
 
     def forward(self, x, y=None, rev=False):
         device = self.device 
@@ -343,6 +343,8 @@ if __name__ == "__main__":
     grad_clamp = 5.00,
     weight_AE = 1.0,
     weight_IM = 0.001,
+    rad_eps = 1e-9,
+    network = 'INN_AE',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
     pathpattern_valid1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_003/{}.npy",
@@ -350,10 +352,19 @@ if __name__ == "__main__":
     )
 
 
+    # Specify which hyperparameters to include in the run name
+    included_hparams = ['network', 'lr', 'hidden_size','lambd_predict','lambd_latent','lambd_rev','weight_AE','weight_IM']
+
+    # Generate a name for the run
+    def generate_run_name(hparams, included_keys):
+        name_parts = [f"{key}={hparams[key]}" for key in included_keys if key in hparams]
+        return ",".join(name_parts)
+
+    run_name = generate_run_name(hyperparameter_defaults, included_hparams)
 
     print('New session...')
     # Pass your defaults to wandb.init
-    wandb.init(config=hyperparameter_defaults, project="khi_public")
+    wandb.init(config=hyperparameter_defaults, project="khi_public", name=run_name)
     start_epoch = 0
     min_valid_loss = np.inf
 
@@ -451,10 +462,11 @@ if __name__ == "__main__":
         def forward(self, x, y):
 
             loss_AE, y_ae, encoded = self.AE(x) 
+            # print('encoded', encoded.shape)
+            # print('y', y.shape)
+            loss_IM, l_fit,l_latent,l_rev = self.inner_model.compute_losses(encoded,y)
 
-            loss_IM = self.inner_model.compute_losses(encoded,y)*self.weight_IM
-
-            return loss_AE*self.weight_AE + loss_IM, loss_AE*self.weight_AE, loss_IM
+            return loss_AE*self.weight_AE + loss_IM*self.weight_IM, loss_AE*self.weight_AE, loss_IM*self.weight_IM, l_fit,l_latent,l_rev
 
         def reconstruct_inn(self,x, y):
 
@@ -553,7 +565,7 @@ if __name__ == "__main__":
     no_improvement_count = 0
     slow_improvement_count = 0
     batch_tot_idx = 0
-    plot_every = 500
+    plot_every = 10
 
     start_time = time.time()
     for i_epoch in range(start_epoch, config["num_epochs"]):
@@ -577,13 +589,10 @@ if __name__ == "__main__":
                 phase_space = filter_dims(phase_space, property_= config["property_"])
 
                 # phase_space = phase_space.permute(0, 2, 1).to(device)
-                
-                print('phase_space',phase_space.shape)
-                print('radiation',radiation.shape)
 
                 phase_space = phase_space.to(device)
 
-                loss, loss_AE, loss_IM = model(x=phase_space,y=radiation)
+                loss, loss_AE, loss_IM,  l_fit,l_latent,l_rev = model(x=phase_space,y=radiation)
                 loss_avg.append(loss.item())
 
                 if (batch_tot_idx)%plot_every== 0:
