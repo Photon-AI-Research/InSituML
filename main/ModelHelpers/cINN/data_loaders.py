@@ -16,13 +16,14 @@ class TrainLoader:
                  particlebatchsize=10240,
                  particles_to_sample=150000,
                  blacklist_box=None,
+                 frequency_range =512,
                  data_stats_path ='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_002/global_stats.npz'):
         self.normalisation = normalisation
         self.norm_method = norm_method
         self.pathpattern1 = pathpattern1
         self.pathpattern2 = pathpattern2
         self.blacklist_box = blacklist_box
-        
+        self.frequency_range = frequency_range
         # TODO check if all files are there
         
         self.t0 = t0
@@ -101,7 +102,8 @@ class TrainLoader:
                     
                     #log transformation
                     r = torch.log(r+1e-9)
-
+                    
+                    r = r[:,:self.loader.frequency_range]
 #                     # choose relevant directions
 #                     r = r[:, 1:, :]
 #                     r = r.view(r.shape[0], -1)
@@ -153,7 +155,8 @@ class ValidationFixedBoxLoader:
                  t1=100,
                  particles_to_sample=4000,
                  select_timesteps=20,
-                 load_radiation = False
+                 load_radiation = False,
+                 frequency_range =512,
           ):
         
         self.pathpattern1 = pathpattern1
@@ -166,6 +169,7 @@ class ValidationFixedBoxLoader:
         self.load_radiation = load_radiation
         self.normalisation = normalisation
         self.norm_method = norm_method
+        self.frequency_range = frequency_range
     
     def __len__(self):
         self.perm =  torch.randperm((self.t1-self.t0))[:self.select_timesteps]
@@ -202,6 +206,8 @@ class ValidationFixedBoxLoader:
 
             #log transformation
             r = torch.log(r+1e-9)
+            
+            r = r[:,:self.frequency_range]
             
             r = r[self.validation_boxes, :]
             

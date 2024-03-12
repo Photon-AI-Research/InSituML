@@ -73,7 +73,7 @@ def generate_plots(model, t_index,gpu_index,pathpattern1,pathpattern2, config,no
             output = model.inner_model(z_encoded)
 
         rad_pred = output[:, config["ndim_z"]:].squeeze()
-        plot_radiation(r, rad_pred, t_index, gpu_index, enable_wandb = True)
+        plot_radiation(ground_truth_intensity = r, predicted_intensity = rad_pred, t = t_index, gpu_box = gpu_index, enable_wandb = True)
         
 #     z_encoded = z_encoded.squeeze()  
 #     lat_z_pred = lat_z_pred.squeeze()

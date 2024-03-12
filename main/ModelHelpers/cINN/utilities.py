@@ -460,7 +460,7 @@ def smooth_data(data, window_size=5):
     return uniform_filter1d(data, size=window_size, mode='nearest')
 
 
-def plot_radiation(ground_truth_intensity, predicted_intensity=None, t=1000, gpu_box=0, path='',
+def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_range =512, t=1000, gpu_box=0, path='',
                    enable_wandb=False):
     """
     Plot radiation intensity against frequency and compute MSE and relative MSE
@@ -476,6 +476,8 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, t=1000, gpu
     """
     
     frequency = np.load("/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/omega.npy")
+    frequency = frequency[:frequency_range]
+    ground_truth_intensity = ground_truth_intensity[:frequency_range]
     ground_truth_intensity = ground_truth_intensity.cpu().numpy()
     ground_truth_smoothed = smooth_data(ground_truth_intensity)
     
