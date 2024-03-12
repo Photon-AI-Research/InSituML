@@ -21,7 +21,7 @@ import openpmd_api as opmd
 
 from ks_helperfuncs import *
 
-class Loader(Thread):
+class RandomLoader(Thread):
     """ Thread providing PIConGPU particle and radiation data for the ML model training.
 
     PIConGPU data is loaded from openPMD files on a per-timestep basis in Timebatches.
@@ -45,20 +45,17 @@ class Loader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-#        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
-        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
-#        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
-        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
+        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
+#        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
+        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
+#        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
         self.t0 = hyperParameterDefaults["t0"]
         self.t1 = hyperParameterDefaults["t1"] # endpoint=false, t1 is not loaded from disk
-        self.timebatchSize = hyperParameterDefaults["timebatchsize"]
-        self.timebatchSliceSize = hyperParameterDefaults["particlebatchsize"]
         self.numEpochs = hyperParameterDefaults["num_epochs"]
         self.particleTransformPolicy = particleDataTransformationPolicy
         self.radiationTransformPolicy = radiationDataTransformationPolicy
-
-        self.totalTimebatchNumber = int((self.t1-self.t0)/self.timebatchSize)
-        self.particlePerGPU = np.int64(10000) # MAGIC: Number of randomly choosen particles per GPU
+        self.particlePerGPU = hyperParameterDefaults['number_particles_per_gpu']
+        self.amplitude_direction = hyperParameterDefaults['amplitude_direction']
         
         self.rng = np.random.default_rng()
 
@@ -85,18 +82,14 @@ class Loader(Thread):
 
         # start reading data
         i_epoch = int(0)
-        i_tb = int(0)
         perm = self.rng.permutation(self.t1-self.t0)
         while i_epoch < self.numEpochs:
             """Iterate over all timebatches in all epochs."""
             print("Start epoch ", i_epoch)
             ###############################################
             # Fill timebatch with particle and radiation data
-            bi = perm[i_tb:i_tb+self.timebatchSize]
-            radiation = []
-            particles = []
-            for step in (bi+self.t0):
-                """iterate over all timesteps belonging to a timebatch"""
+            for step in (perm+self.t0):
+                """iterate over all timesteps"""
                 iteration = series.iterations[step]
 
                 ## obtain particle distribution over GPUs ##
@@ -107,65 +100,60 @@ class Loader(Thread):
                 numParticlesOffsets = ps.particle_patches["numParticlesOffset"][opmd.Mesh_Record_Component.SCALAR].load()
                 series.flush()
 
-                totalParticles = np.sum(numParticles) # numParticlesOffsets[-1] + numParticles[-1]?
+                totalParticles = np.sum(numParticles)
 
                 # prepare selection of particle indices that will be used for training from the whole data set
                 # In case numParticlesPerGpu < particlePerGpuForTraining, rng.choice() will throw a ValueError and stop.
                 # In streaming setups, we should catch this error and have a mitigation strategy in order to be able to continue.
-                randomParticlesPerGPU = np.array([ self.rng.choice(np.int64(numParticles[i]-1), self.particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
+                randomParticlesPerGPU = np.array([ self.rng.choice(numParticles[i], self.particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
 
                 local_region = {"offset": [numParticlesOffsets[0]], "extent": [totalParticles]}
 
                 numParticlesOffsets = np.concatenate((numParticlesOffsets, [-1]), dtype=np.int64) # append to use array for indexing
 
                 # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
-                loaded_particles = torch_empty((9, len(numParticles), self.particlePerGPU), dtype=torch_float32)
-                # TODO: Only load the phase space variables requested in self.reqPhaseSpaceVars
-                #loaded_particles = torch_empty((len(self.reqPhaseSpaceVars)*3, len(numParticles), self.particlePerGPU), dtype=torch_float32)
+                loaded_particles = torch_empty((len(self.reqPhaseSpaceVars)*3, len(numParticles), self.particlePerGPU), dtype=torch_float32)
                 for i_c, component in enumerate(["x", "y", "z"]):
                     """Read particle data component-wise to reduce host memory usage.
                        And immediately reshape by subdividing in particles per GPU.
                        Also, reduce to requested number particles per GPU.
                     """
-                    pos = ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
-                    posOffset = ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
-                    momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
-                    momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
+                    writing_index = 0
+                    if "position" in self.reqPhaseSpaceVars:
+                        pos = ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
+                        posOffset = ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
+                        series.flush()
+                        position = pos + posOffset
+                        del pos
+                        del posOffset
+                        loaded_particles[writing_index+i_c] = torch_stack([
+                            torch_from_numpy(p[r]) for r, p in zip(randomParticlesPerGPU, position)
+                        ])
+                        del position
+                        writing_index +=3
 
-                    series.flush()
+                    if "momentum" in self.reqPhaseSpaceVars or "force" in self.reqPhaseSpaceVars:
+                        momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
+                        series.flush()
+                        loaded_particles[writing_index+i_c] = torch_stack([
+                            torch_from_numpy(m[r]) for r, m in zip(randomParticlesPerGPU, momentum)
+                        ])
+                        del momentum
+                        writing_index +=3
 
-                    # TODO: Normalize positions on per GPU basis!
-                    position = pos + posOffset
-                    pos_reduced = np.array([
-                        position[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
-                        for i in np.arange(len(numParticles))
-                    ])
-
-                    #del position #to save memory?
-                    # If memory is of concern, I could also first reduce position and delete it,
-                    # then load, reduce, and delete positionOffset,
-                    # and finally add the two reduced arrays.
-
-                    mom_reduced = np.array([
-                        momentum[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
-                        for i in np.arange(len(numParticles))
-                    ])
-
-                    momPrev1_reduced = np.array([
-                        momentumPrev1[numParticlesOffsets[i]:numParticlesOffsets[i+1]][randomParticlesPerGPU[i]]
-                        for i in np.arange(len(numParticles))
-                    ])
-
-                    loaded_particles[0+i_c] = torch_from_numpy(pos_reduced) # absolute position in cells
-                    loaded_particles[3+i_c] = torch_from_numpy(mom_reduced) # momentum in gamma*beta
-                    loaded_particles[6+i_c] = torch_from_numpy(mom_reduced - momPrev1_reduced) # force
+                    if "force" in self.reqPhaseSpaceVars:
+                        momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
+                        series.flush()
+                        momPrev1_reduced = torch_stack([
+                            torch_from_numpy(m[r]) for r, m in zip(randomParticlesPerGPU, momentumPrev1)
+                        ])
+                        loaded_particles[writing_index+i_c] = loaded_particles[writing_index-3+i_c] - momPrev1_reduced # force
+                        del momPrev1_reduced
 
 #                iteration.close() # It is currently not possible to reopen an iteration in openPMD
                 
                 if self.transformPolicy is not None:
                     loaded_particles = self.particleTransformPolicy(loaded_particles)
-
-                particles.append(loaded_particles)
 
 
                 ## obtain radiation data per GPU ##
@@ -194,49 +182,29 @@ class Loader(Thread):
                     r_offset[:, i_c] = gpuBoxOffset * iteration.get_attribute(cellExtensionNames[component])
                     n_vec[:, i_c] = DetectorDirection
 
-                    # MAGIC: index direction = 0 to get ex vector = [1,0,0]
-                    i_direction = 0
-                    distributed_amplitudes[i_c] = torch_from_numpy(Dist_Amplitude[:, i_direction, :]) # shape of component i_c: (GPUs, frequencies)
+                    # Return radiation amplitude only along a specific direction
+                    distributed_amplitudes[i_c] = torch_from_numpy(Dist_Amplitude[:, self.amplitude_direction, :]) # shape of component i_c: (GPUs, frequencies)
 
 #                radIter.close() # It is currently not possible to reopen an iteration in openPMD
 
                 # time retardation correction
-                # QUESTION: The `step`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
-                phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, i_direction, :]
+                phase_offset = torch_from_numpy(np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :] * (step - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)))[:, self.amplitude_direction, :]
                 distributed_amplitudes = distributed_amplitudes*phase_offset
 
                 # Transform to shape: (GPUs, components, frequencies)
                 distributed_amplitudes = torch_transpose(distributed_amplitudes, 0, 1) # shape: (GPUs, components, frequencies)
+
+                if self.radiationTransformPolicy is not None:
+                    distributed_amplitudes = self.radiationTransformPolicy(distributed_amplitudes)
                 
-                # MAGIC: Just look at y&z component
-                r = distributed_amplitudes[:, 1:, :]
 
-                # Compute the phase (angle) of the complex number
-                phase = torch_angle(r)
-                # Compute the absolute value of the complex number
-                absolute = torch_abs(r)
-                r = torch_cat((absolute, phase), dim=1).to(torch_float32)
+                self.data.put([loaded_particles, distributed_amplitudes])
 
-                radiation.append(r)
-
-            
-            particles = torch_cat(particles)
-            radiation = torch_cat(radiation)
-
-            self.data.put(self.Timebatch(particles, radiation, self.timebatchSliceSize, self.rng))
-
-            print("Finish timebatch. Timestep =", i_tb)
+            """All timesteps have been read once within this epoch. Epoch finished."""
+            print("Finished epoch", i_epoch)
             stdout.flush()
-
-            i_tb += self.timebatchSize
-
-            if i_tb%self.totalTimebatchNumber == 0:
-                """All timesteps have been read once within this epoch. Epoch finished."""
-                print("Finished epoch", i_epoch)
-                stdout.flush()
-                i_epoch += int(1)
-                i_tb = int(0)
-                perm = self.rng.permutation(len(series.iterations))
+            i_epoch += int(1)
+            perm = self.rng.permutation(len(series.iterations))
 
         # signal that there are no further items
         print("Finish iterating all epochs")
@@ -246,23 +214,4 @@ class Loader(Thread):
         # close series
         series.close()
         radiationSeries.close()
-
-
-    class Timebatch:
-        def __init__(self, particles, radiation, batchsize, rng=np.random.default_rng()):
-            self.batchsize = batchsize
-            self.particles = particles
-            self.radiation = radiation
-
-            self.rng = rng
-            self.perm = self.rng.permutation(self.radiation.shape[0])
-
-        def __len__(self):
-            return self.radiation.shape[0] // self.batchsize
-
-        def __getitem__(self, batch):
-            i = self.batchsize*batch
-            bi = self.perm[i:i+self.batchsize]
-
-            return self.particles[bi], self.radiation[bi]
 
