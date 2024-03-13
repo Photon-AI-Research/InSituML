@@ -21,6 +21,26 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from torch.profiler import profile, record_function, ProfilerActivity
 
+def setup_distributed_env(init_method=None, rank = 0, world_size=16): 
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    world_size = comm.Get_size()
+    world_rank = rank = comm.Get_rank()
+    backend = None
+    master_addr = os.environ["MASTER_ADDR"]
+    master_port = "29500"
+    os.environ['MASTER_ADDR'] = master_addr
+    os.environ['MASTER_PORT'] = master_port
+    os.environ['WORLD_SIZE'] = str(world_size)
+    os.environ['RANK'] = str(world_rank)
+    os.environ['LOCAL_RANK'] = "0"
+    torch.distributed.init_process_group(backend,
+                                        init_method=init_method,
+                                        rank=rank,
+                                        world_size=world_size)
+    using_mpi = torch.distributed.get_backend() == 'mpi'
+
+
     
 def sample_pointcloud(model, p_gt, num_samples, cond):
     model.model.eval()
@@ -187,11 +207,13 @@ class CustomDistributedSampler(DistributedSampler):
 
 if __name__ == "__main__":
     n_gpus = torch.cuda.device_count()
-    assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
+    #assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
     world_size = n_gpus
 
+    setup_distributed_env()
+
     #setup(rank, world_size)
-    dist.init_process_group("nccl")
+    #dist.init_process_group("nccl")
     local_rank = int(os.environ["LOCAL_RANK"])
     global_rank = int(os.environ["RANK"])
     
