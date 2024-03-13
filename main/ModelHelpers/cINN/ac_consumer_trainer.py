@@ -40,7 +40,7 @@ class ModelTrainer(Thread):
                  scheduler,
                  sleep_before_retry=10,
                  ts_after_stopped_production=10,
-                 enable_wandb=None, wandbRunObject=None):
+                 logger=None):
         
         Thread.__init__(self)
 
@@ -50,10 +50,9 @@ class ModelTrainer(Thread):
         self.optimizer = optimizer
         self.scheduler = scheduler
 
-        self.losses = []
+        self.cumulative_loss = 0.0
         self.sleep_before_retry = sleep_before_retry
-        self.enable_wandb = enable_wandb
-        self.wandb_run = wandbRunObject
+        self.logger = logger
         
         self.batch_passes = 0
         self.ts_after_stopped_production = ts_after_stopped_production
@@ -64,14 +63,8 @@ class ModelTrainer(Thread):
 
         while True:
             
-            if self.enable_wandb is not None:
-                self.wandb_run.log({
-                        "batch_passes": self.batch_passes,
-                        "loss_avg": sum(losses)/len(losses),
-                        "loss": loss,
-                    })
-            
             phase_space_radiation = self.training_buffer.get_batch()
+
             
             #this is now only indicating that there 
             #is not enough data in the now buffer 
@@ -80,22 +73,46 @@ class ModelTrainer(Thread):
                 print(f"Trainer will wait for {self.sleep_before_retry} seconds, for data to be "
                         "streamed before reattempting batch extraction." )
                 time.sleep(self.sleep_before_retry)
-                continue
-
-            self.batch_passes += 1
+                continue   
             
             phase_space, radiation = phase_space_radiation
             
-            self.optimizer.zero_grad()
-            # loss = - self.model.model.log_prob(inputs=phase_space.to(self.model.device),
-            #                                 context=radiation.to(self.model.device))
+            phase_space = phase_space.to(device)
+            radiation = radiation.to(device)
             
-            
-            loss = self.model(phase_space.to(device),
-                              radiation.to(device))
+            if self.batch_passes !=0:
+                loss = loss.item()
+                loss_avg = loss_avg.item()
+                loss_AE = loss_AE.item()
+                loss_IM = loss_IM.item()
+                loss_ae_reconst = loss_ae_reconst.item()
+                kl_loss = kl_loss.item()
+                l_fit = l_fit.item()
+                l_latent = l_latent.item()
+                l_rev = l_rev.item()
+                batch_index = self.batch_passes-1
+                print('batch_index: {} | loss_avg: {:.4f} | loss: {:.4f} | loss_AE: {:.4f} | loss_IM: {:.4f} | loss_ae_reconst: {:.4f} | kl_loss: {:.4f} | l_fit: {:.4f} | l_latent: {:.4f} | l_rev: {:.4f}'.format(batch_index, loss_avg, loss,loss_AE,loss_IM,loss_ae_reconst,kl_loss,l_fit,l_latent,l_rev))
 
-            loss = loss.mean()
-            self.losses.append(loss.item())
+                if self.logger is not None:
+                    self.logger.log_scalar(scalar=loss_avg, name="loss_avg", epoch=batch_index)
+                    self.logger.log_scalar(scalar=loss, name="loss", epoch=batch_index)
+                    self.logger.log_scalar(scalar=loss_AE, name="loss_AE", epoch=batch_index)
+                    self.logger.log_scalar(scalar=loss_IM, name="loss_IM", epoch=batch_index)
+                    self.logger.log_scalar(scalar=loss_ae_reconst, name="loss_ae_reconst", epoch=batch_index)
+                    self.logger.log_scalar(scalar=kl_loss, name="kl_loss", epoch=batch_index)
+                    self.logger.log_scalar(scalar=l_fit, name="l_fit", epoch=batch_index)
+                    self.logger.log_scalar(scalar=l_latent, name="l_latent", epoch=batch_index)
+                    self.logger.log_scalar(scalar=l_rev, name="l_rev", epoch=batch_index)
+                    
+            self.batch_passes += 1
+            
+            self.optimizer.zero_grad()
+            
+            loss,loss_AE,loss_IM,loss_ae_reconst,kl_loss,l_fit,l_latent,l_rev = self.model(phase_space,
+                              radiation)
+            
+            self.cumulative_loss += loss
+            loss_avg = self.cumulative_loss / self.batch_passes
             loss.backward()
 
             self.optimizer.step()

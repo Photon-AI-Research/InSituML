@@ -220,7 +220,7 @@ class INNModel(nn.Module):
 
         total_loss += l_rev
 
-        return total_loss
+        return total_loss, l_fit,l_latent,l_rev
 
     def forward(self, x, y=None, rev=False):
         device = self.device 
