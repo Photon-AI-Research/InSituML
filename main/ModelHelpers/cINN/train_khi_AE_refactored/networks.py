@@ -43,7 +43,8 @@ class VAE(nn.Module):
                  property_="positions", z_dim=4,
                  particles_to_sample = 4000,
                  ae_config = "deterministic",
-                 use_encoding_in_decoder=True
+                 use_encoding_in_decoder=True,
+                 weight_kl = 1.0,
                  ):
         super().__init__()
         
@@ -51,6 +52,7 @@ class VAE(nn.Module):
         self.particles_to_sample = particles_to_sample
         self.z_dim = z_dim
         self.loss_function = loss_function
+        self.weight_kl = weight_kl
         
         self.ae_config = ae_config
         
@@ -100,12 +102,12 @@ class VAE(nn.Module):
             x_reconst = self.loss_function(y.contiguous(),x.contiguous())
         # mean or sum
         x_reconst = x_reconst.mean()
-        kl_loss = kl_loss.mean()
+        kl_loss = kl_loss.mean()*self.weight_kl
 
         nelbo = x_reconst + kl_loss
         #might be useful for later.
         #ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
-        return nelbo, y, z
+        return nelbo,x_reconst,kl_loss, y, z
 
     def sample_point(self, batch):
         p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)

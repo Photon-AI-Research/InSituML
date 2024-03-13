@@ -40,7 +40,7 @@ class ModelTrainer(Thread):
                  scheduler,
                  sleep_before_retry=10,
                  ts_after_stopped_production=10,
-                 enable_wandb=None, wandbRunObject=None):
+                 logger=None):
         
         Thread.__init__(self)
 
@@ -50,10 +50,9 @@ class ModelTrainer(Thread):
         self.optimizer = optimizer
         self.scheduler = scheduler
 
-        self.losses = []
+        self.cumulative_loss = 0.0
         self.sleep_before_retry = sleep_before_retry
-        self.enable_wandb = enable_wandb
-        self.wandb_run = wandbRunObject
+        self.logger = logger
         
         self.batch_passes = 0
         self.ts_after_stopped_production = ts_after_stopped_production
@@ -64,14 +63,8 @@ class ModelTrainer(Thread):
 
         while True:
             
-            if self.enable_wandb is not None:
-                self.wandb_run.log({
-                        "batch_passes": self.batch_passes,
-                        "loss_avg": sum(losses)/len(losses),
-                        "loss": loss,
-                    })
-            
             phase_space_radiation = self.training_buffer.get_batch()
+
             
             #this is now only indicating that there 
             #is not enough data in the now buffer 
@@ -80,23 +73,47 @@ class ModelTrainer(Thread):
                 print(f"Trainer will wait for {self.sleep_before_retry} seconds, for data to be "
                         "streamed before reattempting batch extraction." )
                 time.sleep(self.sleep_before_retry)
-                continue
-
-            self.batch_passes += 1
+                continue   
             
             phase_space, radiation = phase_space_radiation
             
-            self.optimizer.zero_grad()
-            # loss = - self.model.model.log_prob(inputs=phase_space.to(self.model.device),
-            #                                 context=radiation.to(self.model.device))
+            phase_space = phase_space.to(device)
+            radiation = radiation.to(device)
             
-            
-            loss = self.model(phase_space.to(device),
-                              radiation.to(device))
+            if self.batch_passes != 0:
+                
+                # print loss terms
+                loss_message_parts = [f'batch_index: {self.batch_passes-1} | loss_avg: {loss_avg.item():.4f}']
+                for loss_name, loss_value in losses.items():
+                    loss_message_parts.append(f'{loss_name}: {loss_value.item():.4f}')
 
-            loss = loss.mean()
-            self.losses.append(loss.item())
+                loss_message = ' | '.join(loss_message_parts)
+                print(loss_message)
+                                
+                if self.logger is not None:
+                    
+                    self.logger.log_scalar(scalar=loss_avg.item(), name="loss_avg", epoch=self.batch_passes-1)
+                    
+                    for loss_name, loss_value in losses.items():
+                        self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
+                    
+            self.batch_passes += 1
+            
+            self.optimizer.zero_grad()
+            
+            losses = self.model(phase_space, radiation)
+            loss = losses['total_loss']
+            
+            #reconstruction if needed
+            # y, lat_z_pred = self.model.reconstruct(phase_space,radiation)
+            
+            self.cumulative_loss += loss
+            loss_avg = self.cumulative_loss / self.batch_passes
             loss.backward()
+            
+            for p in self.model.parameters():
+                if p.grad is not None:
+                    p.grad.data.clamp_(-5.00, 5.00)
 
             self.optimizer.step()
             self.scheduler.step()
