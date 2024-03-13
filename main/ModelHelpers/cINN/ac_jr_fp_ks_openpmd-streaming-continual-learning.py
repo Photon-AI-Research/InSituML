@@ -233,7 +233,7 @@ inner_model = INNModel(ndim_tot=config["ndim_tot"],
 model = ModelFinal(VAE, inner_model, EarthMoversLoss())
 
 
-Load a pre-trained model
+#Load a pre-trained model
 filepath = 'trained_models/{}/best_model_'
 
 original_state_dict = torch.load(filepath.format(config["load_model"]))
