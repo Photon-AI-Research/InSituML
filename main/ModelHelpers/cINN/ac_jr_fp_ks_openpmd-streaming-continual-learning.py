@@ -120,17 +120,41 @@ class ModelFinal(nn.Module):
             loss_IM, l_fit,l_latent,l_rev = self.inner_model.compute_losses(encoded, y)
             total_loss = loss_AE*self.weight_AE + loss_IM*self.weight_IM
             
-            return total_loss, loss_AE*self.weight_AE, loss_IM*self.weight_IM, loss_ae_reconst,kl_loss,l_fit,l_latent,l_rev
+            losses = {
+                'total_loss': total_loss,
+                'loss_AE': loss_AE*self.weight_AE,
+                'loss_IM': loss_IM*self.weight_IM,
+                'loss_ae_reconst': loss_ae_reconst,
+                'kl_loss': kl_loss,
+                'l_fit': l_fit,
+                'l_latent': l_latent,
+                'l_rev': l_rev,
+                    }
+            
+            return losses
         else:
             # For other types of models, such as MAF
             loss_IM = self.inner_model(inputs=encoded, context=y)
             total_loss = loss_AE*self.weight_AE + loss_IM * self.weight_IM
-            return total_loss, loss_AE*self.weight_AE, loss_IM*self.weight_IM,loss_ae_reconst,kl_loss
+            
+            losses = {
+                'total_loss': total_loss,
+                'loss_AE': loss_AE*self.weight_AE,
+                'loss_IM': loss_IM*self.weight_IM,
+                'loss_ae_reconst': loss_ae_reconst,
+                'kl_loss': kl_loss
+                    }
+            
+            return losses
         
-    def reconstruct_inn(self,x, y):
-
-        lat_z_pred = self.inner_model(x, y, rev = True)
-        y = self.base_network.decoder(lat_z_pred)
+    def reconstruct(self,x, y, num_samples = 1):
+        
+        if isinstance(self.inner_model, INNModel):
+            lat_z_pred = self.inner_model(x, y, rev = True)
+            y = self.base_network.decoder(lat_z_pred)
+        else:
+            lat_z_pred = self.inner_model.sample_pointcloud(num_samples = num_samples, cond=y)
+            y = self.base_network.decoder(lat_z_pred)
 
         return y, lat_z_pred
 
@@ -209,7 +233,7 @@ inner_model = INNModel(ndim_tot=config["ndim_tot"],
 model = ModelFinal(VAE, inner_model, EarthMoversLoss())
 
 
-# Load a pre-trained model
+Load a pre-trained model
 filepath = 'trained_models/{}/best_model_'
 
 original_state_dict = torch.load(filepath.format(config["load_model"]))

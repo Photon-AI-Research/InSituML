@@ -80,40 +80,40 @@ class ModelTrainer(Thread):
             phase_space = phase_space.to(device)
             radiation = radiation.to(device)
             
-            if self.batch_passes !=0:
-                loss = loss.item()
-                loss_avg = loss_avg.item()
-                loss_AE = loss_AE.item()
-                loss_IM = loss_IM.item()
-                loss_ae_reconst = loss_ae_reconst.item()
-                kl_loss = kl_loss.item()
-                l_fit = l_fit.item()
-                l_latent = l_latent.item()
-                l_rev = l_rev.item()
-                batch_index = self.batch_passes-1
-                print('batch_index: {} | loss_avg: {:.4f} | loss: {:.4f} | loss_AE: {:.4f} | loss_IM: {:.4f} | loss_ae_reconst: {:.4f} | kl_loss: {:.4f} | l_fit: {:.4f} | l_latent: {:.4f} | l_rev: {:.4f}'.format(batch_index, loss_avg, loss,loss_AE,loss_IM,loss_ae_reconst,kl_loss,l_fit,l_latent,l_rev))
+            if self.batch_passes != 0:
+                
+                # print loss terms
+                loss_message_parts = [f'batch_index: {self.batch_passes-1} | loss_avg: {loss_avg.item():.4f}']
+                for loss_name, loss_value in losses.items():
+                    loss_message_parts.append(f'{loss_name}: {loss_value.item():.4f}')
 
+                loss_message = ' | '.join(loss_message_parts)
+                print(loss_message)
+                                
                 if self.logger is not None:
-                    self.logger.log_scalar(scalar=loss_avg, name="loss_avg", epoch=batch_index)
-                    self.logger.log_scalar(scalar=loss, name="loss", epoch=batch_index)
-                    self.logger.log_scalar(scalar=loss_AE, name="loss_AE", epoch=batch_index)
-                    self.logger.log_scalar(scalar=loss_IM, name="loss_IM", epoch=batch_index)
-                    self.logger.log_scalar(scalar=loss_ae_reconst, name="loss_ae_reconst", epoch=batch_index)
-                    self.logger.log_scalar(scalar=kl_loss, name="kl_loss", epoch=batch_index)
-                    self.logger.log_scalar(scalar=l_fit, name="l_fit", epoch=batch_index)
-                    self.logger.log_scalar(scalar=l_latent, name="l_latent", epoch=batch_index)
-                    self.logger.log_scalar(scalar=l_rev, name="l_rev", epoch=batch_index)
+                    
+                    self.logger.log_scalar(scalar=loss_avg.item(), name="loss_avg", epoch=self.batch_passes-1)
+                    
+                    for loss_name, loss_value in losses.items():
+                        self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
                     
             self.batch_passes += 1
             
             self.optimizer.zero_grad()
             
-            loss,loss_AE,loss_IM,loss_ae_reconst,kl_loss,l_fit,l_latent,l_rev = self.model(phase_space,
-                              radiation)
+            losses = self.model(phase_space, radiation)
+            loss = losses['total_loss']
+            
+            #reconstruction if needed
+            # y, lat_z_pred = self.model.reconstruct(phase_space,radiation)
             
             self.cumulative_loss += loss
             loss_avg = self.cumulative_loss / self.batch_passes
             loss.backward()
+            
+            for p in self.model.parameters():
+                if p.grad is not None:
+                    p.grad.data.clamp_(-5.00, 5.00)
 
             self.optimizer.step()
             self.scheduler.step()
