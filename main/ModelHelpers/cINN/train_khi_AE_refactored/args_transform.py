@@ -14,10 +14,10 @@ MAPPING_TO_LOSS = {
 
 
 try:
-    from loss_function import ChamfersLossOptimized
+    from loss_functions import ChamfersLossOptimized
     MAPPING_TO_LOSS["chamfersloss_o"] = ChamfersLossOptimized
-except:
-    print("Chamfer loss optimized is not loaded")
+except Exception as ex:
+    print(f"Exception {ex} found. Chamfer loss optimized is not loaded")
 
 MAPPING_TO_ED = {
     "encoder_simple":Encoder,

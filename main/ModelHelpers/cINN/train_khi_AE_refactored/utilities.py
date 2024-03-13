@@ -306,9 +306,9 @@ def create_momentum_density_plots(px, py, pz,
                                   wandb = None):
     
     # Specify the number of bins for each axis
-    bins_px = np.linspace(-0.4, 0.4, bins)
-    bins_py = np.linspace(-0.4, 0.4, bins)
-    bins_pz = np.linspace(-0.2, 0.2, bins)
+    bins_px = np.linspace(min(px), max(px), bins)
+    bins_py = np.linspace(min(py), max(py), bins)
+    bins_pz = np.linspace(min(pz), max(pz), bins)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 10)) 
@@ -382,9 +382,9 @@ def create_force_density_plots(fx, fy, fz,
                                wandb = None):
     
     # Specify the number of bins for each axis
-    bins_fx = np.linspace(-0.006, 0.006, bins)
-    bins_fy = np.linspace(-0.006, 0.006, bins)
-    bins_fz = np.linspace(-0.002, 0.002, bins)
+    bins_fx = np.linspace(min(fx), max(fx), bins)
+    bins_fy = np.linspace(min(fy), max(fy), bins)
+    bins_fz = np.linspace(min(fz), max(fz), bins)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 10))  # Adjust the figure size

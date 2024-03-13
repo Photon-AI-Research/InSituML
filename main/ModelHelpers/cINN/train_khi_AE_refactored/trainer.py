@@ -9,7 +9,7 @@ from plot_box_predictions import load_particles, plot_particles
 def train_AE(model, optimizer,
              scheduler, epoch, valid_data_loader, wandb, directory,
              info_image_path="", property_ = "positions",
-             log_visual_report_every_tb = 2,
+             log_visual_report_every_tb = 10,
              log_validation_loss_every_tb = 30
              ):
     

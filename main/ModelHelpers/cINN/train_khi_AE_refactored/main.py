@@ -34,8 +34,8 @@ def train_with_wandb():
     hyperparameter_defaults = main_args_transform(hyperparameter_defaults)
     
     print('New session...')
-    
-    info_image_path = f"lr_{args.learning_rate}_z_{args.z_dim}_{args.property_}"
+    hd = hyperparameter_defaults
+    info_image_path = f"encoder_kwargs_{hd['encoder_kwargs']}_decoder_kwargs_{hd['decoder_kwargs']}"
         
     # Pass your defaults to wandb.init
     run = wandb.init(config=hyperparameter_defaults, project=f'newruns_{args.project_kw}', name=info_image_path)
