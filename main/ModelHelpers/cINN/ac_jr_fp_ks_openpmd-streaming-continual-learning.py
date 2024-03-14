@@ -242,14 +242,14 @@ model.load_state_dict(updated_state_dict)
 print('Loaded pre-trained model successfully')
 
         
-model.to(device)
+#model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=config["lr"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
 
-wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
+#wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
 
 trainBF = TrainBatchBuffer(openPMDBuffer)
-modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, logger = wandb_logger)
+modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, logger = None)
 
 ####################
 ## Start training ##

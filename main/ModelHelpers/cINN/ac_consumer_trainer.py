@@ -71,6 +71,7 @@ class ModelTrainer(Thread):
             torch.cuda.set_device(self.gpu_id)
             torch.cuda.empty_cache()
 
+            self.model.to(self.gpu_id)
             self.model = DDP(self.model, device_ids=[self.gpu_id])
         else:
             self.gpu_id = device
