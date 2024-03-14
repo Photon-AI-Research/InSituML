@@ -100,7 +100,7 @@ class PC_MAF(nn.Module):
         self.model.eval()
         cond = cond.to(self.device)
         with torch.no_grad():
-            pc_pr = self.model.sample(num_samples, context=cond)
+            pc_pr = self.model.sample(num_samples, context=cond).squeeze()
         return pc_pr
     
 class INNModel(nn.Module):
@@ -220,7 +220,7 @@ class INNModel(nn.Module):
 
         total_loss += l_rev
 
-        return total_loss
+        return total_loss, l_fit,l_latent,l_rev
 
     def forward(self, x, y=None, rev=False):
         device = self.device 

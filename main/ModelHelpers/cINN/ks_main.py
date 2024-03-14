@@ -16,7 +16,6 @@ from queue import Queue
 
 from ks_helperfuncs import *
 from ks_consumer_MAF_khi_radiation import *
-#from ks_models import *
 from ks_transform_policies import *
 from ks_producer_openPMD import *
 from ks_producer_openPMD_streaming import *
@@ -34,10 +33,10 @@ lr = 0.001,
 num_epochs = 8,
 num_blocks_mat = 2,
 activation = 'gelu',
-#pathpattern1 = "/home/franzpoeschel/git-repos/InSituML/pic_run/openPMD/simData.sst",
-#pathpattern2 = "/home/franzpoeschel/git-repos/InSituML/pic_run/radiationOpenPMD/e_radAmplitudes.sst",
-pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
-pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
+pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp", # files on frontier
+pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
+#pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
+#pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
 number_particles_per_gpu = 1000,
 amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
 phase_space_variables = ["position", "momentum", "force"] # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
