@@ -21,10 +21,12 @@ def train_with_wandb():
     dim_pool = 1,
     learning_rate = args.learning_rate,
     num_epochs = 5,
-    val_boxes =  [19,5,3],
+    val_boxes = [3,12,61,51],
     activation = 'relu',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
+    pathpattern_valid1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_003/{}.npy",
+    pathpattern_valid2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_003/{}.npy"
     loss_function = args.lossfunction,
     loss_function_params = {}
     )
@@ -48,15 +50,15 @@ def train_with_wandb():
     pathpattern2 = config["pathpattern2"]
     
     data_loader = TrainLoader(pathpattern1=pathpattern1,
-                            pathpattern2=pathpattern2,
-                            t0=config["t0"],
-                            t1=config["t1"],
-                            timebatchsize=config["timebatchsize"],
-                            particlebatchsize=config["particlebatchsize"],
-                            blacklist_box = config["val_boxes"],
-                            particles_to_sample = config["particles_to_sample"],
-                            normalisation = Normalizer(),
-                            norm_method = 'mean_6d')
+                             pathpattern2=pathpattern2,
+                             t0=config["t0"],
+                             t1=config["t1"],
+                             timebatchsize=config["timebatchsize"],
+                             particlebatchsize=config["particlebatchsize"],
+                             blacklist_box = None,
+                             particles_to_sample = config["particles_to_sample"],
+                             normalisation = Normalizer(),
+                             norm_method = 'mean_6d')
     # data_loader = TrainLoader(pathpattern1=pathpattern1,
     #                           pathpattern2=pathpattern2,
     #                           t0=config["t0"], t1=config["t1"],
@@ -65,9 +67,9 @@ def train_with_wandb():
     #                           blacklist_box = config["val_boxes"], 
     #                           particles_to_sample = config["particles_to_sample"])
     
-    valid_data_loader = ValidationFixedBoxLoader(pathpattern1,
-                                                 pathpattern2,
-                                                 config["val_boxes"],
+    valid_data_loader = ValidationFixedBoxLoader(pathpattern1=pathpattern_valid1,
+                                                 pathpattern2=pathpattern_valid2,
+                                                 validation_boxes = config["val_boxes"],
                                                  t0=config["t0"],
                                                  t1=config["t1"],
                                                  particles_to_sample = config["particles_to_sample"],
