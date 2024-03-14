@@ -168,82 +168,84 @@ VAE_decoder_kwargs = {"z_dim":latent_space_dims,
                    "initial_conv3d_size":[16, 4, 4, 4],
                    "add_batch_normalisation":False,
                     "fc_layer_config":[1024]}
+def load_things():
 
-VAE = VAE(encoder = Encoder,
-           encoder_kwargs = VAE_encoder_kwargs,
-           decoder = Conv3DDecoder,
-           z_dim=latent_space_dims,
-           decoder_kwargs = VAE_decoder_kwargs,
-           loss_function = EarthMoversLoss(),
-           property_="momentum_force",
-           particles_to_sample = number_of_particles,
-           ae_config="non_deterministic",
-           use_encoding_in_decoder=False)
-
-
-conv_AE_encoder_kwargs = {"ae_config":"simple",
-                  "z_dim":latent_space_dims,
-                  "input_dim":ps_dims,
-                  "conv_layer_config":[16, 32, 64, 128, 256, 512],
-                  "conv_add_bn": False}
-
-conv_AE_decoder_kwargs = {"z_dim":latent_space_dims,
-                  "input_dim":ps_dims,
-                  "add_batch_normalisation":False}
-
-conv_AE = ConvAutoencoder(encoder = Encoder,
-                          encoder_kwargs = conv_AE_encoder_kwargs,
-                          decoder = Conv3DDecoder,
-                          decoder_kwargs = conv_AE_decoder_kwargs,
-                          loss_function = EarthMoversLoss(),
-                          )
-
-inner_model = PC_MAF(dim_condition=config["dim_condition"],
-                           dim_input=config["dim_input"],
-                           num_coupling_layers=config["num_coupling_layers"],
-                           hidden_size=config["hidden_size"],
-                           device=device,
-                           num_blocks_mat = config["num_blocks_mat"],
-                           activation = config["activation"]
-                         )
-
-# INN
-inner_model = INNModel(ndim_tot=config["ndim_tot"],
-                 ndim_x=config["ndim_x"],
-                 ndim_y=config["ndim_y"],
-                 ndim_z=config["ndim_z"],
-                 loss_fit=fit,
-                 loss_latent=MMD_multiscale,
-                 loss_backward=MMD_multiscale,
-                 lambd_predict=config["lambd_predict"],
-                 lambd_latent=config["lambd_latent"],
-                 lambd_rev=config["lambd_rev"],
-                 zeros_noise_scale=config["zeros_noise_scale"],
-                 y_noise_scale=config["y_noise_scale"],
-                 hidden_size=config["hidden_size"],
-                 activation=config["activation"],
-                 num_coupling_layers=config["num_coupling_layers"],
-                 device = device)
-
-#model = ModelFinal(VAE, inner_model, EarthMoversLoss())
-#model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
-model = ModelFinal(VAE, inner_model, EarthMoversLoss())
+    VAE = VAE(encoder = Encoder,
+            encoder_kwargs = VAE_encoder_kwargs,
+            decoder = Conv3DDecoder,
+            z_dim=latent_space_dims,
+            decoder_kwargs = VAE_decoder_kwargs,
+            loss_function = EarthMoversLoss(),
+            property_="momentum_force",
+            particles_to_sample = number_of_particles,
+            ae_config="non_deterministic",
+            use_encoding_in_decoder=False)
 
 
-#Load a pre-trained model
-filepath = 'trained_models/{}/best_model_'
+    conv_AE_encoder_kwargs = {"ae_config":"simple",
+                    "z_dim":latent_space_dims,
+                    "input_dim":ps_dims,
+                    "conv_layer_config":[16, 32, 64, 128, 256, 512],
+                    "conv_add_bn": False}
 
-original_state_dict = torch.load(filepath.format(config["load_model"]))
-updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
-model.load_state_dict(updated_state_dict)
-print('Loaded pre-trained model successfully')
+    conv_AE_decoder_kwargs = {"z_dim":latent_space_dims,
+                    "input_dim":ps_dims,
+                    "add_batch_normalisation":False}
+
+    conv_AE = ConvAutoencoder(encoder = Encoder,
+                            encoder_kwargs = conv_AE_encoder_kwargs,
+                            decoder = Conv3DDecoder,
+                            decoder_kwargs = conv_AE_decoder_kwargs,
+                            loss_function = EarthMoversLoss(),
+                            )
+
+    inner_model = PC_MAF(dim_condition=config["dim_condition"],
+                            dim_input=config["dim_input"],
+                            num_coupling_layers=config["num_coupling_layers"],
+                            hidden_size=config["hidden_size"],
+                            device=device,
+                            num_blocks_mat = config["num_blocks_mat"],
+                            activation = config["activation"]
+                            )
+
+    # INN
+    inner_model = INNModel(ndim_tot=config["ndim_tot"],
+                    ndim_x=config["ndim_x"],
+                    ndim_y=config["ndim_y"],
+                    ndim_z=config["ndim_z"],
+                    loss_fit=fit,
+                    loss_latent=MMD_multiscale,
+                    loss_backward=MMD_multiscale,
+                    lambd_predict=config["lambd_predict"],
+                    lambd_latent=config["lambd_latent"],
+                    lambd_rev=config["lambd_rev"],
+                    zeros_noise_scale=config["zeros_noise_scale"],
+                    y_noise_scale=config["y_noise_scale"],
+                    hidden_size=config["hidden_size"],
+                    activation=config["activation"],
+                    num_coupling_layers=config["num_coupling_layers"],
+                    device = device)
+
+    #model = ModelFinal(VAE, inner_model, EarthMoversLoss())
+    #model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
+    model = ModelFinal(VAE, inner_model, EarthMoversLoss())
 
 
-#model.to(device)
-optimizer = optim.Adam(model.parameters(), lr=config["lr"])
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
+    #Load a pre-trained model
+    filepath = 'trained_models/{}/best_model_'
 
-#wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
+    original_state_dict = torch.load(filepath.format(config["load_model"]))
+    updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+    model.load_state_dict(updated_state_dict)
+    print('Loaded pre-trained model successfully')
+
+
+    #model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
+
+    #wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
+    return optimizer, scheduler, model
 
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
@@ -255,6 +257,9 @@ def setup(rank, world_size):
 def demo_basic(rank, world_size):
 
     setup(rank, world_size)
+
+    optimizer, scheduler, model = load_things()
+
     timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
     trainBF = TrainBatchBuffer(openPMDBuffer)
     modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, logger = None)
