@@ -151,9 +151,9 @@ class TrainBatchBuffer(Thread):
         if len(self.buffer_)<self.training_bs or (self.noReadCount>self.max_tb_from_unchanged_now_bf and
                                                   self.openpmdProduction):
             print(f"Batch extraction failed.. \n"
-                   "Either train buffer has less element than training size \n"
+                   f"Either train buffer has less element than training size \n"
                    f"Train Buffer Size: {len(self.buffer_)}, training batch size: {self.training_bs} \n"
-                   "Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches "
+                   f"Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches "
                    f"allowed from unchanged trainbuffer state: {self.max_tb_from_unchanged_now_bf}\n")
             return None
         
