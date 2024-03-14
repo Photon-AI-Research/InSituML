@@ -82,17 +82,15 @@ hp_dic_format = {'encoder_kwargs::conv_layer_config':['[16, 32, 64, 128, 256, 51
 
 kwargs_out = generate_kwargs(hp_dic_format)
 
-for kwgs_dic in kwargs_out:
+for idx, kwgs_dic in enumerate(kwargs_out):
     input_command = ""
-    dir_name = ""
     for k, v in kwgs_dic.items():
-        dir_name += f"{k}_{v}"
         k, v = extract_key(k,v)
         input_command += f" --{k} {v} "
         
     input_command = input_command_def + input_command
-    os.mkdir(dir_name)
-    f = open(f"{dir_name}/job.sh", "w")
+    os.mkdir(f"run{idx}")
+    f = open(f"run{idx}/job.sh", "w")
     f.write(slurm_content.format(jobname="Training", partition_name="casus"))
     f.write(input_command)
 
