@@ -41,7 +41,7 @@ class ModelTrainer(Thread):
                  model, 
                  optimizer,
                  scheduler,
-                 multigpu_run=True,
+                 gpu_id=None,
                  sleep_before_retry=10,
                  ts_after_stopped_production=10,
                  logger=None):
@@ -60,16 +60,9 @@ class ModelTrainer(Thread):
         self.batch_passes = 0
         self.ts_after_stopped_production = ts_after_stopped_production
 
-        if multigpu_run is not None:
+        if gpu_id is not None:
 
-            self.multigpu_run = multigpu_run
-
-            dist.init_process_group("nccl")
-
-            self.gpu_id = dist.get_rank()
-
-            torch.cuda.set_device(self.gpu_id)
-            torch.cuda.empty_cache()
+            self.gpu_id = gpu_id
 
             self.model.to(self.gpu_id)
             self.model = DDP(self.model, device_ids=[self.gpu_id])

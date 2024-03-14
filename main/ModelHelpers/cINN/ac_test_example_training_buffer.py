@@ -1,7 +1,7 @@
 import time
-
-from ks_transform_policies import *
-from ks_producer_openPMD_streaming import *
+import os
+#from ks_transform_policies import *
+#from ks_producer_openPMD_streaming import *
 
 from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
@@ -23,12 +23,22 @@ from train_khi_AE_refactored.loss_functions import EarthMoversLoss
 from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
 from wandb_logger import WandbLogger
 import torch.multiprocessing as mp
+import torch.distributed as dist
 
 print("Done importing modules.")
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
 
 openPMDBuffer = Queue() ## Buffer shared between openPMD data loader and model
+
+
+gpu_boxes = 2
+number_of_particles = 100
+ps_dims = 6
+
+rad_dims = 512
+
+latent_space_dims = 1024
 
 class DummyOpenPMDProducer(Thread):
     def __init__(self, openPMDBuffer):
@@ -168,9 +178,17 @@ VAE_decoder_kwargs = {"z_dim":latent_space_dims,
                    "initial_conv3d_size":[16, 4, 4, 4],
                    "add_batch_normalisation":False,
                     "fc_layer_config":[1024]}
-def load_things():
+def load_things(rank):
+    torch.cuda.set_device(rank)
+    torch.cuda.empty_cache()
 
-    VAE = VAE(encoder = Encoder,
+    conv_AE_encoder_kwargs = {"ae_config":"simple",
+                    "z_dim":latent_space_dims,
+                    "input_dim":ps_dims,
+                    "conv_layer_config":[16, 32, 64, 128, 256, 512],
+                    "conv_add_bn": False}
+
+    VAE_obj = VAE(encoder = Encoder,
             encoder_kwargs = VAE_encoder_kwargs,
             decoder = Conv3DDecoder,
             z_dim=latent_space_dims,
@@ -179,14 +197,7 @@ def load_things():
             property_="momentum_force",
             particles_to_sample = number_of_particles,
             ae_config="non_deterministic",
-            use_encoding_in_decoder=False)
-
-
-    conv_AE_encoder_kwargs = {"ae_config":"simple",
-                    "z_dim":latent_space_dims,
-                    "input_dim":ps_dims,
-                    "conv_layer_config":[16, 32, 64, 128, 256, 512],
-                    "conv_add_bn": False}
+            use_encoding_in_decoder=False,device=rank)
 
     conv_AE_decoder_kwargs = {"z_dim":latent_space_dims,
                     "input_dim":ps_dims,
@@ -203,7 +214,7 @@ def load_things():
                             dim_input=config["dim_input"],
                             num_coupling_layers=config["num_coupling_layers"],
                             hidden_size=config["hidden_size"],
-                            device=device,
+                            device=rank,
                             num_blocks_mat = config["num_blocks_mat"],
                             activation = config["activation"]
                             )
@@ -224,19 +235,19 @@ def load_things():
                     hidden_size=config["hidden_size"],
                     activation=config["activation"],
                     num_coupling_layers=config["num_coupling_layers"],
-                    device = device)
+                    device = rank)
 
-    #model = ModelFinal(VAE, inner_model, EarthMoversLoss())
+    #model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
     #model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
-    model = ModelFinal(VAE, inner_model, EarthMoversLoss())
+    model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
 
 
     #Load a pre-trained model
     filepath = 'trained_models/{}/best_model_'
 
-    original_state_dict = torch.load(filepath.format(config["load_model"]))
-    updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
-    model.load_state_dict(updated_state_dict)
+    #original_state_dict = torch.load(filepath.format(config["load_model"],map_location="cpu"))
+    #updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+    #model.load_state_dict(updated_state_dict)
     print('Loaded pre-trained model successfully')
 
 
@@ -250,19 +261,17 @@ def load_things():
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
-
-    # initialize the process group
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def demo_basic(rank, world_size):
 
     setup(rank, world_size)
 
-    optimizer, scheduler, model = load_things()
+    optimizer, scheduler, model = load_things(rank)
 
     timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
     trainBF = TrainBatchBuffer(openPMDBuffer)
-    modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, logger = None)
+    modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
     ####################
     ## Start training ##
@@ -295,8 +304,9 @@ def run_demo(demo_fn, world_size):
              nprocs=world_size,
              join=True)
 
-
-n_gpus = torch.cuda.device_count()
-assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
-world_size = n_gpus
-run_demo(demo_basic, world_size)
+if __name__ == '__main__':
+    n_gpus = torch.cuda.device_count()
+    print(n_gpus)
+    assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
+    world_size = n_gpus
+    run_demo(demo_basic, world_size)
