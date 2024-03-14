@@ -16,7 +16,6 @@ from queue import Queue
 
 from ks_helperfuncs import *
 from ks_consumer_MAF_khi_radiation import *
-#from ks_models import *
 from ks_transform_policies import *
 from ks_producer_openPMD import *
 from ks_producer_openPMD_streaming import *
@@ -27,8 +26,6 @@ hyperparameter_defaults = dict(
 t0 = 500,
 t1 = 509, # endpoint=false, t1 is not used in training
 dim_input = 90000,
-timebatchsize = 1,
-particlebatchsize = 32,
 dim_condition = 2048,
 num_coupling_layers = 3,
 hidden_size = 64,
@@ -40,6 +37,7 @@ pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_rando
 pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
 #pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
 #pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
+number_particles_per_gpu = 1000,
 amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
 phase_space_variables = ["position", "momentum", "force"] # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
 )
@@ -47,11 +45,6 @@ phase_space_variables = ["position", "momentum", "force"] # allowed are "positio
 enable_wandb = False
 start_epoch = 0
 min_valid_loss = np.inf
-
-assert (hyperparameter_defaults["t1"] - hyperparameter_defaults["t0"])%hyperparameter_defaults["timebatchsize"] == 0, "t1-t0 must be devisible by timebatchsize"
-totalTimebatchNumber = int((hyperparameter_defaults["t1"] - hyperparameter_defaults["t0"])/hyperparameter_defaults["timebatchsize"])
-print("Number of timebatches per epoch =", totalTimebatchNumber)
-
 
 wandb_run = None
 
@@ -98,11 +91,7 @@ if enable_wandb:
 start_time = time.time()
 
 # create the shared buffer
-batchDataBuffer = Queue(maxsize=int(1.33*totalTimebatchNumber))
-
-# start the consumer
-#modelTrainer = MafModelTrainer(batchDataBuffer, totalTimebatchNumber, model, optimizer, scheduler, enable_wandb, wandb_run)
-#modelTrainer.start()
+batchDataBuffer = Queue(maxsize=int(1.33*(hyperparameter_defaults['t1']-hyperparameter_defaults['t0'])))
 
 class DummyTimebatchConsumer(Thread):
     """Dummy consumer task"""
@@ -141,7 +130,7 @@ dummyConsumer.start()
 
 
 # start the producer
-#timeBatchLoader = Loader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Normal offline data
+#timeBatchLoader = RandomLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Normal load offline data with random order of iterations
 timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 timeBatchLoader.start()
 
