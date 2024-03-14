@@ -64,8 +64,6 @@ class ModelTrainer(Thread):
 
             self.gpu_id = gpu_id
 
-            self.model.to(self.gpu_id)
-            self.model = DDP(self.model, device_ids=[self.gpu_id])
         else:
             self.gpu_id = device
 

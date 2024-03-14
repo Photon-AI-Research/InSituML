@@ -1,4 +1,4 @@
-import time
+#import time
 import os
 #from ks_transform_policies import *
 #from ks_producer_openPMD_streaming import *
@@ -17,6 +17,7 @@ import torch.nn as nn
 from utilities import MMD_multiscale, fit
 from ks_models import PC_MAF, INNModel
 
+from torch.nn.parallel import DistributedDataParallel as DDP
 from train_khi_AE_refactored.encoder_decoder import Encoder
 from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
 from train_khi_AE_refactored.loss_functions import EarthMoversLoss
@@ -27,7 +28,6 @@ import torch.distributed as dist
 
 print("Done importing modules.")
 
-device = torch.device('cpu')
 
 openPMDBuffer = Queue() ## Buffer shared between openPMD data loader and model
 
@@ -178,6 +178,8 @@ VAE_decoder_kwargs = {"z_dim":latent_space_dims,
                    "initial_conv3d_size":[16, 4, 4, 4],
                    "add_batch_normalisation":False,
                     "fc_layer_config":[1024]}
+filepath = 'trained_models/{}/best_model_'
+
 def load_things(rank):
     torch.cuda.set_device(rank)
     torch.cuda.empty_cache()
@@ -239,16 +241,15 @@ def load_things(rank):
 
     #model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
     #model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
-    model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
+    model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss()).to(rank)
+    model = DDP(model, device_ids=[rank])
 
 
     #Load a pre-trained model
-    filepath = 'trained_models/{}/best_model_'
-
-    #original_state_dict = torch.load(filepath.format(config["load_model"],map_location="cpu"))
-    #updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
-    #model.load_state_dict(updated_state_dict)
+    original_state_dict = torch.load(filepath.format(config["load_model"],map_location=f"cpu"))
     print('Loaded pre-trained model successfully')
+    updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+    model.load_state_dict(updated_state_dict)
 
 
     #model.to(device)
@@ -309,4 +310,6 @@ if __name__ == '__main__':
     print(n_gpus)
     assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
     world_size = n_gpus
+    #original_state_dict = torch.load(filepath.format(config["load_model"]))
+    #sleep(20)
     run_demo(demo_basic, world_size)
