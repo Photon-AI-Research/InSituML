@@ -1,7 +1,7 @@
 import time
 import os
-#from ks_transform_policies import *
-#from ks_producer_openPMD_streaming import *
+from ks_transform_policies import *
+from ks_producer_openPMD_streaming import *
 
 from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
@@ -265,8 +265,16 @@ def setup(rank, world_size):
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def demo_basic(rank, world_size):
+    
+    os.environ['OMP_NUM_THREADS'] = 1
 
-    setup(rank, world_size)
+    dist.init_process_group("nccl")
+    rank = dist.get_rank()
+    print(f"Start running basic DDP example on rank {rank}.")
+    # create model and move it to GPU with id rank
+    rank = rank % torch.cuda.device_count()
+    
+    #setup(rank, world_size)
 
     optimizer, scheduler, model = load_things(rank)
 
@@ -306,8 +314,13 @@ def run_demo(demo_fn, world_size):
              join=True)
 
 if __name__ == '__main__':
-    n_gpus = torch.cuda.device_count()
-    print(n_gpus)
-    assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
-    world_size = n_gpus
-    run_demo(demo_basic, world_size)
+    
+    #using mpi_run/ comment below to disable
+    
+    #n_gpus = torch.cuda.device_count()
+    #print(n_gpus)
+    #assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
+    #world_size = n_gpus
+    #run_demo(demo_basic, world_size)
+    
+    demo_basic()

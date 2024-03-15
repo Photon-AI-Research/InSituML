@@ -14,6 +14,7 @@ from time import sleep
 from random import random
 from queue import Queue
 
+import os
 from torch import optim
 import torch.nn as nn
 
@@ -25,6 +26,8 @@ from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
 from train_khi_AE_refactored.loss_functions import EarthMoversLoss
 from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
 from wandb_logger import WandbLogger
+import torch.multiprocessing as mp
+import torch.distributed as dist
 
 print("Done importing modules.")
 
@@ -73,7 +76,6 @@ particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle 
 radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
 #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
-timeBatchLoader = StreamLoader(openPMDBuffer, streamLoader_config, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 
 
 #########################
@@ -275,8 +277,8 @@ def demo_basic(rank, world_size):
     setup(rank, world_size)
 
     optimizer, scheduler, model = load_things(rank)
-
-    timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
+    
+    timeBatchLoader = StreamLoader(openPMDBuffer, streamLoader_config, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
     trainBF = TrainBatchBuffer(openPMDBuffer)
     modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
