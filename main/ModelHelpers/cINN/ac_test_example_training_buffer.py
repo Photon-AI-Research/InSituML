@@ -278,8 +278,14 @@ def setup(rank, world_size):
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def demo_basic(rank, world_size):
-
-    setup(rank, world_size)
+    
+    dist.init_process_group("nccl")
+    rank = dist.get_rank()
+    
+    print(f"Start running basic DDP example on rank {rank}.")
+    device_id = rank % torch.cuda.device_count()
+    
+    #setup(rank, world_size)
 
     optimizer, scheduler, model = load_things(rank)
 
@@ -312,11 +318,11 @@ def demo_basic(rank, world_size):
     elapsed_time = end_time - start_time
     print(f"Total elapsed time: {elapsed_time:.6f} seconds")
 
-def run_demo(demo_fn, world_size):
-    mp.spawn(demo_fn,
-             args=(world_size,),
-             nprocs=world_size,
-             join=True)
+# def run_demo(demo_fn, world_size):
+#     mp.spawn(demo_fn,
+#              args=(world_size,),
+#              nprocs=world_size,
+#              join=True)
 
 if __name__ == '__main__':
     n_gpus = torch.cuda.device_count()
