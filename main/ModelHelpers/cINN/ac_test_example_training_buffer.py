@@ -180,6 +180,15 @@ VAE_decoder_kwargs = {"z_dim":latent_space_dims,
                     "fc_layer_config":[1024]}
 filepath = 'trained_models/{}/best_model_'
 
+def try_loading():
+    try:
+        original_state_dict = torch.load(filepath.format(config["load_model"],
+                                                         map_location=f"cpu"))
+        return original_state_dict
+    except:
+        sleep(20)
+        return False
+    
 def load_things(rank):
     torch.cuda.set_device(rank)
     torch.cuda.empty_cache()
@@ -246,7 +255,11 @@ def load_things(rank):
 
 
     #Load a pre-trained model
-    original_state_dict = torch.load(filepath.format(config["load_model"],map_location=f"cpu"))
+    original_state_dict = False
+    while original_state_dict is False:
+        print("trying to load")
+        original_state_dict = try_loading()
+        
     print('Loaded pre-trained model successfully')
     updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
     model.load_state_dict(updated_state_dict)
