@@ -92,7 +92,7 @@ class AbsoluteSquare:
         r = torch_stack([(torch_abs(distributed_amplitudes[:, i_c, :]).to(torch_float32))**2 for i_c in range(distributed_amplitudes.shape[1])], dim=0)
         r = torch_sum(r, dim=0)
         #log transformation
-        r = torch_log(r+1)
+        r = torch_log(r+1.e-9)
         return r
 
 
