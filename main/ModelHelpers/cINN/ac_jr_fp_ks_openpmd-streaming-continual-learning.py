@@ -77,7 +77,6 @@ radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of 
 #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
 
-
 #########################
 ## Model configuration ##
 #########################
@@ -186,7 +185,8 @@ VAE_decoder_kwargs = {"z_dim":latent_space_dims,
                    "initial_conv3d_size":[16, 4, 4, 4],
                    "add_batch_normalisation":False,
                     "fc_layer_config":[1024]}
-def load_things(rank):
+def load_objects(rank):
+    
     torch.cuda.set_device(rank)
     torch.cuda.empty_cache()
 
@@ -260,7 +260,6 @@ def load_things(rank):
     model.load_state_dict(updated_state_dict)
     print('Loaded pre-trained model successfully')
 
-    #model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=config["lr"])
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
 
@@ -272,13 +271,23 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def demo_basic(rank, world_size):
-
-    setup(rank, world_size)
-
-    optimizer, scheduler, model = load_things(rank)
+def run_copies(rank, world_size, torchrun=False):
     
-    timeBatchLoader = StreamLoader(openPMDBuffer, streamLoader_config, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+    if torchrun=True:
+        dist.init_process_group("nccl")
+        rank = dist.get_rank()
+        print(f"Start running basic DDP example on rank {rank}.")
+        # create model and move it to GPU with id rank
+        rank = rank % torch.cuda.device_count()
+    else:
+        setup(rank, world_size)
+
+    optimizer, scheduler, model = load_objects(rank)
+    
+    timeBatchLoader = StreamLoader(openPMDBuffer, 
+                                   streamLoader_config,
+                                   particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+    
     trainBF = TrainBatchBuffer(openPMDBuffer)
     modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
@@ -314,8 +323,11 @@ def run_demo(demo_fn, world_size):
              join=True)
 
 if __name__ == '__main__':
-    n_gpus = torch.cuda.device_count()
-    print(n_gpus)
-    assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
-    world_size = n_gpus
-    run_demo(demo_basic, world_size)
+    
+    if sys.argv[1]!='torchrun':
+        n_gpus = torch.cuda.device_count()
+        assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
+        world_size = n_gpus
+        run_demo(run_copies, world_size)
+    else:
+        run_copies(torchrun=True)
