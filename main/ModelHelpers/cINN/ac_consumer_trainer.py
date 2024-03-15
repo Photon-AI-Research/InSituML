@@ -93,7 +93,7 @@ class ModelTrainer(Thread):
             radiation = radiation.to(self.gpu_id)
 
             # only logging from of the master process
-            if self.gpu_id == 0 and self.batch_passes != 0:
+            if self.batch_passes != 0:
                 
                 # print loss terms
                 loss_message_parts = [f'batch_index: {self.batch_passes-1} | loss_avg: {loss_avg.item():.4f}']
@@ -140,5 +140,5 @@ class ModelTrainer(Thread):
                         f"Training step:{rest_training_left_counter} after the streaming has stopped.")
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
-                    if self.multigpu_run is not None: dist.destroy_process_group()
+                    if self.gpu_id is not None: dist.destroy_process_group()
                     break

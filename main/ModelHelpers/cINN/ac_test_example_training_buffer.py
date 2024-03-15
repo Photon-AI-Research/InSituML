@@ -245,9 +245,10 @@ def load_things(rank):
     #Load a pre-trained model
     filepath = 'trained_models/{}/best_model_'
 
-    #original_state_dict = torch.load(filepath.format(config["load_model"],map_location="cpu"))
-    #updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
-    #model.load_state_dict(updated_state_dict)
+    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+    original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=map_location)
+    updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+    model.load_state_dict(updated_state_dict)
     print('Loaded pre-trained model successfully')
 
 
