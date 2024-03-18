@@ -22,6 +22,13 @@ from ks_producer_openPMD_streaming import *
 
 print("Done importing modules.")
 
+normalization_values = dict(
+    momentum_mean = 0.,
+    momentum_std = 1.,
+    force_mean = 0.,
+    force_std = 1.,
+)
+
 hyperparameter_defaults = dict(
 t0 = 500,
 t1 = 509, # endpoint=false, t1 is not used in training
@@ -37,9 +44,10 @@ pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_rando
 pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
 #pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
 #pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
-number_particles_per_gpu = 1000,
 amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
-phase_space_variables = ["position", "momentum", "force"] # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+phase_space_variables = ["position", "momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+normalization = normalization_values,
+number_particles_per_gpu = 1000,
 )
 
 enable_wandb = False
@@ -130,8 +138,8 @@ dummyConsumer.start()
 
 
 # start the producer
-#timeBatchLoader = RandomLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Normal load offline data with random order of iterations
-timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+timeBatchLoader = RandomLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Normal load offline data with random order of iterations
+#timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 timeBatchLoader.start()
 
 #modelTrainer.join()

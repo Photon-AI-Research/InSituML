@@ -14,8 +14,7 @@ from torch import complex64 as torch_complex64
 from torch import empty as torch_empty
 from torch import zeros as torch_zeros
 from torch import transpose as torch_transpose
-from torch import angle as torch_angle
-from torch import abs as torch_abs
+from torch import stack as torch_stack
 
 import openpmd_api as opmd
 
@@ -45,9 +44,9 @@ class RandomLoader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-        self.particlePathpattern = hyperParameterDefaults["pathpattern1"],
+        self.particlePathpattern = hyperParameterDefaults["pathpattern1"]
 #        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
-        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"],
+        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"]
 #        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
         self.t0 = hyperParameterDefaults["t0"]
         self.t1 = hyperParameterDefaults["t1"] # endpoint=false, t1 is not loaded from disk
@@ -56,6 +55,7 @@ class RandomLoader(Thread):
         self.radiationTransformPolicy = radiationDataTransformationPolicy
         self.particlePerGPU = hyperParameterDefaults['number_particles_per_gpu']
         self.amplitude_direction = hyperParameterDefaults['amplitude_direction']
+        self.normalization = hyperParameterDefaults["normalization"]
         
         self.rng = np.random.default_rng()
 
@@ -78,6 +78,7 @@ class RandomLoader(Thread):
         from sys import stdout
         # Open openPMD particle and radiation series
         series = opmd.Series(self.particlePathpattern, opmd.Access.read_only)
+
         radiationSeries = opmd.Series(self.radiationPathPattern, opmd.Access.read_only)
 
         # start reading data
@@ -106,10 +107,9 @@ class RandomLoader(Thread):
                 # In case numParticlesPerGpu < particlePerGpuForTraining, rng.choice() will throw a ValueError and stop.
                 # In streaming setups, we should catch this error and have a mitigation strategy in order to be able to continue.
                 randomParticlesPerGPU = np.array([ self.rng.choice(numParticles[i], self.particlePerGPU, replace=False) for i in np.arange(len(numParticles))])
+                randomParticles = np.array([ randomParticlesPerGPU[i] + numParticlesOffsets[i] for i in np.arange(len(numParticles))])
 
                 local_region = {"offset": [numParticlesOffsets[0]], "extent": [totalParticles]}
-
-                numParticlesOffsets = np.concatenate((numParticlesOffsets, [-1]), dtype=np.int64) # append to use array for indexing
 
                 # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
                 loaded_particles = torch_empty((len(self.reqPhaseSpaceVars)*3, len(numParticles), self.particlePerGPU), dtype=torch_float32)
@@ -119,6 +119,11 @@ class RandomLoader(Thread):
                        Also, reduce to requested number particles per GPU.
                     """
                     writing_index = 0
+                    
+                    gpuBoxExtent = ps.particle_patches["extent"][component].load()
+                    gpuBoxOffset = ps.particle_patches["offset"][component].load()
+                    series.flush()
+
                     if "position" in self.reqPhaseSpaceVars:
                         pos = ps["position"][component].load_chunk(local_region["offset"], local_region["extent"])
                         posOffset = ps["positionOffset"][component].load_chunk(local_region["offset"], local_region["extent"])
@@ -127,32 +132,53 @@ class RandomLoader(Thread):
                         del pos
                         del posOffset
                         loaded_particles[writing_index+i_c] = torch_stack([
-                            torch_from_numpy(p[r]) for r, p in zip(randomParticlesPerGPU, position)
+                            torch_from_numpy(position[r]) for r in randomParticles
                         ])
                         del position
+
+                        ## Normalize Positions
+                        ## TODO: The local box min and max values used for normalization,
+                        ## need to be stored somewhere, in order to be able to be able to
+                        ## denormalize during inference if position is used in training.
+                        for particleBoxIndex in np.arange(len(numParticles)):
+                            posMin = gpuBoxOffset[particleBoxIndex]
+                            posMax = posMin + gpuBoxExtent[particleBoxIndex]
+                            loaded_particles[writing_index+i_c, particleBoxIndex] = (loaded_particles[writing_index+i_c, particleBoxIndex] - posMin) / (posMax - posMin)
                         writing_index +=3
 
                     if "momentum" in self.reqPhaseSpaceVars or "force" in self.reqPhaseSpaceVars:
                         momentum = ps["momentum"][component].load_chunk(local_region["offset"], local_region["extent"])
                         series.flush()
                         loaded_particles[writing_index+i_c] = torch_stack([
-                            torch_from_numpy(m[r]) for r, m in zip(randomParticlesPerGPU, momentum)
+                            torch_from_numpy(momentum[r]) for r in randomParticles
                         ])
                         del momentum
+                        
+                        for particleBoxIndex in np.arange(len(numParticles)):
+                            loaded_particles[writing_index+i_c, particleBoxIndex] = \
+                                (loaded_particles[writing_index+i_c, particleBoxIndex] - self.normalization["momentum_mean"]) \
+                                / self.normalization["momentum_std"]
+
                         writing_index +=3
 
                     if "force" in self.reqPhaseSpaceVars:
                         momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
                         series.flush()
                         momPrev1_reduced = torch_stack([
-                            torch_from_numpy(m[r]) for r, m in zip(randomParticlesPerGPU, momentumPrev1)
+                            torch_from_numpy(momentumPrev1[r]) for r in randomParticles
                         ])
-                        loaded_particles[writing_index+i_c] = loaded_particles[writing_index-3+i_c] - momPrev1_reduced # force
+                        loaded_particles[writing_index+i_c] = loaded_particles[writing_index-3+i_c] - momPrev1_reduced # force = momentum - momentumPrev1
                         del momPrev1_reduced
+
+                        ## Normalize force
+                        for particleBoxIndex in np.arange(len(numParticles)):
+                            loaded_particles[writing_index+i_c, particleBoxIndex] = \
+                                (loaded_particles[writing_index+i_c, particleBoxIndex] - self.normalization["force_mean"]) \
+                                / self.normalization["force_std"]
 
 #                iteration.close() # It is currently not possible to reopen an iteration in openPMD
                 
-                if self.transformPolicy is not None:
+                if self.particleTransformPolicy is not None:
                     loaded_particles = self.particleTransformPolicy(loaded_particles)
 
 
@@ -170,10 +196,6 @@ class RandomLoader(Thread):
                 distributed_amplitudes = torch_empty((3, len(r_offset), len(DetectorFrequency)), dtype=torch_complex64) # shape: (components, GPUs, frequencies)
 
                 for i_c, component in enumerate(["x", "y", "z"]):
-                    gpuBoxExtent = ps.particle_patches["extent"][component].load()
-                    gpuBoxOffset = ps.particle_patches["offset"][component].load()
-                    series.flush()
-
                     Dist_Amplitude = radIter.meshes["Amplitude_distributed"][component].load_chunk() # shape: (GPUs, directions, frequencies)
                     # MAGIC: only look along one direction
                     DetectorDirection = radIter.meshes["DetectorDirection"][component][:, 0, 0] # shape: (x directions)
