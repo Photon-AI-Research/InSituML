@@ -1,7 +1,7 @@
 import time
 import os
-from ks_transform_policies import *
-from ks_producer_openPMD_streaming import *
+#from ks_transform_policies import *
+#from ks_producer_openPMD_streaming import *
 
 from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
@@ -25,6 +25,7 @@ from wandb_logger import WandbLogger
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import sys
+sys.settrace
 
 device = torch.device('cpu')
 
@@ -53,7 +54,7 @@ class DummyOpenPMDProducer(Thread):
             loaded_particles = torch.rand(gpu_boxes, ps_dims, number_of_particles)
             radiation = torch.rand(gpu_boxes, rad_dims)
             # block, to simulate effort
-            sleep(i)
+            sleep(2)
             # create a tuple
             item = [loaded_particles, radiation]
             # add to the queue
@@ -263,9 +264,9 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def run_copies(rank, world_size, torchrun=False):
+def run_copies(rank=None, world_size=None, torchrun=False):
     
-    if torchrun=True:
+    if torchrun==True:
         dist.init_process_group("nccl")
         rank = dist.get_rank()
         print(f"Start running basic DDP example on rank {rank}.")
@@ -292,18 +293,18 @@ def run_copies(rank, world_size, torchrun=False):
 
     modelTrainer.join()
     print("Join model trainer")
-    stdout.flush()
 
     trainBF.join()
     print("Join continual learning buffer")
-    stdout.flush()
     timeBatchLoader.join()
     print("Join openPMD data loader")
-    stdout.flush()
 
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Total elapsed time: {elapsed_time:.6f} seconds")
+    if torchrun==True:
+       dist.destroy_process_group()
+    #exit(0)
 
 def run_demo(demo_fn, world_size):
     mp.spawn(demo_fn,
@@ -313,7 +314,7 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if sys.argv[1]!='torchrun':
+    if len(sys.argv)==1 or sys.argv[1] != 'torchrun':
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
