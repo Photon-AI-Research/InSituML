@@ -42,8 +42,8 @@ class ModelTrainer(Thread):
                  optimizer,
                  scheduler,
                  gpu_id=None,
-                 sleep_before_retry=10,
-                 ts_after_stopped_production=10,
+                 sleep_before_retry=2,
+                 ts_after_stopped_production=0,
                  logger=None):
         
         Thread.__init__(self)
@@ -140,5 +140,4 @@ class ModelTrainer(Thread):
                         f"Training step:{rest_training_left_counter} after the streaming has stopped.")
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
-                    if self.gpu_id is not None: dist.destroy_process_group()
                     break

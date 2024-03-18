@@ -14,6 +14,7 @@ from time import sleep
 from random import random
 from queue import Queue
 
+import sys
 import os
 from torch import optim
 import torch.nn as nn
@@ -258,9 +259,9 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def run_copies(rank, world_size, torchrun=False):
+def run_copies(rank=None, world_size=None, torchrun=False):
     
-    if torchrun=True:
+    if torchrun==True:
         dist.init_process_group("nccl")
         rank = dist.get_rank()
         print(f"Start running basic DDP example on rank {rank}.")
@@ -311,7 +312,7 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if sys.argv[1]!='torchrun':
+    if len(sys.argv)==1 or sys.argv[1]!='torchrun':
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
