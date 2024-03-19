@@ -14,6 +14,12 @@ In order to train the model do:
    hemera: `/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/`
 
 4. run training in an interactive job by continual learning with stream loader (on single gpu):
-   frontier: `srun -n 1 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py`
+
+   frontier:
+   ```bash
+   $ cd /lustre/orion/csc380/proj-shared/ksteinig/2024-03_Training-from-Stream/job_temp
+   $ export MIOPEN_USER_DB_PATH="$(pwd)"; export MIOPEN_DISABLE_CACHE=1
+   $ srun -n 1 python ~/src/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py
+   ```
    hemera: `mpirun -n 1 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py`
 
