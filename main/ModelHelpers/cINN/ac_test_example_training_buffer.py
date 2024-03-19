@@ -25,7 +25,7 @@ from wandb_logger import WandbLogger
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import sys
-sys.settrace
+
 
 device = torch.device('cpu')
 
@@ -264,14 +264,21 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def run_copies(rank=None, world_size=None, torchrun=False):
+def run_copies(rank=None, world_size=None, runner="slurm"):
     
-    if torchrun==True:
+    if runner=="torchrun":
         dist.init_process_group("nccl")
         rank = dist.get_rank()
         print(f"Start running basic DDP example on rank {rank}.")
         # create model and move it to GPU with id rank
         rank = rank % torch.cuda.device_count()
+
+    elif runner=="slurm":
+        world_size = int(os.environ["WORLD_SIZE"])
+        local_rank = int(os.environ['SLURM_PROCID'])
+
+        rank = local_rank % torch.cuda.device_count()
+        dist.init_process_group("nccl", world_size=world_size, rank=local_rank)
     else:
         setup(rank, world_size)
 
@@ -304,7 +311,6 @@ def run_copies(rank=None, world_size=None, torchrun=False):
     print(f"Total elapsed time: {elapsed_time:.6f} seconds")
     if torchrun==True:
        dist.destroy_process_group()
-    #exit(0)
 
 def run_demo(demo_fn, world_size):
     mp.spawn(demo_fn,
@@ -314,10 +320,10 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if len(sys.argv)==1 or sys.argv[1] != 'torchrun':
+    if len(sys.argv)==1 or sys.argv[1] not in ['torchrun', 'slurm']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
         run_demo(run_copies, world_size)
     else:
-        run_copies(torchrun=True)
+        run_copies(runner=sys.argv[1])
