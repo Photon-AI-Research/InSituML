@@ -325,10 +325,11 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if len(sys.argv)==1 or sys.argv[1]!='torchrun':
+    if len(sys.argv)==1 or sys.argv[1] not in ['torchrun', 'mpirun']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
         run_demo(run_copies, world_size)
     else:
-        run_copies(torchrun=True)
+        run_copies(runner=sys.argv[1])
+
