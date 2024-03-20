@@ -273,12 +273,14 @@ def run_copies(rank=None, world_size=None, runner=None):
         # create model and move it to GPU with id rank
         rank = rank % torch.cuda.device_count()
 
-    elif runner=="slurm":
+    elif runner=="mpirun":
         world_size = int(os.environ["WORLD_SIZE"])
-        local_rank = int(os.environ['SLURM_PROCID'])
         
-        rank = local_rank % torch.cuda.device_count()
-        dist.init_process_group(backend='nccl',world_size=world_size, rank=local_rank)
+        rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
+        
+        global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
+
+        dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
         print(f'Initiated DDP GPU {rank}', flush=True)
     else:
         setup(rank, world_size)
@@ -310,7 +312,7 @@ def run_copies(rank=None, world_size=None, runner=None):
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Total elapsed time: {elapsed_time:.6f} seconds")
-    if torchrun==True:
+    if runner is not None:
        dist.destroy_process_group()
 
 def run_demo(demo_fn, world_size):
@@ -321,7 +323,7 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if len(sys.argv)==1 or sys.argv[1] not in ['torchrun', 'slurm']:
+    if len(sys.argv)==1 or sys.argv[1] not in ['torchrun', 'mpirun']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
