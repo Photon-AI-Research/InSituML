@@ -264,7 +264,7 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def run_copies(rank=None, world_size=None, runner="slurm"):
+def run_copies(rank=None, world_size=None, runner=None):
     
     if runner=="torchrun":
         dist.init_process_group("nccl")
@@ -276,9 +276,10 @@ def run_copies(rank=None, world_size=None, runner="slurm"):
     elif runner=="slurm":
         world_size = int(os.environ["WORLD_SIZE"])
         local_rank = int(os.environ['SLURM_PROCID'])
-
+        
         rank = local_rank % torch.cuda.device_count()
-        dist.init_process_group("nccl", world_size=world_size, rank=local_rank)
+        dist.init_process_group(backend='nccl',world_size=world_size, rank=local_rank)
+        print(f'Initiated DDP GPU {rank}', flush=True)
     else:
         setup(rank, world_size)
 
