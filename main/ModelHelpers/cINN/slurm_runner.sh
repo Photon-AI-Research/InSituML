@@ -22,4 +22,5 @@ echo "MASTER_ADDR="$MASTER_ADDR
 bash load_pmd_env.sh
 #source /home/checkr99/.new_env3.10/bin/activate
 
-mpirun -n 2 python ac_test_example_training_buffer.py mpirun
+#mpirun -n 2 python ac_test_example_training_buffer.py mpirun
+mpirun -n 2 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py mpirun
