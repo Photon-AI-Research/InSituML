@@ -199,7 +199,14 @@ class StreamLoader(Thread):
         self.radiationTransformPolicy = radiationDataTransformationPolicy
         self.comm = MPI.COMM_WORLD
         self.hyperParameterDefaults = hyperParameterDefaults
-
+        if hyperParameterDefaults["streaming_config"] is not None:
+            self.streamingConfig = hyperParameterDefaults["streaming_config"]
+        else
+            self.streamingConfig = """
+                defer_iteration_parsing = true
+                [adios2.engine.parameters]
+                OpenTimeoutSecs = 300
+            """
         self.reqPhaseSpaceVars = hyperParameterDefaults["phase_space_variables"]
         ## check input validity
         allowedVars = ["position", "momentum", "force"]
@@ -217,23 +224,18 @@ class StreamLoader(Thread):
     def run(self):
         """Function being executed when thread is started."""
         # Open openPMD particle and radiation series
-        openpmd_stream_config = """
-            defer_iteration_parsing = true
-            [adios2.engine.parameters]
-            OpenTimeoutSecs = 300
-        """
 
         # Open openPMD particle and radiation series
         series = opmd.Series(
             self.particlePathPattern,
             opmd.Access.read_linear,
             self.comm,
-            openpmd_stream_config)
+            self.streamingConfig)
         radiationSeries = opmd.Series(
             self.radiationPathPattern,
             opmd.Access.read_linear,
             self.comm,
-            openpmd_stream_config)
+            self.streamingConfig)
 
         # The streams wait until a reader connects.
         # To avoid deadlocks, we need to open both concurrently

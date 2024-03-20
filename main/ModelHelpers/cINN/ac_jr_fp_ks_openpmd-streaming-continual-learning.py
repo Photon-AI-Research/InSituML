@@ -48,11 +48,16 @@ normalization_values = dict(
     force_std = 1.,
 )
 
+
+
 streamLoader_config = dict(
-    t0 = 500,
-    t1 = 509, # endpoint=false, t1 is not used in training
-    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp", # files on frontier
-    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
+    t0 = 890,
+    t1 = 900, # endpoint=false, t1 is not used in training
+    pathpattern1 = "openPMD/simData.sst", # streaming on frontier
+    pathpattern2 = "radiationOpenPMD/e_radAmplitudes.sst", # streaming on frontier
+    streaming_config = "@inconfig.json", # set to None when reading from file
+    #pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp", # files on frontier
+    #pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
     # pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
     # pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
