@@ -2,8 +2,7 @@
 Loader for *streamed* PIConGPU openPMD particle and radiation data to be used for insitu machine learning model training.
 The data is put in a buffer provided during construction of the producer class.
 The buffer is expected to be fillable by a `put()` method.
-TODO: Furthermore, a policy is taken which describes the data structure that needs to be put in the buffer.
-This policy actually performs the required transformation on the data, if required.
+A policy taken as an input parameter actually performs the required transformation on the data, if required.
 For example, it performs data normalization and layouts the data as requested for the training.
 
 !!!!!!!
@@ -387,15 +386,21 @@ class StreamLoader(Thread):
                 if "position" in self.reqPhaseSpaceVars:
                     position = [component_buffers.position[j] + component_buffers.positionOffset[j] \
                         for j in range(num_processed_chunks_per_rank)]
-                    # TODO: Normalize positions on per GPU basis!
-                    ## TODO: need to scale and normalize these values
-                    ## Is it required to normalize positions and other phase space componentes? YES, need to do this!
                     del component_buffers.position
                     del component_buffers.positionOffset
                     loaded_particles[writing_index+i_c] = torch_stack([
                         torch_from_numpy(p[r]) for r, p in zip(randomParticlesPerGPU, position)
                     ])
                     del position
+
+                    ## Normalize Positions
+                    ## TODO: The local box min and max values used for normalization,
+                    ## need to be stored somewhere, in order to be able to be able to
+                    ## denormalize during inference if position is used in training.
+                    for particleBoxIndex in range(len(loaded_particles[writing_index+i_c])):
+                        posMin = gpuBoxOffset[component][particleBoxIndex]
+                        posMax = posMin + gpuBoxExtent[component][particleBoxIndex]
+                        loaded_particles[writing_index+i_c, particleBoxIndex] = (loaded_particles[writing_index+i_c, particleBoxIndex] - posMin) / (posMax - posMin)
                     writing_index +=3
 
                 if "momentum" in self.reqPhaseSpaceVars or "force" in self.reqPhaseSpaceVars:
@@ -403,6 +408,11 @@ class StreamLoader(Thread):
                         torch_from_numpy(m[r]) for r, m in zip(randomParticlesPerGPU, component_buffers.momentum)
                     ])
                     del component_buffers.momentum
+                    ## Normalize momentum
+                    for particleBoxIndex in range(len(loaded_particles[writing_index+i_c])):
+                        loaded_particles[writing_index+i_c, particleBoxIndex] = \
+                            (loaded_particles[writing_index+i_c, particleBoxIndex] - self.hyperParameterDefaults["normalization"]["momentum_mean"]) \
+                            / self.hyperParameterDefaults["normalization"]["momentum_std"]
                     writing_index +=3
 
                 if "force" in self.reqPhaseSpaceVars:
@@ -412,6 +422,12 @@ class StreamLoader(Thread):
                     del component_buffers.momentumPrev1
                     loaded_particles[writing_index+i_c] = loaded_particles[writing_index-3+i_c] - momPrev1_reduced # force
                     del momPrev1_reduced
+                    ## Normalize force
+                    for particleBoxIndex in range(len(loaded_particles[writing_index+i_c])):
+                        loaded_particles[writing_index+i_c, particleBoxIndex] = \
+                            (loaded_particles[writing_index+i_c, particleBoxIndex] - self.hyperParameterDefaults["normalization"]["force_mean"]) \
+                            / self.hyperParameterDefaults["normalization"]["force_std"]
+
 
                 del component_buffers
                 del loaded_buffers[component]
