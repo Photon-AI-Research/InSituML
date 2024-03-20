@@ -31,6 +31,24 @@ from ks_helperfuncs import *
 
 from sys import stdout
 
+class EveryoneGetsData(opmd.Strategy):
+
+    def __init__(self, inner_strategy):
+        super().__init__()
+        self.inner_strategy = inner_strategy
+
+    def assign(self, assignment, inranks, outranks):
+        res = self.inner_strategy.assign(assignment, inranks, outranks)
+        base_assignment = [chunks for _, chunks in res.items() if chunks]
+        cur_index = 0
+        max_index = len(base_assignment)
+        for rank in outranks:
+            if rank not in res or not res[rank]:
+                res[rank] = base_assignment[cur_index]
+                cur_index += 1
+                cur_index %= max_index
+        return res
+
 def distribution_strategy(dataset_extent,
                           mpi_rank,
                           mpi_size,
@@ -58,7 +76,7 @@ def distribution_strategy(dataset_extent,
     elif strategy_identifier == 'roundrobin':
         return opmd.RoundRobin()
     elif strategy_identifier == 'roundrobinofsourceranks':
-        return opmd.RoundRobinOfSourceRanks()
+        return EveryoneGetsData(opmd.RoundRobinOfSourceRanks())
     elif strategy_identifier == 'binpacking':
         return opmd.BinPacking()
     elif strategy_identifier == 'slicedataset':
@@ -136,7 +154,9 @@ class SelectAccordingToChunkDistribution(opmd.Strategy):
         self.source_to_target = dict()
         for target, chunks in electrons_chunk_distribution.items():
             for chunk in chunks:
-                self.source_to_target[chunk.source_id] = target
+                if chunk.source_id not in self.source_to_target:
+                    self.source_to_target[chunk.source_id] = []
+                self.source_to_target[chunk.source_id].append(target)
 
     def assign(self, chunks, *_):
         res = opmd.Assignment()
@@ -144,10 +164,11 @@ class SelectAccordingToChunkDistribution(opmd.Strategy):
             # We could theoretically ignore the chunk if the target rank
             # is different from the current rank, but it's not a huge overhead
             # and it makes debugging simpler.
-            target_rank = self.source_to_target[unassigned_chunk.source_id]
-            if target_rank not in res:
-                res[target_rank] = opmd.ChunkTable()
-            res[target_rank].append(unassigned_chunk)
+            target_ranks = self.source_to_target[unassigned_chunk.source_id]
+            for target_rank in target_ranks:
+                if target_rank not in res:
+                    res[target_rank] = opmd.ChunkTable()
+                res[target_rank].append(unassigned_chunk)
         return res
 
 class StreamLoader(Thread):
