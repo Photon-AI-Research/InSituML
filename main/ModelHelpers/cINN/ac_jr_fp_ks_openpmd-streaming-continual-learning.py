@@ -259,23 +259,33 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def run_copies(rank=None, world_size=None, torchrun=False):
+def run_copies(rank=None, world_size=None, runner=None):
     
-    if torchrun==True:
+    if runner=="torchrun":
         dist.init_process_group("nccl")
         rank = dist.get_rank()
         print(f"Start running basic DDP example on rank {rank}.")
         # create model and move it to GPU with id rank
         rank = rank % torch.cuda.device_count()
+
+    elif runner=="mpirun":
+        world_size = int(os.environ["WORLD_SIZE"])
+        
+        rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
+        
+        global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
+
+        dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
+        print(f'Initiated DDP GPU {rank}', flush=True)
     else:
         setup(rank, world_size)
 
     optimizer, scheduler, model = load_objects(rank)
-    
+
     timeBatchLoader = StreamLoader(openPMDBuffer, 
                                    streamLoader_config,
                                    particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
-    
+
     trainBF = TrainBatchBuffer(openPMDBuffer)
     modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
