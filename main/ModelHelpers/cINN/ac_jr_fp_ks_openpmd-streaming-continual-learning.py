@@ -51,10 +51,10 @@ normalization_values = dict(
 streamLoader_config = dict(
     t0 = 500,
     t1 = 509, # endpoint=false, t1 is not used in training
-    # pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp", # files on frontier
-    # pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
-   pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
-   pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
+    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp", # files on frontier
+    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
+    # pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
+    # pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
     normalization = normalization_values,
@@ -242,7 +242,7 @@ model = ModelFinal(VAE, inner_model, EarthMoversLoss())
 
 
 #Load a pre-trained model
-filepath = 'trained_models/{}/best_model_'
+filepath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
 
 original_state_dict = torch.load(filepath.format(config["load_model"]))
 updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
@@ -254,10 +254,10 @@ model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=config["lr"])
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
 
-wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
+#wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
 
 trainBF = TrainBatchBuffer(openPMDBuffer)
-modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, logger = wandb_logger)
+modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, logger = None)
 
 ####################
 ## Start training ##
