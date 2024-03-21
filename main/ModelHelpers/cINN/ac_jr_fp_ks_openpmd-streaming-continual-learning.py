@@ -29,6 +29,8 @@ from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
 from wandb_logger import WandbLogger
 import torch.multiprocessing as mp
 import torch.distributed as dist
+import argparse
+from dummy_openpmd_producer import DummyOpenPMDProducer
 
 print("Done importing modules.")
 
@@ -259,23 +261,36 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def run_copies(rank=None, world_size=None, torchrun=False):
+def run_copies(rank=None, world_size=None, runner=None):
     
-    if torchrun==True:
+    if runner=="torchrun":
         dist.init_process_group("nccl")
         rank = dist.get_rank()
         print(f"Start running basic DDP example on rank {rank}.")
         # create model and move it to GPU with id rank
         rank = rank % torch.cuda.device_count()
+
+    elif runner=="mpirun":
+        world_size = int(os.environ["WORLD_SIZE"])
+        
+        rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
+        
+        global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
+
+        dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
+        print(f'Initiated DDP GPU {rank}', flush=True)
     else:
         setup(rank, world_size)
 
     optimizer, scheduler, model = load_objects(rank)
     
-    timeBatchLoader = StreamLoader(openPMDBuffer, 
-                                   streamLoader_config,
-                                   particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
-    
+    if args.type_streamer != 'dummy':
+        timeBatchLoader = StreamLoader(openPMDBuffer, 
+                                       streamLoader_config,
+                                       particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+    else:
+        timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
+        
     trainBF = TrainBatchBuffer(openPMDBuffer)
     modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
@@ -312,10 +327,27 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if len(sys.argv)==1 or sys.argv[1]!='torchrun':
+    parser = argparse.ArgumentParser(
+        description="""For running openPMDproduction based trainings."""
+    )
+
+    parser.add_argument('--runner',
+                    type=str,
+                    default='mpirun',
+                    help="Which runner to use")
+
+    parser.add_argument('--type_streamer',
+                    type=str,
+                    default='real',
+                    help="Which type of streamer to produce, dummy or real")
+    
+    args = parser.parse_args()
+    
+    if args.runner not in ['torchrun', 'mpirun']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
         run_demo(run_copies, world_size)
     else:
-        run_copies(torchrun=True)
+        run_copies(runner=sys.argv[1])
+

@@ -56,6 +56,10 @@ class TrainBatchBuffer(Thread):
         self.buffer_ = []
         self.buffersize = buffersize
         
+        #only added so that thread is 
+        #not run by default thread runner. 
+        self.run_thread = False
+        
         # to indicate whether there are
         # still production from openPMD production.
         self.openpmdProduction = True
@@ -80,7 +84,10 @@ class TrainBatchBuffer(Thread):
             return False
 
     def run(self):
-
+        
+        if self.run_thread == False:
+            return
+        
         openPMDBufferReadCount = 0
         openPMDBufferSize = self.openPMDbuffer.qsize()
         updating = False
@@ -128,7 +135,11 @@ class TrainBatchBuffer(Thread):
         
         else:
             self.noReadCount += 1
-        if updating: print("Train Buffer Updated")
+        
+        self.run_thread = False
+        
+        if updating: 
+            print("Train Buffer Updated")
 
     def reshape(self, particles_radiation):
         # reshapes from gpu box indices to buffer
@@ -146,6 +157,8 @@ class TrainBatchBuffer(Thread):
 
     def get_batch(self):
         print("Attempting a batch extraction from train buffer")
+        
+        self.run_thread=True
         self.run()
         # No training until there batch size element in the buffer.
         if len(self.buffer_)<self.training_bs or (self.noReadCount>self.max_tb_from_unchanged_now_bf and
