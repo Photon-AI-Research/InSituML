@@ -61,7 +61,7 @@
 .TBG_profile=${PIC_PROFILE:-"~/picongpu.profile"}
 
 # number of available/hosted devices per node in the system
-.TBG_numHostedDevicesPerNode=4
+.TBG_numDevicesForPIConGPUPerNode=4
 
 # number of CPU cores to block per GPU
 # we have 8 CPU cores per GPU (64cores/8gpus ~ 8cores)
@@ -80,7 +80,7 @@
 export OMP_NUM_THREADS=!TBG_coresPerGPU
 
 # required GPUs per node for the current job
-.TBG_devicesPerNode=$(if [ $TBG_tasks -gt $TBG_numHostedDevicesPerNode ] ; then echo $TBG_numHostedDevicesPerNode; else echo $TBG_tasks; fi)
+.TBG_devicesPerNode=$(if [ $TBG_tasks -gt $TBG_numDevicesForPIConGPUPerNode ] ; then echo $TBG_numDevicesForPIConGPUPerNode; else echo $TBG_tasks; fi)
 
 # We only start 1 MPI task per device
 .TBG_mpiTasksPerNode="$(( TBG_devicesPerNode * 1 ))"
@@ -94,7 +94,7 @@ export OMP_NUM_THREADS=!TBG_coresPerGPU
 
 # adjust number of nodes for fault tolerance adjustments
 .TBG_nodes_adjusted=$((!TBG_nodes * (1000 + !TBG_node_oversubscription_pt) / 1000))
-.TBG_tasks_adjusted=$((!TBG_nodes_adjusted * !TBG_numHostedDevicesPerNode))
+.TBG_tasks_adjusted=$((!TBG_nodes_adjusted * !TBG_numDevicesForPIConGPUPerNode))
 
 ## end calculations ##
 
@@ -222,14 +222,14 @@ n_broken_nodes=0
 # return code of cuda_memcheck
 node_check_err=1
 
-if [ -f /mnt/bb/$USER/sync_bins/cuda_memtest ] && [ !TBG_numHostedDevicesPerNode -eq !TBG_mpiTasksPerNode ] ; then
+if [ -f /mnt/bb/$USER/sync_bins/cuda_memtest ] && [ !TBG_numDevicesForPIConGPUPerNode -eq !TBG_mpiTasksPerNode ] ; then
     run_cuda_memtest=1
 else
     run_cuda_memtest=0
 fi
 
-## TODO: REMOVE FOR PRODUCTION
-run_cuda_memtest=0
+.TBG_numHostedDevicesPerNode=8
+
 # test if cuda_memtest binary is available and we have the node exclusive
 if [ $run_cuda_memtest -eq 1 ] ; then
     touch bad_nodes.txt
