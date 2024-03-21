@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=12
 #SBATCH --account=casus
-#SBATCH --partition=casus
+#SBATCH --partition=gpu
 #SBATCH --time=48:00:00
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:2
@@ -18,9 +18,7 @@ master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr
 echo "MASTER_ADDR="$MASTER_ADDR
 
-#module load python gcc git gcc/12.2.0 cuda/12.1 openmpi/4.1.5-cuda121-gdr
-bash load_pmd_env.sh
-#source /home/checkr99/.new_env3.10/bin/activate
+module load python gcc git gcc/12.2.0 cuda/12.1 openmpi/4.1.5-cuda121-gdr
+source /home/checkr99/.new_env3.10/bin/activate
 
-#mpirun -n 2 python ac_test_example_training_buffer.py mpirun
-mpirun -n 2 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py mpirun
+mpirun -n 2 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py --runner mpirun --type_streamer dummy

@@ -277,8 +277,9 @@ def run_copies(rank=None, world_size=None, runner=None):
     
     if args.type_streamer != 'dummy':
         
-        from ks_transform_policies import *
-        from ks_producer_openPMD_streaming import *
+        from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
+        from ks_producer_openPMD_streaming import StreamLoader
+
 
         particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
         #particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
@@ -308,14 +309,14 @@ def run_copies(rank=None, world_size=None, runner=None):
 
     modelTrainer.join()
     print("Join model trainer")
-    stdout.flush()
+    #stdout.flush()
 
     trainBF.join()
     print("Join continual learning buffer")
-    stdout.flush()
+    #stdout.flush()
     timeBatchLoader.join()
     print("Join openPMD data loader")
-    stdout.flush()
+    #stdout.flush()
 
     end_time = time.time()
     elapsed_time = end_time - start_time
