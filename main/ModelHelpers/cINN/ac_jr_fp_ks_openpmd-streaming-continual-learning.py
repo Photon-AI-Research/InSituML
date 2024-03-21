@@ -349,5 +349,5 @@ if __name__ == '__main__':
         world_size = n_gpus
         run_demo(run_copies, world_size)
     else:
-        run_copies(runner=sys.argv[1])
+        run_copies(runner=args.runner)
 
