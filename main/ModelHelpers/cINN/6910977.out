@@ -1,0 +1,335 @@
+NODELIST=gp004
+MASTER_ADDR=gp004
+Done importing modules.
+Done importing modules.
+Initiated DDP GPU 0
+Initiated DDP GPU 1
+Loaded pre-trained model successfully
+Loaded pre-trained model successfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 0, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 0, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+Producer: Running
+Producer: Running
+Attempting a batch extraction from train buffer
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 0, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 0, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+>producer added 0
+>producer added 0
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Attempting a batch extraction from train buffer
+Train Buffer Updated
+>producer added 1
+Updating the train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 2, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+Train Buffer Updated
+>producer added 1
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+>producer added 2
+>producer added 2
+batch_index: 0 | loss_avg: 3411.7034 | total_loss: 3411.7034 | loss_AE: 29.0708 | loss_IM: 3382.6326 | loss_ae_reconst: 1.8994 | kl_loss: 27.1713 | l_fit: 276.3658 | l_latent: 450.2016 | l_rev: 2656.0652
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 0 | loss_avg: 2122.6052 | total_loss: 2122.6052 | loss_AE: 24.0649 | loss_IM: 2098.5403 | loss_ae_reconst: 2.0141 | kl_loss: 22.0508 | l_fit: 366.4817 | l_latent: 450.2028 | l_rev: 1281.8557
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 1 | loss_avg: 2228.3987 | total_loss: 2334.1921 | loss_AE: 23.3607 | loss_IM: 2310.8315 | loss_ae_reconst: 1.6632 | kl_loss: 21.6975 | l_fit: 373.4407 | l_latent: 450.2143 | l_rev: 1487.1765
+batch_index: 1 | loss_avg: 3290.7036 | total_loss: 3169.7041 | loss_AE: 29.1514 | loss_IM: 3140.5527 | loss_ae_reconst: 2.0089 | kl_loss: 27.1425 | l_fit: 296.7040 | l_latent: 450.1948 | l_rev: 2393.6541
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 2 | loss_avg: 2843.2783 | total_loss: 1948.4275 | loss_AE: 26.4586 | loss_IM: 1921.9689 | loss_ae_reconst: 1.8589 | kl_loss: 24.5998 | l_fit: 361.7079 | l_latent: 450.1759 | l_rev: 1110.0851
+batch_index: 2 | loss_avg: 2143.3491 | total_loss: 1973.2495 | loss_AE: 26.7702 | loss_IM: 1946.4794 | loss_ae_reconst: 2.1604 | kl_loss: 24.6098 | l_fit: 414.9226 | l_latent: 450.1981 | l_rev: 1081.3586
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+batch_index: 3 | loss_avg: 2558.9961 | total_loss: 1706.1494 | loss_AE: 34.4594 | loss_IM: 1671.6899 | loss_ae_reconst: 1.9428 | kl_loss: 32.5167 | l_fit: 328.6014 | l_latent: 450.1898 | l_rev: 892.8987
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+>producer added 3
+>producer added 3
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 3 | loss_avg: 2100.7878 | total_loss: 1973.1049 | loss_AE: 23.3156 | loss_IM: 1949.7892 | loss_ae_reconst: 1.6991 | kl_loss: 21.6166 | l_fit: 292.9479 | l_latent: 450.2023 | l_rev: 1206.6390
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 4 | loss_avg: 2228.1931 | total_loss: 2737.8147 | loss_AE: 23.3416 | loss_IM: 2714.4731 | loss_ae_reconst: 1.8569 | kl_loss: 21.4848 | l_fit: 363.7904 | l_latent: 450.1754 | l_rev: 1900.5073
+batch_index: 4 | loss_avg: 2377.6348 | total_loss: 1652.1890 | loss_AE: 25.5483 | loss_IM: 1626.6406 | loss_ae_reconst: 1.7095 | kl_loss: 23.8388 | l_fit: 304.6205 | l_latent: 450.1649 | l_rev: 871.8552
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 5 | loss_avg: 2263.7493 | total_loss: 1694.3213 | loss_AE: 22.5482 | loss_IM: 1671.7732 | loss_ae_reconst: 1.9151 | kl_loss: 20.6330 | l_fit: 297.3282 | l_latent: 450.1824 | l_rev: 924.2626
+batch_index: 5 | loss_avg: 2122.2402 | total_loss: 1592.4757 | loss_AE: 26.5114 | loss_IM: 1565.9644 | loss_ae_reconst: 1.8099 | kl_loss: 24.7015 | l_fit: 294.5813 | l_latent: 450.2383 | l_rev: 821.1448
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+batch_index: 6 | loss_avg: 2200.5518 | total_loss: 1821.3666 | loss_AE: 25.5117 | loss_IM: 1795.8549 | loss_ae_reconst: 1.7444 | kl_loss: 23.7673 | l_fit: 348.3091 | l_latent: 450.1753 | l_rev: 997.3705
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+>producer added 4
+>producer added 4
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 6 | loss_avg: 2061.4651 | total_loss: 1696.8137 | loss_AE: 23.3921 | loss_IM: 1673.4216 | loss_ae_reconst: 1.9354 | kl_loss: 21.4567 | l_fit: 316.1972 | l_latent: 450.2139 | l_rev: 907.0106
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 7 | loss_avg: 1947.9332 | total_loss: 1153.2109 | loss_AE: 23.8596 | loss_IM: 1129.3513 | loss_ae_reconst: 2.0420 | kl_loss: 21.8177 | l_fit: 321.0028 | l_latent: 225.2223 | l_rev: 583.1262
+batch_index: 7 | loss_avg: 2152.9067 | total_loss: 1819.3923 | loss_AE: 24.4785 | loss_IM: 1794.9138 | loss_ae_reconst: 1.9535 | kl_loss: 22.5251 | l_fit: 328.3086 | l_latent: 450.2156 | l_rev: 1016.3895
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 8 | loss_avg: 1856.9939 | total_loss: 1129.4785 | loss_AE: 25.8771 | loss_IM: 1103.6014 | loss_ae_reconst: 1.7292 | kl_loss: 24.1479 | l_fit: 383.4025 | l_latent: 225.2143 | l_rev: 494.9845
+batch_index: 8 | loss_avg: 2059.4680 | total_loss: 1311.9565 | loss_AE: 95.0801 | loss_IM: 1216.8765 | loss_ae_reconst: 1.9609 | kl_loss: 93.1191 | l_fit: 500.3999 | l_latent: 225.3062 | l_rev: 491.1704
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+batch_index: 9 | loss_avg: 1961.4235 | total_loss: 1079.0233 | loss_AE: 29.3441 | loss_IM: 1049.6792 | loss_ae_reconst: 1.9406 | kl_loss: 27.4035 | l_fit: 311.8534 | l_latent: 225.2586 | l_rev: 512.5671
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+>producer added 5
+>producer added 5
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 9 | loss_avg: 1798.1387 | total_loss: 1268.4421 | loss_AE: 27.4107 | loss_IM: 1241.0315 | loss_ae_reconst: 1.8633 | kl_loss: 25.5474 | l_fit: 405.4947 | l_latent: 225.2362 | l_rev: 610.3007
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 10 | loss_avg: 1729.8866 | total_loss: 1047.3647 | loss_AE: 25.9371 | loss_IM: 1021.4277 | loss_ae_reconst: 1.8277 | kl_loss: 24.1093 | l_fit: 353.6529 | l_latent: 225.2723 | l_rev: 442.5026
+batch_index: 10 | loss_avg: 1871.4534 | total_loss: 971.7521 | loss_AE: 26.7612 | loss_IM: 944.9910 | loss_ae_reconst: 1.9878 | kl_loss: 24.7734 | l_fit: 279.7780 | l_latent: 225.2913 | l_rev: 439.9216
+>producer added 6
+>producer added 6
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 11 | loss_avg: 1799.3730 | total_loss: 1006.4905 | loss_AE: 29.0437 | loss_IM: 977.4467 | loss_ae_reconst: 1.9071 | kl_loss: 27.1367 | l_fit: 286.4534 | l_latent: 225.2629 | l_rev: 465.7304
+batch_index: 11 | loss_avg: 1663.3213 | total_loss: 931.1038 | loss_AE: 26.8042 | loss_IM: 904.2996 | loss_ae_reconst: 1.9323 | kl_loss: 24.8719 | l_fit: 275.7439 | l_latent: 225.2200 | l_rev: 403.3356
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 12 | loss_avg: 1736.9255 | total_loss: 987.5540 | loss_AE: 42.0742 | loss_IM: 945.4797 | loss_ae_reconst: 1.8749 | kl_loss: 40.1993 | l_fit: 303.0864 | l_latent: 225.2316 | l_rev: 417.1618
+batch_index: 12 | loss_avg: 1608.3317 | total_loss: 948.4546 | loss_AE: 40.3610 | loss_IM: 908.0936 | loss_ae_reconst: 1.8985 | kl_loss: 38.4625 | l_fit: 287.9241 | l_latent: 225.2366 | l_rev: 394.9330
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 13 | loss_avg: 1559.4547 | total_loss: 924.0541 | loss_AE: 29.9221 | loss_IM: 894.1320 | loss_ae_reconst: 1.8747 | kl_loss: 28.0474 | l_fit: 299.7013 | l_latent: 225.2456 | l_rev: 369.1851
+batch_index: 13 | loss_avg: 1696.0009 | total_loss: 1163.9800 | loss_AE: 124.0643 | loss_IM: 1039.9158 | loss_ae_reconst: 2.1057 | kl_loss: 121.9586 | l_fit: 449.4712 | l_latent: 225.2314 | l_rev: 365.2131
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+>producer added 7
+>producer added 7
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 14 | loss_avg: 1516.9601 | total_loss: 922.0343 | loss_AE: 40.2797 | loss_IM: 881.7546 | loss_ae_reconst: 1.8436 | kl_loss: 38.4362 | l_fit: 291.4405 | l_latent: 225.2532 | l_rev: 365.0610
+batch_index: 14 | loss_avg: 1642.3556 | total_loss: 891.3202 | loss_AE: 22.5571 | loss_IM: 868.7631 | loss_ae_reconst: 2.0316 | kl_loss: 20.5255 | l_fit: 246.7417 | l_latent: 225.2303 | l_rev: 396.7911
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 15 | loss_avg: 1480.5458 | total_loss: 934.3322 | loss_AE: 27.9172 | loss_IM: 906.4150 | loss_ae_reconst: 1.9628 | kl_loss: 25.9544 | l_fit: 320.9135 | l_latent: 225.2190 | l_rev: 360.2825
+batch_index: 15 | loss_avg: 1596.8921 | total_loss: 914.9408 | loss_AE: 37.5454 | loss_IM: 877.3954 | loss_ae_reconst: 2.0113 | kl_loss: 35.5341 | l_fit: 275.7276 | l_latent: 225.2401 | l_rev: 376.4277
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 16 | loss_avg: 1443.1177 | total_loss: 844.2684 | loss_AE: 26.3414 | loss_IM: 817.9270 | loss_ae_reconst: 1.8304 | kl_loss: 24.5110 | l_fit: 255.0553 | l_latent: 225.2276 | l_rev: 337.6440
+batch_index: 16 | loss_avg: 1628.5154 | total_loss: 2134.4893 | loss_AE: 225.0909 | loss_IM: 1909.3984 | loss_ae_reconst: 1.9639 | kl_loss: 223.1270 | l_fit: 1266.9020 | l_latent: 225.2587 | l_rev: 417.2379
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Batch extraction failed.. 
+Either train buffer has less element than training size 
+Train Buffer Size: 6, training batch size: 4 
+Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches allowed from unchanged trainbuffer state: 3
+
+Trainer will wait for 2 seconds, for data to be streamed before reattempting batch extraction.
+>producer added 8
+>producer added 8
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 17 | loss_avg: 1410.3357 | total_loss: 853.0424 | loss_AE: 20.7580 | loss_IM: 832.2844 | loss_ae_reconst: 1.9597 | kl_loss: 18.7984 | l_fit: 265.5625 | l_latent: 225.2106 | l_rev: 341.5112
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 17 | loss_avg: 1588.4769 | total_loss: 907.8222 | loss_AE: 40.8186 | loss_IM: 867.0035 | loss_ae_reconst: 1.9205 | kl_loss: 38.8981 | l_fit: 290.5021 | l_latent: 225.2351 | l_rev: 351.2663
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 18 | loss_avg: 1553.2061 | total_loss: 918.3308 | loss_AE: 37.1054 | loss_IM: 881.2255 | loss_ae_reconst: 1.9166 | kl_loss: 35.1888 | l_fit: 294.9070 | l_latent: 225.2217 | l_rev: 361.0968
+batch_index: 18 | loss_avg: 1379.5546 | total_loss: 825.4940 | loss_AE: 20.5783 | loss_IM: 804.9156 | loss_ae_reconst: 1.8936 | kl_loss: 18.6847 | l_fit: 249.3727 | l_latent: 225.2297 | l_rev: 330.3133
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+batch_index: 19 | loss_avg: 1519.6530 | total_loss: 882.1437 | loss_AE: 41.6494 | loss_IM: 840.4944 | loss_ae_reconst: 1.9990 | kl_loss: 39.6504 | l_fit: 254.4106 | l_latent: 225.2395 | l_rev: 360.8442
+batch_index: 19 | loss_avg: 1353.0405 | total_loss: 849.2736 | loss_AE: 23.1431 | loss_IM: 826.1305 | loss_ae_reconst: 1.8133 | kl_loss: 21.3299 | l_fit: 251.6293 | l_latent: 225.2933 | l_rev: 349.2079
+>producer added 9
+Producer: Done
+>producer added 9
+Producer: Done
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+Trained on a batch succesfully
+Attempting a batch extraction from train buffer
+Updating the train buffer
+Train Buffer Updated
+batch_index: 20 | loss_avg: 1546.3345 | total_loss: 2079.9653 | loss_AE: 229.7994 | loss_IM: 1850.1660 | loss_ae_reconst: 1.9996 | kl_loss: 227.7997 | l_fit: 993.6048 | l_latent: 225.2952 | l_rev: 631.2660
+batch_index: 20 | loss_avg: 1327.4619 | total_loss: 815.8881 | loss_AE: 23.2001 | loss_IM: 792.6880 | loss_ae_reconst: 1.8808 | kl_loss: 21.3193 | l_fit: 226.4548 | l_latent: 225.2346 | l_rev: 340.9986
+Trained on a batch succesfully
+Note: The streaming has stopped, the trainer will run for 0 training steps (batch passes) before stopping.
+Training step:0 after the streaming has stopped.
+Join model trainer
+Join continual learning buffer
+Join openPMD data loader
+Total elapsed time: 20.280722 seconds
+Trained on a batch succesfully
+Note: The streaming has stopped, the trainer will run for 0 training steps (batch passes) before stopping.
+Training step:0 after the streaming has stopped.
+Join model trainer
+Join continual learning buffer
+Join openPMD data loader
+Total elapsed time: 20.281802 seconds
+
+------------------------------
+- - - - - job epilog - - - - -
+------------------------------
+Job ID: 6910977
+was running on nodes: gp004
+by user: checkr99
+in partition: gpu
+using account: casus
+number of CPUs used: 24
+number of nodes requested: 1
+------------------------------
+walltime reqd: 2-00:00:00
+walltime used: 00:00:27
+------------------------------
+Thu Mar 21 17:05:43 CET 2024
+------------------------------
+

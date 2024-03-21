@@ -1,0 +1,13 @@
+Unloading module python/3.10.4 
+Loading module python/3.10.4 
+Unloading module gcc/12.2.0 
+Loading module gcc/7.3.0 
+Unloading module git/2.37.1 
+Loading module git/2.37.1 
+Unloading module gcc/7.3.0 
+Loading module gcc/12.2.0 
+Loading module openmpi/4.1.5-cuda121-gdr 
+Unloading module cuda/12.1 
+Loading module cuda/12.1 
+Unloading module openmpi/4.1.5-cuda121-gdr 
+Loading module openmpi/4.1.5-cuda121-gdr 
