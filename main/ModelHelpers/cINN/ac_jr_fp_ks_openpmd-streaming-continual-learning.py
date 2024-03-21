@@ -3,9 +3,6 @@ Main file/module to train ML model from PIConGPU openPMD data using streaming an
 """
 import time
 
-from ks_transform_policies import *
-from ks_producer_openPMD_streaming import *
-
 from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
 from threading import Thread
@@ -29,6 +26,8 @@ from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
 from wandb_logger import WandbLogger
 import torch.multiprocessing as mp
 import torch.distributed as dist
+import argparse
+from dummy_openpmd_producer import DummyOpenPMDProducer
 
 print("Done importing modules.")
 
@@ -70,12 +69,6 @@ streamLoader_config = dict(
     number_particles_per_gpu = 1000
 )
 
-particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
-#particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
-
-# radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase() #returns radiation data of shape (local ranks, frequencies)
-radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
-#radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
 
 #########################
@@ -290,6 +283,7 @@ def run_copies(rank=None, world_size=None, runner=None):
 
         dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
         print(f'Initiated DDP GPU {rank}', flush=True)
+
     elif runner=="srun":
         world_size = int(os.environ["WORLD_SIZE"])
         
@@ -303,11 +297,26 @@ def run_copies(rank=None, world_size=None, runner=None):
         setup(rank, world_size)
 
     optimizer, scheduler, model = load_objects(rank)
+    
+    if args.type_streamer != 'dummy':
+        
+        from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
+        from ks_producer_openPMD_streaming import StreamLoader
 
-    timeBatchLoader = StreamLoader(openPMDBuffer, 
-                                   streamLoader_config,
-                                   particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 
+        particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
+        #particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
+
+        # radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase() #returns radiation data of shape (local ranks, frequencies)
+        radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
+        #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
+
+        timeBatchLoader = StreamLoader(openPMDBuffer, 
+                                       streamLoader_config,
+                                       particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+    else:
+        timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
+        
     trainBF = TrainBatchBuffer(openPMDBuffer)
     modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
@@ -323,14 +332,14 @@ def run_copies(rank=None, world_size=None, runner=None):
 
     modelTrainer.join()
     print("Join model trainer")
-    stdout.flush()
+    #stdout.flush()
 
     trainBF.join()
     print("Join continual learning buffer")
-    stdout.flush()
+    #stdout.flush()
     timeBatchLoader.join()
     print("Join openPMD data loader")
-    stdout.flush()
+    #stdout.flush()
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -344,11 +353,27 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if len(sys.argv)==1 or sys.argv[1] not in ['torchrun', 'mpirun', 'srun']:
+    parser = argparse.ArgumentParser(
+        description="""For running openPMDproduction based trainings."""
+    )
+
+    parser.add_argument('--runner',
+                    type=str,
+                    default='mpirun',
+                    help="Which runner to use")
+
+    parser.add_argument('--type_streamer',
+                    type=str,
+                    default='real',
+                    help="Which type of streamer to produce, dummy or real")
+    
+    args = parser.parse_args()
+    
+    if args.runner not in ['torchrun', 'mpirun']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
         run_demo(run_copies, world_size)
     else:
-        run_copies(runner=sys.argv[1])
+        run_copies(runner=args.runner)
 
