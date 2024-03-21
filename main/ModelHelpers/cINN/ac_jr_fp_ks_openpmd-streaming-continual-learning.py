@@ -3,9 +3,6 @@ Main file/module to train ML model from PIConGPU openPMD data using streaming an
 """
 import time
 
-from ks_transform_policies import *
-from ks_producer_openPMD_streaming import *
-
 from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
 from threading import Thread
@@ -59,12 +56,6 @@ streamLoader_config = dict(
     number_particles_per_gpu = 1000
 )
 
-particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
-#particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
-
-# radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase() #returns radiation data of shape (local ranks, frequencies)
-radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
-#radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
 
 #########################
@@ -285,6 +276,17 @@ def run_copies(rank=None, world_size=None, runner=None):
     optimizer, scheduler, model = load_objects(rank)
     
     if args.type_streamer != 'dummy':
+        
+        from ks_transform_policies import *
+        from ks_producer_openPMD_streaming import *
+
+        particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
+        #particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
+
+        # radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase() #returns radiation data of shape (local ranks, frequencies)
+        radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
+        #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
+
         timeBatchLoader = StreamLoader(openPMDBuffer, 
                                        streamLoader_config,
                                        particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
