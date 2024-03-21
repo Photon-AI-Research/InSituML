@@ -322,6 +322,13 @@ export MIOPEN_DISABLE_CACHE=1
 
 insituml=/autofs/nccs-svm1_home1/fpoeschel/git-repos/InSituML
 
+oldpwd="$(pwd)"
+pushd "${insituml%/*}"
+tar -czf "$oldpwd/insituml.tar.gz" "${insituml##*/}"
+popd
+sbcast insituml.tar.gz "/mnt/bb/$USER/insituml.tar.gz"
+srun -N !TBG_nodes_adjusted --ntasks-per-node=1 tar -xzf "/mnt/bb/$USER/insituml.tar.gz" --directory "/mnt/bb/$USER/"
+
 if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     ##################
     ## Run InSituML ##
@@ -351,7 +358,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       --network=single_node_vni,job_vni           \
       /mnt/bb/$USER/sync_bins/launch.sh           \
       /mnt/bb/$USER/sync_bins/python              \
-        "$insituml/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
+        "/mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
         > ../training.out 2> ../training.err              &
 
     sleep 1
