@@ -8,6 +8,12 @@ In order to train the model do:
 2. load openPMD environment:
    fontier: `CURRENT_DIR=$PWD; cd /lustre/orion/csc380/proj-shared/openpmd_environment; source env.sh; cd $CURRENT_DIR`
    hemera: `CURRENT_DIR=$PWD; cd /bigdata/hplsim/scratch/poesch58/InSituML_env; source env.sh; cd $CURRENT_DIR`
+   * To create a new environment on hemera:
+      ```bash
+	  . ddp_tested_hemera_env.sh
+	  export openPMD_USE_MPI=ON
+	  pip install -r requirements_hemera.txt
+	  ```
 
 3. Change to directory `InSituML/main/ModelHelpers/cINN` and adjust path to data and path to pre-trained model in `ac_jr_fp_ks_openpmd-streaming-continual-learning.py` to:
    frontier path to data: `/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset`
