@@ -320,6 +320,7 @@ mkdir -p $TORCH_SCRATCH
 export MIOPEN_USER_DB_PATH="$TORCH_SCRATCH"
 export MIOPEN_DISABLE_CACHE=1
 
+insituml=/autofs/nccs-svm1_home1/fpoeschel/git-repos/InSituML
 
 if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     ##################
@@ -340,8 +341,6 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
 #    --cpu-bind=verbose,mask_cpu:$mask \
 # once we know how the binding is done
 
-
-
     srun -l                                       \
       --ntasks !TBG_tasks                         \
       --nodes !TBG_nodes                          \
@@ -352,7 +351,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       --network=single_node_vni,job_vni           \
       /mnt/bb/$USER/sync_bins/launch.sh           \
       /mnt/bb/$USER/sync_bins/python              \
-        /ccs/home/ksteinig/src/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py                      \
+        "$insituml/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
         > ../training.out 2> ../training.err              &
 
     sleep 1
