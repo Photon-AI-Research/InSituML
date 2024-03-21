@@ -312,7 +312,7 @@ chmod +x ./tmp.sh
 sbcast ./tmp.sh /mnt/bb/$USER/sync_bins/launch.sh
 rm ./tmp.sh
 
-TORCH_SCRATCH="/mnt/bb/$USER/$SLURM_PROCID"
+TORCH_SCRATCH="/mnt/bb/$USER"
 
 mkdir -p $TORCH_SCRATCH
 
