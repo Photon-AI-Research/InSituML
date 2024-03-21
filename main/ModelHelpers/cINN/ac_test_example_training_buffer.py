@@ -282,6 +282,15 @@ def run_copies(rank=None, world_size=None, runner=None):
 
         dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
         print(f'Initiated DDP GPU {rank}', flush=True)
+    elif runner=="srun":
+        world_size = int(os.environ["WORLD_SIZE"])
+        
+        rank = 0
+        
+        global_rank = int(os.environ['SLURM_PROCID'])
+        
+        dist.init_process_group(backend='mpi',world_size=world_size, rank=global_rank)
+        print(f'Initiated DDP GPU {rank}, global_rank {global_rank}', flush=True)
     else:
         setup(rank, world_size)
 
@@ -323,7 +332,7 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    if len(sys.argv)==1 or sys.argv[1] not in ['torchrun', 'mpirun']:
+    if len(sys.argv)==1 or sys.argv[1] not in ['torchrun', 'mpirun', 'srun']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
         world_size = n_gpus
