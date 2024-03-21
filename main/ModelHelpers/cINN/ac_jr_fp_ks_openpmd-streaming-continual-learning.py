@@ -212,14 +212,15 @@ def load_objects(rank):
                             loss_function = EarthMoversLoss(),
                             )
 
-    inner_model = PC_MAF(dim_condition=config["dim_condition"],
-                            dim_input=config["dim_input"],
-                            num_coupling_layers=config["num_coupling_layers"],
-                            hidden_size=config["hidden_size"],
-                            device=rank,
-                            num_blocks_mat = config["num_blocks_mat"],
-                            activation = config["activation"]
-                            )
+    # MAF inner model (not used in final runs)
+    # inner_model = PC_MAF(dim_condition=config["dim_condition"],
+    #                         dim_input=config["dim_input"],
+    #                         num_coupling_layers=config["num_coupling_layers"],
+    #                         hidden_size=config["hidden_size"],
+    #                         device=rank,
+    #                         num_blocks_mat = config["num_blocks_mat"],
+    #                         activation = config["activation"]
+    #                         )
 
     # INN
     inner_model = INNModel(ndim_tot=config["ndim_tot"],
