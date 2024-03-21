@@ -3,9 +3,6 @@ Main file/module to train ML model from PIConGPU openPMD data using streaming an
 """
 import time
 
-from ks_transform_policies import *
-from ks_producer_openPMD_streaming import *
-
 from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
 from threading import Thread
@@ -14,6 +11,8 @@ from time import sleep
 from random import random
 from queue import Queue
 
+import sys
+import os
 from torch import optim
 import torch.nn as nn
 
@@ -25,6 +24,10 @@ from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
 from train_khi_AE_refactored.loss_functions import EarthMoversLoss
 from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
 from wandb_logger import WandbLogger
+import torch.multiprocessing as mp
+import torch.distributed as dist
+import argparse
+from dummy_openpmd_producer import DummyOpenPMDProducer
 
 print("Done importing modules.")
 
@@ -66,14 +69,6 @@ streamLoader_config = dict(
     number_particles_per_gpu = 1000
 )
 
-particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
-#particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
-
-# radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase() #returns radiation data of shape (local ranks, frequencies)
-radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
-#radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
-
-timeBatchLoader = StreamLoader(openPMDBuffer, streamLoader_config, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
 
 
 #########################
@@ -109,30 +104,30 @@ config_inn = dict(
 )
 
 class ModelFinal(nn.Module):
-    def __init__(self, 
+    def __init__(self,
                  base_network,
                  inner_model,
                  loss_function_IM = None,
                  weight_AE=1.0,
                  weight_IM=1.0):
         super().__init__()
-        
+
         self.base_network = base_network
         self.inner_model = inner_model
         self.loss_function_IM = loss_function_IM
         self.weight_AE = weight_AE
         self.weight_IM = weight_IM
-    
+
     def forward(self, x, y):
-        
+
         loss_AE,loss_ae_reconst,kl_loss, _, encoded = self.base_network(x)
-        
+
         # Check if the inner model is an instance of INNModel
         if isinstance(self.inner_model, INNModel):
             # Use the compute_losses function of INNModel
             loss_IM, l_fit,l_latent,l_rev = self.inner_model.compute_losses(encoded, y)
             total_loss = loss_AE*self.weight_AE + loss_IM*self.weight_IM
-            
+
             losses = {
                 'total_loss': total_loss,
                 'loss_AE': loss_AE*self.weight_AE,
@@ -143,13 +138,13 @@ class ModelFinal(nn.Module):
                 'l_latent': l_latent,
                 'l_rev': l_rev,
                     }
-            
+
             return losses
         else:
             # For other types of models, such as MAF
             loss_IM = self.inner_model(inputs=encoded, context=y)
             total_loss = loss_AE*self.weight_AE + loss_IM * self.weight_IM
-            
+
             losses = {
                 'total_loss': total_loss,
                 'loss_AE': loss_AE*self.weight_AE,
@@ -157,11 +152,11 @@ class ModelFinal(nn.Module):
                 'loss_ae_reconst': loss_ae_reconst,
                 'kl_loss': kl_loss
                     }
-            
+
             return losses
-        
+
     def reconstruct(self,x, y, num_samples = 1):
-        
+
         if isinstance(self.inner_model, INNModel):
             lat_z_pred = self.inner_model(x, y, rev = True)
             y = self.base_network.decoder(lat_z_pred)
@@ -176,116 +171,223 @@ VAE_encoder_kwargs = {"ae_config":"non_deterministic",
                    "z_dim":latent_space_dims,
                    "input_dim":ps_dims,
                    "conv_layer_config":[16, 32, 64, 128, 256, 512, 1024],
-                   "conv_add_bn": False, 
+                   "conv_add_bn": False,
                    "fc_layer_config":[1024]}
- 
+
 VAE_decoder_kwargs = {"z_dim":latent_space_dims,
                    "input_dim":ps_dims,
                    "initial_conv3d_size":[16, 4, 4, 4],
                    "add_batch_normalisation":False,
                     "fc_layer_config":[1024]}
-                          
-VAE = VAE(encoder = Encoder, 
-           encoder_kwargs = VAE_encoder_kwargs, 
-           decoder = Conv3DDecoder, 
-           z_dim=latent_space_dims,
-           decoder_kwargs = VAE_decoder_kwargs,
-           loss_function = EarthMoversLoss(),
-           property_="momentum_force",
-           particles_to_sample = number_of_particles,
-           ae_config="non_deterministic",
-           use_encoding_in_decoder=False)
+def load_objects(rank):
+    
+    torch.cuda.set_device(rank)
+    torch.cuda.empty_cache()
+
+    conv_AE_encoder_kwargs = {"ae_config":"simple",
+                    "z_dim":latent_space_dims,
+                    "input_dim":ps_dims,
+                    "conv_layer_config":[16, 32, 64, 128, 256, 512],
+                    "conv_add_bn": False}
+
+    VAE_obj = VAE(encoder = Encoder,
+            encoder_kwargs = VAE_encoder_kwargs,
+            decoder = Conv3DDecoder,
+            z_dim=latent_space_dims,
+            decoder_kwargs = VAE_decoder_kwargs,
+            loss_function = EarthMoversLoss(),
+            property_="momentum_force",
+            particles_to_sample = number_of_particles,
+            ae_config="non_deterministic",
+            use_encoding_in_decoder=False,device=rank)
+
+    conv_AE_decoder_kwargs = {"z_dim":latent_space_dims,
+                    "input_dim":ps_dims,
+                    "add_batch_normalisation":False}
+
+    conv_AE = ConvAutoencoder(encoder = Encoder,
+                            encoder_kwargs = conv_AE_encoder_kwargs,
+                            decoder = Conv3DDecoder,
+                            decoder_kwargs = conv_AE_decoder_kwargs,
+                            loss_function = EarthMoversLoss(),
+                            )
+
+    # MAF inner model (not used in final runs)
+    # inner_model = PC_MAF(dim_condition=config["dim_condition"],
+    #                         dim_input=config["dim_input"],
+    #                         num_coupling_layers=config["num_coupling_layers"],
+    #                         hidden_size=config["hidden_size"],
+    #                         device=rank,
+    #                         num_blocks_mat = config["num_blocks_mat"],
+    #                         activation = config["activation"]
+    #                         )
+
+    # INN
+    inner_model = INNModel(ndim_tot=config["ndim_tot"],
+                    ndim_x=config["ndim_x"],
+                    ndim_y=config["ndim_y"],
+                    ndim_z=config["ndim_z"],
+                    loss_fit=fit,
+                    loss_latent=MMD_multiscale,
+                    loss_backward=MMD_multiscale,
+                    lambd_predict=config["lambd_predict"],
+                    lambd_latent=config["lambd_latent"],
+                    lambd_rev=config["lambd_rev"],
+                    zeros_noise_scale=config["zeros_noise_scale"],
+                    y_noise_scale=config["y_noise_scale"],
+                    hidden_size=config["hidden_size"],
+                    activation=config["activation"],
+                    num_coupling_layers=config["num_coupling_layers"],
+                    device = rank)
+
+    #model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
+    #model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
+    model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
 
 
-conv_AE_encoder_kwargs = {"ae_config":"simple",
-                  "z_dim":latent_space_dims,
-                  "input_dim":ps_dims,
-                  "conv_layer_config":[16, 32, 64, 128, 256, 512],
-                  "conv_add_bn": False}
+    #Load a pre-trained model
+    filepath = args.modelPath
 
-conv_AE_decoder_kwargs = {"z_dim":latent_space_dims,
-                  "input_dim":ps_dims,
-                  "add_batch_normalisation":False}
+    map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+    original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=map_location)
+    updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+    model.load_state_dict(updated_state_dict)
+    print('Loaded pre-trained model successfully')
 
-conv_AE = ConvAutoencoder(encoder = Encoder, 
-                          encoder_kwargs = conv_AE_encoder_kwargs, 
-                          decoder = Conv3DDecoder, 
-                          decoder_kwargs = conv_AE_decoder_kwargs,
-                          loss_function = EarthMoversLoss(),
-                          )
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
 
-inner_model = PC_MAF(dim_condition=config["dim_condition"],
-                           dim_input=config["dim_input"],
-                           num_coupling_layers=config["num_coupling_layers"],
-                           hidden_size=config["hidden_size"],
-                           device=device,
-                           num_blocks_mat = config["num_blocks_mat"],
-                           activation = config["activation"]
-                         )
+    #wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
+    return optimizer, scheduler, model
 
-# INN
-inner_model = INNModel(ndim_tot=config["ndim_tot"],
-                 ndim_x=config["ndim_x"],
-                 ndim_y=config["ndim_y"],
-                 ndim_z=config["ndim_z"],
-                 loss_fit=fit,
-                 loss_latent=MMD_multiscale,
-                 loss_backward=MMD_multiscale,
-                 lambd_predict=config["lambd_predict"],
-                 lambd_latent=config["lambd_latent"],
-                 lambd_rev=config["lambd_rev"],
-                 zeros_noise_scale=config["zeros_noise_scale"],
-                 y_noise_scale=config["y_noise_scale"],
-                 hidden_size=config["hidden_size"],
-                 activation=config["activation"],
-                 num_coupling_layers=config["num_coupling_layers"],
-                 device = device)
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-#model = ModelFinal(VAE, inner_model, EarthMoversLoss())
-#model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
-model = ModelFinal(VAE, inner_model, EarthMoversLoss())
+def run_copies(rank=None, world_size=None, runner=None):
+    
+    if runner=="torchrun":
+        dist.init_process_group("nccl")
+        rank = dist.get_rank()
+        print(f"Start running basic DDP example on rank {rank}.")
+        # create model and move it to GPU with id rank
+        rank = rank % torch.cuda.device_count()
 
-
-#Load a pre-trained model
-filepath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
-
-original_state_dict = torch.load(filepath.format(config["load_model"]))
-updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
-model.load_state_dict(updated_state_dict)
-print('Loaded pre-trained model successfully')
-
+    elif runner=="mpirun":
+        world_size = int(os.environ["WORLD_SIZE"])
         
-model.to(device)
-optimizer = optim.Adam(model.parameters(), lr=config["lr"])
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
+        rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
+        
+        global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
 
-#wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
+        dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
+        print(f'Initiated DDP GPU {rank}', flush=True)
 
-trainBF = TrainBatchBuffer(openPMDBuffer)
-modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, logger = None)
+    elif runner=="srun":
+        world_size = int(os.environ["WORLD_SIZE"])
+        
+        rank = 0
+        
+        global_rank = int(os.environ['SLURM_PROCID'])
+        
+        dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
+        print(f'Initiated DDP GPU {rank}, global_rank {global_rank}', flush=True)
+    else:
+        setup(rank, world_size)
 
-####################
-## Start training ##
-####################
-start_time = time.time()
-
-modelTrainer.start()
-trainBF.start()
-timeBatchLoader.start()
+    optimizer, scheduler, model = load_objects(rank)
+    
+    if args.type_streamer != 'dummy':
+        
+        from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
+        from ks_producer_openPMD_streaming import StreamLoader
 
 
-modelTrainer.join()
-print("Join model trainer")
-stdout.flush()
+        particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
+        #particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
 
-trainBF.join()
-print("Join continual learning buffer")
-stdout.flush()
-timeBatchLoader.join()
-print("Join openPMD data loader")
-stdout.flush()
+        # radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase() #returns radiation data of shape (local ranks, frequencies)
+        radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
+        #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
-end_time = time.time()
-elapsed_time = end_time - start_time
-print(f"Total elapsed time: {elapsed_time:.6f} seconds")
+        timeBatchLoader = StreamLoader(openPMDBuffer, 
+                                       streamLoader_config,
+                                       particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+    else:
+        timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
+        
+    trainBF = TrainBatchBuffer(openPMDBuffer)
+    modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
+
+    ####################
+    ## Start training ##
+    ####################
+    start_time = time.time()
+
+    modelTrainer.start()
+    trainBF.start()
+    timeBatchLoader.start()
+
+
+    modelTrainer.join()
+    print("Join model trainer")
+    #stdout.flush()
+
+    trainBF.join()
+    print("Join continual learning buffer")
+    #stdout.flush()
+    timeBatchLoader.join()
+    print("Join openPMD data loader")
+    #stdout.flush()
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Total elapsed time: {elapsed_time:.6f} seconds")
+
+def run_demo(demo_fn, world_size):
+    mp.spawn(demo_fn,
+             args=(world_size,),
+             nprocs=world_size,
+             join=True)
+
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(
+        description="""For running openPMDproduction based trainings."""
+    )
+
+    parser.add_argument('--runner',
+                    type=str,
+                    default='mpirun',
+                    help="Which runner to use")
+
+    parser.add_argument('--type_streamer',
+                    type=str,
+                    default='real',
+                    help="Which type of streamer to produce, dummy or real")
+
+    parser.add_argument('--modelPath',
+                    type=str,
+                    default='trained_models/{}/best_model_',
+                    help="model weights to load")
+
+    parser.add_argument('--modelPathPreset',
+                    type=str,
+                    default=None,
+                    help="Use a path preset to override --modelPath. Options [frontier]")
+    
+    args = parser.parse_args()
+    
+    if args.modelPathPreset is not None:
+        if args.modelPathPreset == "frontier":
+            args.modelPath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
+
+    if args.runner not in ['torchrun', 'mpirun']:
+        n_gpus = torch.cuda.device_count()
+        assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
+        world_size = n_gpus
+        run_demo(run_copies, world_size)
+    else:
+        run_copies(runner=args.runner)
 

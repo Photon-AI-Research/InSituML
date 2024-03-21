@@ -5,7 +5,6 @@ from math import log, pi
 import torch
 import random
 from collections import deque
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import inspect
 
 
@@ -83,7 +82,7 @@ def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, r
         create_force_density_plots(*all_var_to_plot, path=info_image_path,
                                    t=timeInfo,wandb=wandb)
 
-def sample_gaussian(m, v):
+def sample_gaussian(m, v, device):
     epsilon = torch.normal(torch.zeros(m.size()),torch.ones(m.size())).to(device)
     z = m + torch.sqrt(v) * epsilon
     return z

@@ -16,7 +16,7 @@ P2ID = {
 @inspect_and_select
 class ConvAutoencoder(nn.Module):
     def __init__(self, encoder, decoder, encoder_kwargs, 
-                 decoder_kwargs, loss_function):
+                 decoder_kwargs, loss_function, device=None):
         super().__init__()
         
         self.loss_function = loss_function
@@ -44,7 +44,7 @@ class VAE(nn.Module):
                  particles_to_sample = 4000,
                  ae_config = "deterministic",
                  use_encoding_in_decoder=True,
-                 weight_kl = 1.0,
+                 weight_kl = 1.0, device=None
                  ):
         super().__init__()
         
@@ -53,6 +53,7 @@ class VAE(nn.Module):
         self.z_dim = z_dim
         self.loss_function = loss_function
         self.weight_kl = weight_kl
+        self.device = device
         
         self.ae_config = ae_config
         
@@ -89,7 +90,7 @@ class VAE(nn.Module):
             y = self.decoder(m)
             kl_loss = torch.zeros(1)
         elif self.ae_config == "non_deterministic":
-            z =  sample_gaussian(m,v)
+            z =  sample_gaussian(m,v, self.device)
             decoder_input = z if not self.use_encoding_in_decoder else \
             torch.cat((z,m),dim=-1) 
             y = self.decoder(decoder_input)

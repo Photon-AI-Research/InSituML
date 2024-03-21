@@ -201,7 +201,7 @@ class StreamLoader(Thread):
         self.hyperParameterDefaults = hyperParameterDefaults
         if hyperParameterDefaults["streaming_config"] is not None:
             self.streamingConfig = hyperParameterDefaults["streaming_config"]
-        else
+        else:
             self.streamingConfig = """
                 defer_iteration_parsing = true
                 [adios2.engine.parameters]
