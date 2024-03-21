@@ -246,8 +246,7 @@ def load_objects(rank):
 
 
     #Load a pre-trained model
-    filepath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
-    filepath = 'trained_models/{}/best_model_'
+    filepath = args.modelPath
 
     map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
     original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=map_location)
@@ -367,9 +366,23 @@ if __name__ == '__main__':
                     type=str,
                     default='real',
                     help="Which type of streamer to produce, dummy or real")
+
+    parser.add_argument('--modelPath',
+                    type=str,
+                    default='trained_models/{}/best_model_',
+                    help="model weights to load")
+
+    parser.add_argument('--modelPathPreset',
+                    type=str,
+                    default=None,
+                    help="Use a path preset to override --modelPath. Options [frontier]")
     
     args = parser.parse_args()
     
+    if args.modelPathPreset is not None:
+        if args.modelPathPreset == "frontier":
+            args.modelPath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
+
     if args.runner not in ['torchrun', 'mpirun']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
