@@ -78,7 +78,6 @@ class TrainBatchBuffer(Thread):
 
         try:
             particles_radiation = self.openPMDbuffer.get(block=False)
-            print('sm')
             return particles_radiation
         except Exception as ex:
             print(f"Exception {ex} was raised")
@@ -162,7 +161,6 @@ class TrainBatchBuffer(Thread):
         
         self.run_thread=True
         self.run()
-        print('openpmdProd', self.openpmdProduction)
         # No training until there batch size element in the buffer.
         if len(self.buffer_)<self.training_bs or (self.noReadCount>self.max_tb_from_unchanged_now_bf and
                                                   self.openpmdProduction):
