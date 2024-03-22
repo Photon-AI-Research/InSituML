@@ -77,6 +77,8 @@ class ModelTrainer(Thread):
             
             phase_space_radiation = self.training_buffer.get_batch()
 
+            if self.training_buffer.openpmdProduction == False:
+                break
             
             #this is now only indicating that there 
             #is not enough data in the now buffer 
