@@ -29,6 +29,7 @@ import torch.distributed as dist
 import argparse
 from dummy_openpmd_producer import DummyOpenPMDProducer
 
+import pathlib
 import importlib.util
 import sys
 
@@ -41,8 +42,11 @@ openPMDBuffer = Queue() ## Buffer shared between openPMD data loader and model
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
-        description="""For running openPMDproduction based trainings."""
+        description="""For running openPMDproduction based trainings.""",
+		formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
+
+    script_path = str(pathlib.Path(__file__).parent.resolve())
 
     parser.add_argument('--runner',
                     type=str,
@@ -56,12 +60,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--io_config',
                     type=str,
-                    default='io_config.py',
+                    default=script_path + '/io_config.py',
                     help="IO/streaming/data/paths -related config")
 
     parser.add_argument('--model_config',
                     type=str,
-                    default='model_config.py',
+                    default=script_path + '/model_config.py',
                     help="model config")
 
     args = parser.parse_args()
