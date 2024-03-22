@@ -381,7 +381,7 @@ class StreamLoader(Thread):
             local_patch_chunk = patches_chunk_distribution[self.comm.rank]
             local_patch_chunk.merge_chunks()
             if len(local_patch_chunk) != 1:
-                raise RuntimeError("Patches: Need to load contiguous regions.")
+                raise RuntimeError("Patches: Need to load contiguous regions. Supported configurations are: 1:1 or all:1.")
             else:
                 local_patch_chunk = local_patch_chunk[0]
 

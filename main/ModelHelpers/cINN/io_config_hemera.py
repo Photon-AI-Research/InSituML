@@ -16,11 +16,15 @@ normalization_values = dict(
 )
 
 streamLoader_config = dict(
-    t0 = 890,
+    t0 =  890,
     t1 = 900, # endpoint=false, t1 is not used in training
+    # t0 =  1800,
+    # t1 = 1810, # endpoint=false, t1 is not used in training
     streaming_config = None,
-    pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
-    pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
+    pathpattern1 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/007_KHI_rad4dir_smallY/simOutput/openPMD/simData_%T.bp", # files on hemera
+    pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/007_KHI_rad4dir_smallY/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp", # files on hemera
+    # pathpattern1 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/008_KHI_rad4dir_smallY_highRes/simOutput/openPMD/simData_%T.bp", # files on hemera
+    # pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/008_KHI_rad4dir_smallY_highRes/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp", # files on hemera
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
     normalization = normalization_values,
