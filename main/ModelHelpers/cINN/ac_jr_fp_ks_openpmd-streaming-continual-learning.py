@@ -29,79 +29,60 @@ import torch.distributed as dist
 import argparse
 from dummy_openpmd_producer import DummyOpenPMDProducer
 
+import pathlib
+import importlib.util
+import sys
+
 print("Done importing modules.")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 openPMDBuffer = Queue() ## Buffer shared between openPMD data loader and model
 
+if __name__ == '__main__':
 
-#######################################
-## openPMD data loader configuration ##
-#######################################
-ps_dims = 6 # Actually used in the model configuration by now
-            # ToDo: Use in StreamingLoader
+    parser = argparse.ArgumentParser(
+        description="""For running openPMDproduction based trainings.""",
+		formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-number_of_particles = 100
+    script_path = str(pathlib.Path(__file__).parent.resolve())
 
-normalization_values = dict(
-    momentum_mean = 0.,
-    momentum_std = 1.,
-    force_mean = 0.,
-    force_std = 1.,
-)
+    parser.add_argument('--runner',
+                    type=str,
+                    default='mpirun',
+                    help="Which runner to use")
 
+    parser.add_argument('--type_streamer',
+                    type=str,
+                    default='real',
+                    help="Which type of streamer to produce, dummy or real")
 
+    parser.add_argument('--io_config',
+                    type=str,
+                    default=script_path + '/io_config.py',
+                    help="IO/streaming/data/paths -related config")
 
-streamLoader_config = dict(
-    t0 = 890,
-    t1 = 900, # endpoint=false, t1 is not used in training
-    pathpattern1 = "openPMD/simData.sst", # streaming on frontier
-    pathpattern2 = "radiationOpenPMD/e_radAmplitudes.sst", # streaming on frontier
-    streaming_config = "@inconfig.json", # set to None when reading from file
-    #pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp", # files on frontier
-    #pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
-    # pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
-    # pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
-    amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
-    phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
-    normalization = normalization_values,
-    number_particles_per_gpu = 1000
-)
+    parser.add_argument('--model_config',
+                    type=str,
+                    default=script_path + '/model_config.py',
+                    help="model config")
 
+    args = parser.parse_args()
 
+    ##TODO: if this file is to be used via import, the config paths or configs
+    ## must be allowed to com from somewhere else than CLI args
+    spec = importlib.util.spec_from_file_location("io_config", args.io_config)
+    io_config = importlib.util.module_from_spec(spec)
+    sys.modules["io_config"] = io_config
+    spec.loader.exec_module(io_config)
 
-#########################
-## Model configuration ##
-#########################
+    spec = importlib.util.spec_from_file_location("model_config", args.model_config)
+    model_config = importlib.util.module_from_spec(spec)
+    sys.modules["model_config"] = model_config
+    spec.loader.exec_module(model_config)
 
-rad_dims = 512 # Number of frequencies in radiation data
-
-latent_space_dims = 1024
-
-config = dict(
-dim_input = 1024,
-dim_condition = rad_dims,
-num_coupling_layers = 4,
-hidden_size = 256,
-num_blocks_mat = 6,
-activation = 'relu',
-lr = 0.00001,
-y_noise_scale = 1e-1,
-zeros_noise_scale = 5e-2,
-lambd_predict = 3.,
-lambd_latent = 300.,
-lambd_rev = 400.,
-ndim_tot = 1024,
-ndim_x = 1024,
-ndim_y = 512,
-ndim_z = 512,
-load_model = '2vsik2of'
-)
-
-config_inn = dict(
-
-)
+config = model_config.config
 
 class ModelFinal(nn.Module):
     def __init__(self,
@@ -168,14 +149,14 @@ class ModelFinal(nn.Module):
 
 
 VAE_encoder_kwargs = {"ae_config":"non_deterministic",
-                   "z_dim":latent_space_dims,
-                   "input_dim":ps_dims,
+                   "z_dim":model_config.latent_space_dims,
+                   "input_dim":io_config.ps_dims,
                    "conv_layer_config":[16, 32, 64, 128, 256, 512, 1024],
                    "conv_add_bn": False,
                    "fc_layer_config":[1024]}
 
-VAE_decoder_kwargs = {"z_dim":latent_space_dims,
-                   "input_dim":ps_dims,
+VAE_decoder_kwargs = {"z_dim":model_config.latent_space_dims,
+                   "input_dim":io_config.ps_dims,
                    "initial_conv3d_size":[16, 4, 4, 4],
                    "add_batch_normalisation":False,
                     "fc_layer_config":[1024]}
@@ -185,24 +166,24 @@ def load_objects(rank):
     torch.cuda.empty_cache()
 
     conv_AE_encoder_kwargs = {"ae_config":"simple",
-                    "z_dim":latent_space_dims,
-                    "input_dim":ps_dims,
+                    "z_dim":model_config.latent_space_dims,
+                    "input_dim":io_config.ps_dims,
                     "conv_layer_config":[16, 32, 64, 128, 256, 512],
                     "conv_add_bn": False}
 
     VAE_obj = VAE(encoder = Encoder,
             encoder_kwargs = VAE_encoder_kwargs,
             decoder = Conv3DDecoder,
-            z_dim=latent_space_dims,
+            z_dim=model_config.latent_space_dims,
             decoder_kwargs = VAE_decoder_kwargs,
             loss_function = EarthMoversLoss(),
             property_="momentum_force",
-            particles_to_sample = number_of_particles,
+            particles_to_sample = io_config.number_of_particles,
             ae_config="non_deterministic",
             use_encoding_in_decoder=False,device=rank)
 
-    conv_AE_decoder_kwargs = {"z_dim":latent_space_dims,
-                    "input_dim":ps_dims,
+    conv_AE_decoder_kwargs = {"z_dim":model_config.latent_space_dims,
+                    "input_dim":io_config.ps_dims,
                     "add_batch_normalisation":False}
 
     conv_AE = ConvAutoencoder(encoder = Encoder,
@@ -246,7 +227,9 @@ def load_objects(rank):
 
 
     #Load a pre-trained model
-    filepath = args.modelPath
+    # filepath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
+    # filepath = 'trained_models/{}/best_model_'
+    filepath = io_config.modelPathPattern
 
     map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
     original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=map_location)
@@ -280,6 +263,7 @@ def run_copies(rank=None, world_size=None, runner=None):
         rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
         
         global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
+        print("ranks", global_rank, rank)
 
         dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
         print(f'Initiated DDP GPU {rank}', flush=True)
@@ -312,7 +296,7 @@ def run_copies(rank=None, world_size=None, runner=None):
         #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
         timeBatchLoader = StreamLoader(openPMDBuffer, 
-                                       streamLoader_config,
+                                       io_config.streamLoader_config,
                                        particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
     else:
         timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
@@ -353,36 +337,6 @@ def run_demo(demo_fn, world_size):
 
 if __name__ == '__main__':
     
-    parser = argparse.ArgumentParser(
-        description="""For running openPMDproduction based trainings."""
-    )
-
-    parser.add_argument('--runner',
-                    type=str,
-                    default='mpirun',
-                    help="Which runner to use")
-
-    parser.add_argument('--type_streamer',
-                    type=str,
-                    default='real',
-                    help="Which type of streamer to produce, dummy or real")
-
-    parser.add_argument('--modelPath',
-                    type=str,
-                    default='trained_models/{}/best_model_',
-                    help="model weights to load")
-
-    parser.add_argument('--modelPathPreset',
-                    type=str,
-                    default=None,
-                    help="Use a path preset to override --modelPath. Options [frontier]")
-    
-    args = parser.parse_args()
-    
-    if args.modelPathPreset is not None:
-        if args.modelPathPreset == "frontier":
-            args.modelPath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
-
     if args.runner not in ['torchrun', 'mpirun']:
         n_gpus = torch.cuda.device_count()
         assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
