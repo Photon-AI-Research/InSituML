@@ -28,7 +28,7 @@ from mpi4py import MPI
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
-
+import traceback
 from sys import stdout
 
 class EveryoneGetsData(opmd.Strategy):
@@ -546,6 +546,6 @@ class StreamLoaderExceptionCatcher(StreamLoader):
     def run(self):
         try:
             super().run()
-        except Exception as ex:
-            print(f"StreamLoader failed with the error: {ex}")
+        except Exception:
+            traceback.print_exc()
             self.data.put(None)
