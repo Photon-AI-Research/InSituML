@@ -61,7 +61,7 @@
 .TBG_profile=${PIC_PROFILE:-"~/picongpu.profile"}
 
 # number of available/hosted devices per node in the system
-.TBG_numHostedDevicesPerNode=4
+.TBG_numDevicesForPIConGPUPerNode=4
 
 # number of CPU cores to block per GPU
 # we have 8 CPU cores per GPU (64cores/8gpus ~ 8cores)
@@ -80,7 +80,7 @@
 export OMP_NUM_THREADS=!TBG_coresPerGPU
 
 # required GPUs per node for the current job
-.TBG_devicesPerNode=$(if [ $TBG_tasks -gt $TBG_numHostedDevicesPerNode ] ; then echo $TBG_numHostedDevicesPerNode; else echo $TBG_tasks; fi)
+.TBG_devicesPerNode=$(if [ $TBG_tasks -gt $TBG_numDevicesForPIConGPUPerNode ] ; then echo $TBG_numDevicesForPIConGPUPerNode; else echo $TBG_tasks; fi)
 
 # We only start 1 MPI task per device
 .TBG_mpiTasksPerNode="$(( TBG_devicesPerNode * 1 ))"
@@ -94,7 +94,7 @@ export OMP_NUM_THREADS=!TBG_coresPerGPU
 
 # adjust number of nodes for fault tolerance adjustments
 .TBG_nodes_adjusted=$((!TBG_nodes * (1000 + !TBG_node_oversubscription_pt) / 1000))
-.TBG_tasks_adjusted=$((!TBG_nodes_adjusted * !TBG_numHostedDevicesPerNode))
+.TBG_tasks_adjusted=$((!TBG_nodes_adjusted * !TBG_numDevicesForPIConGPUPerNode))
 
 ## end calculations ##
 
@@ -222,14 +222,14 @@ n_broken_nodes=0
 # return code of cuda_memcheck
 node_check_err=1
 
-if [ -f /mnt/bb/$USER/sync_bins/cuda_memtest ] && [ !TBG_numHostedDevicesPerNode -eq !TBG_mpiTasksPerNode ] ; then
+if [ -f /mnt/bb/$USER/sync_bins/cuda_memtest ] && [ !TBG_numDevicesForPIConGPUPerNode -eq !TBG_mpiTasksPerNode ] ; then
     run_cuda_memtest=1
 else
     run_cuda_memtest=0
 fi
 
-## TODO: REMOVE FOR PRODUCTION
-run_cuda_memtest=0
+.TBG_numHostedDevicesPerNode=8
+
 # test if cuda_memtest binary is available and we have the node exclusive
 if [ $run_cuda_memtest -eq 1 ] ; then
     touch bad_nodes.txt
@@ -312,7 +312,7 @@ chmod +x ./tmp.sh
 sbcast ./tmp.sh /mnt/bb/$USER/sync_bins/launch.sh
 rm ./tmp.sh
 
-TORCH_SCRATCH="/mnt/bb/$USER/$SLURM_PROCID"
+TORCH_SCRATCH="/mnt/bb/$USER"
 
 mkdir -p $TORCH_SCRATCH
 
@@ -320,6 +320,14 @@ mkdir -p $TORCH_SCRATCH
 export MIOPEN_USER_DB_PATH="$TORCH_SCRATCH"
 export MIOPEN_DISABLE_CACHE=1
 
+insituml=/autofs/nccs-svm1_home1/fpoeschel/git-repos/InSituML
+
+oldpwd="$(pwd)"
+pushd "${insituml%/*}"
+tar -czf "$oldpwd/insituml.tar.gz" "${insituml##*/}"
+popd
+sbcast insituml.tar.gz "/mnt/bb/$USER/insituml.tar.gz"
+srun -N !TBG_nodes_adjusted --ntasks-per-node=1 tar -xzf "/mnt/bb/$USER/insituml.tar.gz" --directory "/mnt/bb/$USER/"
 
 if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     ##################
@@ -340,8 +348,6 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
 #    --cpu-bind=verbose,mask_cpu:$mask \
 # once we know how the binding is done
 
-
-
     srun -l                                       \
       --ntasks !TBG_tasks                         \
       --nodes !TBG_nodes                          \
@@ -352,7 +358,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       --network=single_node_vni,job_vni           \
       /mnt/bb/$USER/sync_bins/launch.sh           \
       /mnt/bb/$USER/sync_bins/python              \
-        /ccs/home/ksteinig/src/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py                      \
+        "/mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
         > ../training.out 2> ../training.err              &
 
     sleep 1
