@@ -1,4 +1,6 @@
-modelPathPattern = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
+import pathlib
+
+modelPathPattern = str(pathlib.Path(__file__).parent.resolve()) + '/trained_models/{}/best_model_'
 
 #######################################
 ## openPMD data loader configuration ##
