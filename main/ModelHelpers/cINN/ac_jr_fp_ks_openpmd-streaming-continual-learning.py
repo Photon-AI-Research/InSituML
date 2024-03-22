@@ -285,7 +285,7 @@ def run_copies(rank=None, world_size=None, runner=None):
     if args.type_streamer != 'dummy':
         
         from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
-        from ks_producer_openPMD_streaming import StreamLoader
+        from ks_producer_openPMD_streaming import StreamLoaderExceptionCatcher as StreamLoader
 
 
         particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
