@@ -98,7 +98,6 @@ class TrainBatchBuffer(Thread):
         while openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize):
             # get a particles, radiation from the queue
             particles_radiation = self.get_data()
-            print(particles_radiation)
 
             if particles_radiation == False:
                 break
