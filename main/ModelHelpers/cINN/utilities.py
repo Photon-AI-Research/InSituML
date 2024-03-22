@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-
+from scipy.ndimage import uniform_filter1d
 
 # Losses
 def MMD_multiscale(x, y):
@@ -283,3 +283,78 @@ def normalize_columns(original_array):
 def chamfersDist(a, b):
     d = torch.cdist(a, b, p=2)
     return torch.sum(torch.min(d, -1).values) + torch.sum(torch.min(d, -2).values)
+
+
+def smooth_data(data, window_size=5):
+    """Smooth data using a moving average."""
+    return uniform_filter1d(data, size=window_size, mode='nearest')
+
+def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_range=512, t=1000, gpu_box=0, path='',
+                   enable_wandb=False):
+    """
+    Plot radiation intensity against frequency and compute MSE and relative MSE
+    between ground truth and prediction. Compatible with both NumPy arrays and PyTorch tensors.
+
+    Parameters:
+    - ground_truth_intensity: A tensor or array of ground truth radiation spectra values.
+    - predicted_intensity: A tensor or array of predicted radiation spectra values (optional).
+    - t: Time step for the title (default=1000).
+    - gpu_box: Identifier for the GPU box (default=0).
+    - path: Path to save the plot (optional).
+    - enable_wandb: Enable logging to Weights & Biases (default=False).
+    """
+    
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    def to_numpy(data):
+        """Convert PyTorch tensor to NumPy array if necessary."""
+        if 'torch' in str(type(data)):
+            return data.cpu().numpy()
+        return data
+
+    # Load frequency data
+    frequency = np.load("/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/omega.npy")[:frequency_range]
+    
+    # Ensure ground_truth_intensity and predicted_intensity are NumPy arrays
+    ground_truth_intensity = to_numpy(ground_truth_intensity)[:frequency_range]
+    ground_truth_smoothed = smooth_data(ground_truth_intensity)
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(frequency, ground_truth_intensity, label='GT Radiation Intensity (Raw)', color='blue', linewidth=2)
+    
+    mse, rel_mse = 0, 0  # Initialize MSE and Relative MSE
+    
+    if predicted_intensity is not None:
+        predicted_intensity = to_numpy(predicted_intensity)[:frequency_range]
+        predicted_smoothed = smooth_data(predicted_intensity)
+        
+        plt.plot(frequency, predicted_smoothed, label='Predicted Radiation Intensity (Smoothed)', linestyle='--', color='red', marker='o', markersize=5, zorder=1)
+        plt.plot(frequency, predicted_intensity, label='Predicted Radiation Intensity (Raw)', linestyle='--', color='red', alpha=0.3, zorder=0, markersize=3)
+        
+        # Compute MSE
+        mse = np.mean((ground_truth_intensity - predicted_intensity) ** 2)
+        
+        # Compute Relative MSE
+        rel_mse = mse / np.mean(ground_truth_intensity ** 2)
+    
+    # Update plot title with MSE and Relative MSE if prediction is provided
+    if predicted_intensity is not None:
+        plt.title(f'Radiation Intensity vs. Frequency t = {t}, box = {gpu_box}\nMSE = {mse:.2e}, Relative MSE = {rel_mse:.2e}')
+    else:
+        plt.title(f'Radiation Intensity vs. Frequency t = {t}, box = {gpu_box}')
+    
+    plt.xlabel('Frequency')
+    plt.ylabel('Intensity (log scale)')
+    plt.legend()
+    plt.grid(True)
+    
+    if path:
+        plt.savefig(f'{path}/radiation_plots_{t}_{gpu_box}.png')
+    
+    if enable_wandb:
+        import wandb
+        wandb.log({"Radiation (t={},box={})".format(t, gpu_box): wandb.Image(plt)})
+        plt.close()
+    else:
+        plt.show()
