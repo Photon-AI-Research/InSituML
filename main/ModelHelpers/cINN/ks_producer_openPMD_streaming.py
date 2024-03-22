@@ -547,5 +547,5 @@ class StreamLoaderExceptionCatcher(StreamLoader):
         try:
             super().run()
         except Exception as ex:
-            print(f"StreamLoader failed with the error {ex}")
-            self.data.put([loaded_particles, distributed_amplitudes])
+            print(f"StreamLoader failed with the error: {ex}")
+            self.data.put(None)
