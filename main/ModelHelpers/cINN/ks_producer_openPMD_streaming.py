@@ -542,3 +542,10 @@ class StreamLoader(Thread):
         series.close()
         radiationSeries.close()
 
+class StreamLoaderExceptionCatcher(StreamLoader):
+    def run(self):
+        try:
+            super().run()
+        except Exception as ex:
+            print(f"StreamLoader failed with the error {ex}")
+            self.data.put([loaded_particles, distributed_amplitudes])
