@@ -253,8 +253,6 @@ class StreamLoader(Thread):
             print("[WARNING] No chunk table found in data. Will map source to sink ranks somehow, but this might scale terribly in streaming setups.", file=sys.stderr)
         outranks = opmd.HostInfo.MPI_PROCESSOR_NAME.get_collective(self.comm)
 
-        assert inranks == outranks, "steaming must be 1:1"
-
         # We need to use the __iter__() and __next__() manually since both these
         # iterators need to be processed concurrently.
         # zip() might also work, but manual iteration is better since it gives
@@ -383,7 +381,7 @@ class StreamLoader(Thread):
             local_patch_chunk = patches_chunk_distribution[self.comm.rank]
             local_patch_chunk.merge_chunks()
             if len(local_patch_chunk) != 1:
-                raise RuntimeError("Patches: Need to load contiguous regions.")
+                raise RuntimeError("Patches: Need to load contiguous regions. Supported configurations are: 1:1 or all:1.")
             else:
                 local_patch_chunk = local_patch_chunk[0]
 
