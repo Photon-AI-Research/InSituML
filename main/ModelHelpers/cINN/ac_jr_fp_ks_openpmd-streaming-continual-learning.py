@@ -151,9 +151,9 @@ class ModelFinal(nn.Module):
 VAE_encoder_kwargs = {"ae_config":"non_deterministic",
                    "z_dim":model_config.latent_space_dims,
                    "input_dim":io_config.ps_dims,
-                   "conv_layer_config":[16, 32, 64, 128, 256, 512, 1024],
+                   "conv_layer_config":[16, 32, 64, 128, 256, 608],
                    "conv_add_bn": False,
-                   "fc_layer_config":[1024]}
+                   "fc_layer_config":[544]}
 
 VAE_decoder_kwargs = {"z_dim":model_config.latent_space_dims,
                    "input_dim":io_config.ps_dims,
@@ -165,12 +165,6 @@ def load_objects(rank):
     torch.cuda.set_device(rank)
     torch.cuda.empty_cache()
 
-    conv_AE_encoder_kwargs = {"ae_config":"simple",
-                    "z_dim":model_config.latent_space_dims,
-                    "input_dim":io_config.ps_dims,
-                    "conv_layer_config":[16, 32, 64, 128, 256, 512],
-                    "conv_add_bn": False}
-
     VAE_obj = VAE(encoder = Encoder,
             encoder_kwargs = VAE_encoder_kwargs,
             decoder = Conv3DDecoder,
@@ -181,17 +175,24 @@ def load_objects(rank):
             particles_to_sample = io_config.number_of_particles,
             ae_config="non_deterministic",
             use_encoding_in_decoder=False,device=rank)
+    
+    # conv_AE
+#     conv_AE_encoder_kwargs = {"ae_config":"simple",
+#                     "z_dim":model_config.latent_space_dims,
+#                     "input_dim":io_config.ps_dims,
+#                     "conv_layer_config":[16, 32, 64, 128, 256, 512],
+#                     "conv_add_bn": False}
 
-    conv_AE_decoder_kwargs = {"z_dim":model_config.latent_space_dims,
-                    "input_dim":io_config.ps_dims,
-                    "add_batch_normalisation":False}
+#     conv_AE_decoder_kwargs = {"z_dim":model_config.latent_space_dims,
+#                     "input_dim":io_config.ps_dims,
+#                     "add_batch_normalisation":False}
 
-    conv_AE = ConvAutoencoder(encoder = Encoder,
-                            encoder_kwargs = conv_AE_encoder_kwargs,
-                            decoder = Conv3DDecoder,
-                            decoder_kwargs = conv_AE_decoder_kwargs,
-                            loss_function = EarthMoversLoss(),
-                            )
+#     conv_AE = ConvAutoencoder(encoder = Encoder,
+#                             encoder_kwargs = conv_AE_encoder_kwargs,
+#                             decoder = Conv3DDecoder,
+#                             decoder_kwargs = conv_AE_decoder_kwargs,
+#                             loss_function = EarthMoversLoss(),
+#                             )
 
     # MAF inner model (not used in final runs)
     # inner_model = PC_MAF(dim_condition=config["dim_condition"],
@@ -233,8 +234,8 @@ def load_objects(rank):
 
     map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
     original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=map_location)
-    updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
-    model.load_state_dict(updated_state_dict)
+    # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+    model.load_state_dict(original_state_dict)
     print('Loaded pre-trained model successfully')
 
     optimizer = optim.Adam(model.parameters(), lr=config["lr"])

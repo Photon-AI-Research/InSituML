@@ -4,7 +4,7 @@
 
 rad_dims = 512 # Number of frequencies in radiation data
 
-latent_space_dims = 1024
+latent_space_dims = 544
 
 config = dict(
 dim_input = 1024,
@@ -19,11 +19,11 @@ zeros_noise_scale = 5e-2,
 lambd_predict = 3.,
 lambd_latent = 300.,
 lambd_rev = 400.,
-ndim_tot = 1024,
-ndim_x = 1024,
+ndim_tot = 544,
+ndim_x = 544,
 ndim_y = 512,
-ndim_z = 512,
-load_model = '2vsik2of'
+ndim_z = 32,
+load_model = 'inn_vae_latent_544_sim007_24k0zbm4'
 )
 
 config_inn = dict(
