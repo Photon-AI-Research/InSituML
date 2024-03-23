@@ -30,7 +30,7 @@ streamLoader_config = dict(
     normalization = normalization_values,
     number_particles_per_gpu = 1000
     ## offline training params
-    num_epochs = 2
+    num_epochs = 1
 )
 
 openPMD_queue_size=4
