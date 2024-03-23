@@ -312,15 +312,9 @@ chmod +x ./tmp.sh
 sbcast ./tmp.sh /mnt/bb/$USER/sync_bins/launch.sh
 rm ./tmp.sh
 
-TORCH_SCRATCH="/mnt/bb/$USER"
 
-mkdir -p $TORCH_SCRATCH
-
-## Say torch to write to scratch directory
-export MIOPEN_USER_DB_PATH="$TORCH_SCRATCH"
-export MIOPEN_DISABLE_CACHE=1
-
-insituml=/autofs/nccs-svm1_home1/fpoeschel/git-repos/InSituML
+#insituml=/autofs/nccs-svm1_home1/fpoeschel/git-repos/InSituML
+insituml=/autofs/nccs-svm1_home1/ksteinig/src/InSituML
 
 oldpwd="$(pwd)"
 pushd "${insituml%/*}"
@@ -333,6 +327,13 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     ##################
     ## Run InSituML ##
     ##################
+    ## Say torch to write to scratch directory
+    export MIOPEN_USER_DB_PATH="/mnt/bb/$USER"
+    export MIOPEN_DISABLE_CACHE=1
+    export MASTER_PORT=12340
+    export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+    export WORLD_SIZE=!TBG_tasks
+
     echo "Start InSituML"
     test $n_broken_nodes -ne 0 && exclude_nodes="-x./bad_nodes.txt"
 
@@ -359,6 +360,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       /mnt/bb/$USER/sync_bins/launch.sh           \
       /mnt/bb/$USER/sync_bins/python              \
         "/mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
+        --io_config /mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/io_config_frontier_streaming.py --runner srun \
         > ../training.out 2> ../training.err              &
 
     sleep 1
