@@ -97,6 +97,9 @@ class ModelTrainer(Thread):
             #is not enough data in the now buffer 
             #for training to begin
             if phase_space_radiation is None:
+                if not self.training_buffer.openpmdProduction:
+                    # something went wrong when reading the first data, abort
+                    break
                 print(f"Trainer will wait for {self.sleep_before_retry} seconds, for data to be "
                         f"streamed before reattempting batch extraction." )
                 time.sleep(self.sleep_before_retry)
