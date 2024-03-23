@@ -28,7 +28,6 @@ from mpi4py import MPI
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
-import traceback
 from sys import stdout
 
 class EveryoneGetsData(opmd.Strategy):
@@ -543,11 +542,3 @@ class StreamLoader(Thread):
         # close series
         series.close()
         radiationSeries.close()
-
-class StreamLoaderExceptionCatcher(StreamLoader):
-    def run(self):
-        try:
-            super().run()
-        except Exception:
-            traceback.print_exc()
-            self.data.put(None)

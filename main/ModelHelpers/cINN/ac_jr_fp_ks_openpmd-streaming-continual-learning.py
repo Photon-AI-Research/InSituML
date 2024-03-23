@@ -35,28 +35,24 @@ import sys
 
 print("Done importing modules.")
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-openPMDBuffer = Queue() ## Buffer shared between openPMD data loader and model
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description="""For running openPMDproduction based trainings.""",
-		formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     script_path = str(pathlib.Path(__file__).parent.resolve())
 
     parser.add_argument('--runner',
                     type=str,
-                    default='mpirun',
-                    help="Which runner to use")
+                    default=None,
+                    help="Which runner type is in use: srun (frontier), mpirun, torchrun. Overrides seting in io_config.")
 
     parser.add_argument('--type_streamer',
                     type=str,
-                    default='real',
-                    help="Which type of streamer to produce, dummy or real")
+                    default=None,
+                    help="Which type of streamer to produce: streaming, offline, dummy. Overrides seting in io_config.")
 
     parser.add_argument('--io_config',
                     type=str,
@@ -81,6 +77,17 @@ if __name__ == '__main__':
     model_config = importlib.util.module_from_spec(spec)
     sys.modules["model_config"] = model_config
     spec.loader.exec_module(model_config)
+
+    if args.runner is None:
+        args.runner = io_config.runner
+
+    if args.type_streamer is None:
+        args.type_streamer = io_config.type_streamer
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+openPMDBuffer = Queue(io_config.openPMD_queue_size) ## Buffer shared between openPMD data loader and model
+
 
 config = model_config.config
 
@@ -283,10 +290,14 @@ def run_copies(rank=None, world_size=None, runner=None):
 
     optimizer, scheduler, model = load_objects(rank)
     
-    if args.type_streamer != 'dummy':
+    if args.type_streamer == 'streaming':
         
         from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
-        from ks_producer_openPMD_streaming import StreamLoaderExceptionCatcher as StreamLoader
+        #from ks_producer_openPMD_streaming import StreamLoaderExceptionCatcher as StreamLoader
+        from ks_producer_openPMD_streaming import StreamLoader
+
+        from LoaderExceptionHandler import wrapLoaderWithExceptionHandler
+        Loader = wrapLoaderWithExceptionHandler(StreamLoader)
 
 
         particleDataTransformationPolicy = BoxesAttributesParticles() #returns particle data of shape (local ranks, number_of_particles, ps_dims)
@@ -296,13 +307,27 @@ def run_copies(rank=None, world_size=None, runner=None):
         radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
         #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
-        timeBatchLoader = StreamLoader(openPMDBuffer, 
+        timeBatchLoader = Loader(openPMDBuffer, 
+                                       io_config.streamLoader_config,
+                                       particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+    elif args.type_streamer == 'offline':
+        
+        from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
+        from ks_producer_openPMD import RandomLoader
+
+        from LoaderExceptionHandler import wrapLoaderWithExceptionHandler
+        Loader = wrapLoaderWithExceptionHandler(RandomLoader)
+
+        particleDataTransformationPolicy = BoxesAttributesParticles()
+        radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
+
+        timeBatchLoader = Loader(openPMDBuffer, 
                                        io_config.streamLoader_config,
                                        particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
     else:
         timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
         
-    trainBF = TrainBatchBuffer(openPMDBuffer)
+    trainBF = TrainBatchBuffer(openPMDBuffer, **io_config.trainBatchBuffer_config)
     modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
     ####################
