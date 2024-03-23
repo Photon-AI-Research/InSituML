@@ -15,10 +15,11 @@ In order to train the model do:
 	  pip install -r requirements_hemera.txt
 	  ```
 
-3. Change to directory `InSituML/main/ModelHelpers/cINN` and adjust path to data and path to pre-trained model in `ac_jr_fp_ks_openpmd-streaming-continual-learning.py` to:
-   frontier path to data: `/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset`
-   frontier path to model: `/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_` (not world readable, have your own git clone!)
-   hemera: `/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/`
+3. Change to directory `InSituML/main/ModelHelpers/cINN` and
+   * adjust path to data in `io_config.py` (`pathpattern1` and `pathpattern2` (already there, but commented-out)) to
+	 frontier path to data: `/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset`
+   * `streamin_config` to `None` (to train from file),
+   * path to pre-trained model in `io_config.py` to should not need to be adjusted.
 
 4. run training in an interactive job by continual learning with stream loader (on single gpu):
 
@@ -26,7 +27,21 @@ In order to train the model do:
    ```bash
    $ cd /lustre/orion/csc380/proj-shared/ksteinig/2024-03_Training-from-Stream/job_temp
    $ export MIOPEN_USER_DB_PATH="$(pwd)"; export MIOPEN_DISABLE_CACHE=1
-   $ srun -n 1 python ~/src/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py
+   $ srun python ~/src/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py
    ```
-   hemera: `mpirun -n 1 python ac_jr_fp_ks_openpmd-streaming-continual-learning.py`
+   Add `--type_streamer offline` to work from file with any number of GPUs.
+   This will send a random permutations of all data to all ranks.  All data is
+   send to all ranks, i.e. the number of epochs/work increase with number GPUs.
+   Can be controlled with in `io_config.py` in `streamLoader_config` with the
+   `num_epochs` parameter, which may be fractional.
+
+   hemera:
+   ```bash
+   export WORLD_SIZE=<number of global torch ranks>
+   export MASTER_PORT=12340
+   master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+   export MASTER_ADDR=$master_addr
+   mpirun -n <torch ranks per node> python ac_jr_fp_ks_openpmd-streaming-continual-learning.py --io_config=io_config_hemera.py --type_streamer=offline`
+   ```
+   `--type_streamer` may be `streaming` or `offline`.
 

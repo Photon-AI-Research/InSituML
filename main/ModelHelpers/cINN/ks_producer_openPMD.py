@@ -86,9 +86,11 @@ class RandomLoader(Thread):
 
         # start reading data
         i_epoch = int(0)
-        while i_epoch < self.numEpochs:
+        while i_epoch < np.ceil(self.numEpochs):
             """Iterate over all timebatches in all epochs."""
             perm = self.rng.permutation(self.t1-self.t0)
+            if self.numEpochs - i_epoch < 1.:
+                perm = perm[:int(len(perm) * (self.numEpochs - i_epoch))]
             print("Start epoch ", i_epoch)
             ###############################################
             # Fill timebatch with particle and radiation data
