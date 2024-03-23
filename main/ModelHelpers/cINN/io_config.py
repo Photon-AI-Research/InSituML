@@ -29,6 +29,8 @@ streamLoader_config = dict(
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
     normalization = normalization_values,
     number_particles_per_gpu = 1000
+    ## offline training params
+    num_epochs = 2
 )
 
 openPMD_queue_size=4
