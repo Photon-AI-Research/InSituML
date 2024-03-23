@@ -44,4 +44,3 @@ In order to train the model do:
    mpirun -n <torch ranks per node> python ac_jr_fp_ks_openpmd-streaming-continual-learning.py --io_config=io_config_hemera.py --type_streamer=offline`
    ```
    `--type_streamer` may be `streaming` or `offline`.
-
