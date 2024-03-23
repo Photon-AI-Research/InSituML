@@ -16,6 +16,8 @@ from torch import zeros as torch_zeros
 from torch import transpose as torch_transpose
 from torch import stack as torch_stack
 
+# need to import mpi4py, otherwise there is an undefined symbol required by adios when importing openpmd_api (on hemera)
+from mpi4py import MPI
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
@@ -72,6 +74,7 @@ class RandomLoader(Thread):
 
         assert variablesAllowed, f"Requested phase space variables are not in allowed range {allowedVars}"
 
+        self.verbose = hyperParameterDefaults['verbose'] if 'verbose' in hyperParameterDefaults else False
 
     def run(self):
         """Function being executed when thread is started."""
@@ -83,15 +86,18 @@ class RandomLoader(Thread):
 
         # start reading data
         i_epoch = int(0)
-        perm = self.rng.permutation(self.t1-self.t0)
         while i_epoch < self.numEpochs:
             """Iterate over all timebatches in all epochs."""
+            perm = self.rng.permutation(self.t1-self.t0)
             print("Start epoch ", i_epoch)
             ###############################################
             # Fill timebatch with particle and radiation data
             for step in (perm+self.t0):
                 """iterate over all timesteps"""
                 iteration = series.iterations[step]
+
+                if self.verbose:
+                    print("loading iteration ", step, iteration)
 
                 ## obtain particle distribution over GPUs ##
                 #

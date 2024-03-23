@@ -28,7 +28,6 @@ from mpi4py import MPI
 import openpmd_api as opmd
 
 from ks_helperfuncs import *
-import traceback
 from sys import stdout
 
 class EveryoneGetsData(opmd.Strategy):
@@ -101,7 +100,7 @@ def distribution_strategy(dataset_extent,
 # If the data does not define a rank table, a possible setting for the
 # environment variable is `OPENPMD_CHUNK_DISTRIBUTION=slicedataset`.
 def determine_local_region(record_component, comm, inranks, outranks,
-                          strategy_identifier=None):
+                          strategy_identifier=None, verbose=True):
     if isinstance(strategy_identifier, opmd.Strategy):
         distribution = strategy_identifier
     else:
@@ -135,7 +134,7 @@ def determine_local_region(record_component, comm, inranks, outranks,
 
         res[target_rank] = all_chunks
 
-    if comm.rank == 0:
+    if comm.rank == 0 and verbose:
         for target_rank, table in res.items():
             for chunk in table:
                 print("Target rank {} loads from source ranks {}, {} - {}".format(
@@ -220,6 +219,7 @@ class StreamLoader(Thread):
 
         assert variablesAllowed, f"Requested phase space variables are not in allowed range {allowedVars}"
 
+        self.verbose = hyperParameterDefaults['verbose'] if 'verbose' in hyperParameterDefaults else False
 
     def run(self):
         """Function being executed when thread is started."""
@@ -286,12 +286,13 @@ class StreamLoader(Thread):
 
             if not (self.hyperParameterDefaults['t0']
                     <= iteration.iteration_index
-                    <= self.hyperParameterDefaults['t1']):
-                print("Skipping iteration {} as it is not in the specified range [t0,t1]=[{},{}]".format(
-                    iteration.iteration_index,
-                    self.hyperParameterDefaults['t0'],
-                    self.hyperParameterDefaults['t1']
-                ))
+                    < self.hyperParameterDefaults['t1']):
+                if self.comm.rank == 0 and self.verbose:
+                    print("Skipping iteration {} as it is not in the specified range [t0,t1)=[{},{})".format(
+                        iteration.iteration_index,
+                        self.hyperParameterDefaults['t0'],
+                        self.hyperParameterDefaults['t1']
+                    ))
                 get_next_radiation()
                 continue
 
@@ -304,7 +305,7 @@ class StreamLoader(Thread):
             # memorize particle distribution over GPUs in array
             e_pos_x = ps["position"]["x"]
             chunk_distribution = determine_local_region(
-                e_pos_x, self.comm, inranks, outranks
+                e_pos_x, self.comm, inranks, outranks, verbose=self.verbose
             )
             local_particles_chunks = chunk_distribution[self.comm.rank]
             num_processed_chunks_per_rank = len(local_particles_chunks)
@@ -374,7 +375,7 @@ class StreamLoader(Thread):
             gpuBoxOffset = dict()
             patches_chunk_distribution = determine_local_region(
                 ps.particle_patches["extent"]["x"], self.comm, inranks, outranks,
-                SelectAccordingToChunkDistribution(chunk_distribution)
+                SelectAccordingToChunkDistribution(chunk_distribution), verbose=self.verbose
             )
             # import ipdb
             # ipdb.set_trace(context=30)
@@ -476,7 +477,7 @@ class StreamLoader(Thread):
 
             rad_chunk_distribution = determine_local_region(
                 radIter.meshes["Amplitude_distributed"]["x"], self.comm, inranks, outranks,
-                SelectAccordingToChunkDistribution(chunk_distribution)
+                SelectAccordingToChunkDistribution(chunk_distribution), verbose=self.verbose
             )
             local_radiation_chunk = rad_chunk_distribution[self.comm.rank]
             local_radiation_chunk.merge_chunks()
@@ -541,11 +542,3 @@ class StreamLoader(Thread):
         # close series
         series.close()
         radiationSeries.close()
-
-class StreamLoaderExceptionCatcher(StreamLoader):
-    def run(self):
-        try:
-            super().run()
-        except Exception:
-            traceback.print_exc()
-            self.data.put(None)

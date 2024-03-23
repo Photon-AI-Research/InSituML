@@ -33,10 +33,11 @@ class TrainBatchBuffer(Thread):
                  training_bs = 4,
                  buffersize = 5,
                  max_tb_from_unchanged_now_bf = 3,
-                 use_continual_learning=True,
                  continual_bs = 4,
                  cl_mem_size=2048,
-                 do_tranpose=True):
+                 do_tranpose=True,
+                 stall_loader=False,
+                 consume_size = None):
 
         Thread.__init__(self)
 
@@ -44,8 +45,12 @@ class TrainBatchBuffer(Thread):
         self.do_tranpose = do_tranpose
         self.training_bs = training_bs
         self.continual_bs = continual_bs
+        if consume_size is None:
+            self.consume_size = training_bs
+        else: # number of items consumed from the loaded is, in general, independent of batch size
+            self.consume_size = consume_size
 
-        self.use_continual_learning = use_continual_learning
+        self.use_continual_learning = self.continual_bs > 0
         ## continual learning related required variables
         if self.use_continual_learning:
             self.er_mem = ExperienceReplay(mem_size=cl_mem_size)
@@ -59,12 +64,16 @@ class TrainBatchBuffer(Thread):
         #only added so that thread is 
         #not run by default thread runner. 
         self.run_thread = False
+
+        self.stall_loader = stall_loader
         
         # to indicate whether there are
         # still production from openPMD production.
         self.openpmdProduction = True
         self.noReadCount = 0
         self.max_tb_from_unchanged_now_bf = max_tb_from_unchanged_now_bf
+
+        self.particles_radiation = [] # unpack buffer
 
     def get_data(self):
         '''This is an extra failsafe to avoid this thread being blocked because of empty
@@ -85,7 +94,7 @@ class TrainBatchBuffer(Thread):
 
     def run(self):
         
-        if self.run_thread == False:
+        if self.run_thread == False or self.openpmdProduction == False:
             return
         
         openPMDBufferReadCount = 0
@@ -96,26 +105,31 @@ class TrainBatchBuffer(Thread):
             print("Updating the train buffer")
             
         while openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize):
-            # get a particles, radiation from the queue
-            particles_radiation = self.get_data()
+            # This condition can discard items left in particles_radiation even
+            # openPMDbuffer does not have enough items to deliver consume_size,
+            # but this case has no relevance, because when we srem and not
+            # stall the producer items will not be bunched.
+            if ( not self.stall_loader and openPMDBufferSize > 0) or len(self.particles_radiation) == 0:
+                # get a particles, radiation from the queue
+                particles_radiation = self.get_data()
 
-            if particles_radiation == False:
-                break
-            elif particles_radiation is None:
-                self.openpmdProduction = False
-                break
+                if particles_radiation == False:
+                    break
+                elif particles_radiation is None:
+                    self.openpmdProduction = False
+                    break
 
-            particles_radiation = self.reshape(particles_radiation)
+                # in case items are bunched-up by the producer, we keep superfluous ones for the next round
+                self.particles_radiation = self.reshape(particles_radiation)
+                print("##TrainBatchBuffer## particles_radiation.reshape", len(self.particles_radiation))
 
-            if len(self.buffer_) < self.buffersize:
-                self.buffer_ += particles_radiation
-            else:
+            itemsToTake = min(self.consume_size - openPMDBufferReadCount, len(self.particles_radiation))
+            itemsToSchedule = len(self.buffer_) + itemsToTake - self.buffersize
+            if itemsToSchedule > 0:
                 #extracts the first elements.
-                last_elements = self.buffer_[:len(particles_radiation)]
-                self.buffer_ = self.buffer_[len(particles_radiation):]
+                last_elements = self.buffer_[:itemsToSchedule]
+                self.buffer_ = self.buffer_[itemsToSchedule:]
                 
-                self.buffer_ += particles_radiation
-
                 if self.use_continual_learning:
                     #add the last element to memory, if continual learning is
                     #required.
@@ -130,11 +144,16 @@ class TrainBatchBuffer(Thread):
                     self.n_obs += len(last_elements)
                     self.i_step += 1
 
-            openPMDBufferReadCount += 1
+            self.buffer_ += self.particles_radiation[:itemsToTake]
+            self.particles_radiation = self.particles_radiation[itemsToTake:]
+
+            openPMDBufferReadCount += itemsToTake
             self.noReadCount = 0
         
         else:
             self.noReadCount += 1
+
+        print("##TrainBatchBuffer## openPMDBufferReadCount", openPMDBufferReadCount)
         
         self.run_thread = False
         

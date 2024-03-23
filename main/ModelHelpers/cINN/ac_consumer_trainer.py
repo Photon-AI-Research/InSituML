@@ -58,6 +58,7 @@ class ModelTrainer(Thread):
         self.logger = logger
         
         self.batch_passes = 0
+        self.training_samples = 0
         self.ts_after_stopped_production = ts_after_stopped_production
 
         if gpu_id is not None:
@@ -106,6 +107,8 @@ class ModelTrainer(Thread):
                 continue   
             
             phase_space, radiation = phase_space_radiation
+
+            self.training_samples += phase_space.shape[0]
             
             phase_space = phase_space.to(self.gpu_id)
             radiation = radiation.to(self.gpu_id)
@@ -135,8 +138,6 @@ class ModelTrainer(Thread):
             self.optimizer.step()
             self.scheduler.step()
             
-            print("Trained on a batch succesfully")
-            
             if self.training_buffer.openpmdProduction == False:
                 print(f"Note: The streaming has stopped, the trainer will run for "
                         f"{self.ts_after_stopped_production} training steps (batch passes) "
@@ -147,3 +148,5 @@ class ModelTrainer(Thread):
                     if self.batch_passes > 0:
                         logLosses(losses) # log last batch
                     break
+
+        print("Training ended after {} samples in {} batches.".format(self.training_samples, self.batch_passes))

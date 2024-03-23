@@ -30,3 +30,14 @@ streamLoader_config = dict(
     normalization = normalization_values,
     number_particles_per_gpu = 1000
 )
+
+openPMD_queue_size=4
+
+trainBatchBuffer_config = dict(
+    continual_bs=4,
+    stall_loader=False,
+    consume_size=4,
+)
+
+runner="srun"
+type_streamer="streaming"
