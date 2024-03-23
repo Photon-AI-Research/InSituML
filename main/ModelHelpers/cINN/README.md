@@ -20,6 +20,8 @@ In order to train the model do:
 	 frontier path to data: `/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset`
    * `streamin_config` to `None` (to train from file),
    * path to pre-trained model in `io_config.py` to should not need to be adjusted.
+   * **There is also `io_config_frontier_offline.py`** which has these settings,
+     see below.
 
 4. run training in an interactive job by continual learning with stream loader (on single gpu):
 
@@ -44,3 +46,9 @@ In order to train the model do:
    mpirun -n <torch ranks per node> python ac_jr_fp_ks_openpmd-streaming-continual-learning.py --io_config=io_config_hemera.py --type_streamer=offline`
    ```
    `--type_streamer` may be `streaming` or `offline`.
+
+## Parameters for `ac_jr_fp_ks_openpmd-streaming-continual-learning.py`
+|arg | description | values |
+| --- | --- | --- |
+|`--io_config`| IO-related config (producer/training buffer/model paths) | e.g. `io_config.py` (default), `io_config_frontier_offline.py`, `io_config_hemera.py` |
+|`--model_config` | model hyper parameters | `model_config.py` |
