@@ -184,7 +184,9 @@ def main():
                 property_="momentum_force",
                 particles_to_sample = io_config.number_of_particles,
                 ae_config="non_deterministic",
-                use_encoding_in_decoder=False,device=rank)
+                use_encoding_in_decoder=False,
+                weight_kl=model_config.config["lambd_kl"],
+                device=rank)
         
         # conv_AE
     #     conv_AE_encoder_kwargs = {"ae_config":"simple",
