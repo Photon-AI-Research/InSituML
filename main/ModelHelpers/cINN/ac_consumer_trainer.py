@@ -73,13 +73,26 @@ class ModelTrainer(Thread):
 
         rest_training_left_counter=0
 
+        def logLosses(losses):
+            # print loss terms
+            loss_message_parts = [f'batch_index: {self.batch_passes-1} | loss_avg: {loss_avg.item():.4f}']
+            for loss_name, loss_value in losses.items():
+                loss_message_parts.append(f'{loss_name}: {loss_value.item():.4f}')
+
+            loss_message = ' | '.join(loss_message_parts)
+            print(loss_message)
+                            
+            if self.logger is not None:
+                
+                self.logger.log_scalar(scalar=loss_avg.item(), name="loss_avg", epoch=self.batch_passes-1)
+                
+                for loss_name, loss_value in losses.items():
+                    self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
+
         while True:
             
             phase_space_radiation = self.training_buffer.get_batch()
 
-            if self.training_buffer.openpmdProduction == False:
-                break
-            
             #this is now only indicating that there 
             #is not enough data in the now buffer 
             #for training to begin
@@ -95,22 +108,8 @@ class ModelTrainer(Thread):
             radiation = radiation.to(self.gpu_id)
 
             # only logging from of the master process
-            if self.batch_passes != 0:
-                
-                # print loss terms
-                loss_message_parts = [f'batch_index: {self.batch_passes-1} | loss_avg: {loss_avg.item():.4f}']
-                for loss_name, loss_value in losses.items():
-                    loss_message_parts.append(f'{loss_name}: {loss_value.item():.4f}')
-
-                loss_message = ' | '.join(loss_message_parts)
-                print(loss_message)
-                                
-                if self.logger is not None:
-                    
-                    self.logger.log_scalar(scalar=loss_avg.item(), name="loss_avg", epoch=self.batch_passes-1)
-                    
-                    for loss_name, loss_value in losses.items():
-                        self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
+            if self.batch_passes > 0:
+                logLosses(losses)
                     
             self.batch_passes += 1
             
@@ -142,4 +141,6 @@ class ModelTrainer(Thread):
                         f"Training step:{rest_training_left_counter} after the streaming has stopped.")
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
+                    if self.batch_passes > 0:
+                        logLosses(losses) # log last batch
                     break
