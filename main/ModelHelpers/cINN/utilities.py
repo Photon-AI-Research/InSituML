@@ -391,3 +391,15 @@ def load_checkpoint(path_to_checkpoint, model, optimizer):
     wandb_run_id = checkpoint.get('wandb_run_id', None)
 
     return model, optimizer, last_loss, min_valid_loss, epoch, wandb_run_id
+
+def save_checkpoint_conditionally(model, optimizer, path, epoch, last_loss, min_valid_loss=None, wandb_run_id=None):
+    checkpoint_filename = f'model_{epoch}'
+    checkpoint_path = os.path.join(path, checkpoint_filename)
+
+    # Check if the checkpoint for this epoch already exists
+    if not os.path.exists(checkpoint_path):
+
+        save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id)
+        print(f"Checkpoint for epoch {epoch} saved.")
+    else:
+        print(f"Checkpoint for epoch {epoch} already exists. Skipping save.")
