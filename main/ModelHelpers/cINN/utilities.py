@@ -358,3 +358,48 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_r
         plt.close()
     else:
         plt.show()
+        
+        
+def save_checkpoint(model, optimizer, path, last_loss, epoch, min_valid_loss=None, wandb_run_id=None):
+    state = {
+        'model': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'last_loss': last_loss.item(),
+        'epoch': epoch,
+    }
+    
+    if min_valid_loss is not None:
+        state['min_valid_loss'] = min_valid_loss
+
+    if wandb_run_id is not None:
+        state['wandb_run_id'] = wandb_run_id
+
+    torch.save(state, path + '/model_' + str(epoch))
+    
+        
+def load_checkpoint(path_to_checkpoint, model, optimizer):
+    # Load the saved file
+    checkpoint = torch.load(path_to_checkpoint)
+
+    model.load_state_dict(checkpoint['model'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+
+    last_loss = checkpoint['last_loss']
+    epoch = checkpoint['epoch']
+    
+    min_valid_loss = checkpoint.get('min_valid_loss', None)
+    wandb_run_id = checkpoint.get('wandb_run_id', None)
+
+    return model, optimizer, last_loss, min_valid_loss, epoch, wandb_run_id
+
+def save_checkpoint_conditionally(model, optimizer, path, epoch, last_loss, min_valid_loss=None, wandb_run_id=None):
+    checkpoint_filename = f'model_{epoch}'
+    checkpoint_path = os.path.join(path, checkpoint_filename)
+
+    # Check if the checkpoint for this epoch already exists
+    if not os.path.exists(checkpoint_path):
+
+        save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id)
+        print(f"Checkpoint for epoch {epoch} saved.")
+    else:
+        print(f"Checkpoint for epoch {epoch} already exists. Skipping save.")
