@@ -8,13 +8,6 @@ ps_dims = 6 # Actually used in the model configuration by now
 
 number_of_particles = 4000
 
-normalization_values = dict(
-    momentum_mean = 0.,
-    momentum_std = 1.,
-    force_mean = 0.,
-    force_std = 1.,
-)
-
 streamLoader_config = dict(
     t0 =  900,
     t1 = 1001, # endpoint=false, t1 is not used in training
