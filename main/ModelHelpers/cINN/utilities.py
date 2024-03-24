@@ -364,7 +364,7 @@ def save_checkpoint(model, optimizer, path, last_loss, epoch, min_valid_loss=Non
     state = {
         'model': model.state_dict(),
         'optimizer': optimizer.state_dict(),
-        'last_loss': last_loss.item(),
+        'last_loss': last_loss,
         'epoch': epoch,
     }
     
