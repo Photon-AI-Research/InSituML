@@ -91,6 +91,9 @@ def main():
 
     openPMDBuffer = Queue(io_config.openPMD_queue_size) ## Buffer shared between openPMD data loader and model
 
+    # nomraliztion values loaded from model_config, because they are related to the pre-trained model
+    streamLoader_config = io_config.streamLoader_config
+    streamLoader_config["normalization"] = model_config.normalization_values
 
     config = model_config.config
 
@@ -318,7 +321,7 @@ def main():
             #radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
 
             timeBatchLoader = Loader(openPMDBuffer, 
-                                        io_config.streamLoader_config,
+                                        streamLoader_config,
                                         particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
         elif args.type_streamer == 'offline':
             
@@ -332,7 +335,7 @@ def main():
             radiationDataTransformationPolicy = AbsoluteSquare() #returns radiation data of shape (local ranks, frequencies)
 
             timeBatchLoader = Loader(openPMDBuffer, 
-                                        io_config.streamLoader_config,
+                                        streamLoader_config,
                                         particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
         else:
             timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
