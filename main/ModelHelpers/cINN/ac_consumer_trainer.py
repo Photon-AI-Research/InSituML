@@ -53,7 +53,6 @@ class ModelTrainer(Thread):
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.cumulative_loss = 0.0
         self.sleep_before_retry = sleep_before_retry
         self.logger = logger
         
@@ -76,7 +75,7 @@ class ModelTrainer(Thread):
 
         def logLosses(losses):
             # print loss terms
-            loss_message_parts = [f'batch_index: {self.batch_passes-1} | loss_avg: {loss_avg.item():.4f}']
+            loss_message_parts = [f'batch_index: {self.batch_passes-1} ']
             for loss_name, loss_value in losses.items():
                 loss_message_parts.append(f'{loss_name}: {loss_value.item():.4f}')
 
@@ -84,8 +83,6 @@ class ModelTrainer(Thread):
             print(loss_message)
                             
             if self.logger is not None:
-                
-                self.logger.log_scalar(scalar=loss_avg.item(), name="loss_avg", epoch=self.batch_passes-1)
                 
                 for loss_name, loss_value in losses.items():
                     self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
@@ -127,8 +124,6 @@ class ModelTrainer(Thread):
             #reconstruction if needed
             # y, lat_z_pred = self.model.reconstruct(phase_space,radiation)
             
-            self.cumulative_loss += loss
-            loss_avg = self.cumulative_loss / self.batch_passes
             loss.backward()
             
             for p in self.model.parameters():
