@@ -239,7 +239,11 @@ def main():
 
         #model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
         #model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
-        model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
+        model = ModelFinal(VAE_obj,
+                           inner_model,
+                           EarthMoversLoss(),
+                           weight_AE=config["lambd_AE"],
+                           weight_IM=config["lambd_IM"])
 
 
         #Load a pre-trained model
