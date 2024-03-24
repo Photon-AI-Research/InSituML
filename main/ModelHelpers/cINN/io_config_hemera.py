@@ -6,14 +6,7 @@ modelPathPattern = 'trained_models/{}/best_model_'
 ps_dims = 6 # Actually used in the model configuration by now
             # ToDo: Use in StreamingLoader
 
-number_of_particles = 100
-
-normalization_values = dict(
-    momentum_mean = 0.,
-    momentum_std = 1.,
-    force_mean = 0.,
-    force_std = 1.,
-)
+number_of_particles = 4000
 
 streamLoader_config = dict(
     t0 =  890,
@@ -27,7 +20,6 @@ streamLoader_config = dict(
     # pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/008_KHI_rad4dir_smallY_highRes/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp", # files on hemera
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
-    normalization = normalization_values,
     number_particles_per_gpu = 1000,
     ## offline training params
     num_epochs = 2

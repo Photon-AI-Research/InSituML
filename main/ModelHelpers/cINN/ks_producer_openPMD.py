@@ -162,13 +162,6 @@ class RandomLoader(Thread):
                         ])
                         del momentum
                         
-                        for particleBoxIndex in np.arange(len(numParticles)):
-                            loaded_particles[writing_index+i_c, particleBoxIndex] = \
-                                (loaded_particles[writing_index+i_c, particleBoxIndex] - self.normalization["momentum_mean"]) \
-                                / self.normalization["momentum_std"]
-
-                        writing_index +=3
-
                     if "force" in self.reqPhaseSpaceVars:
                         momentumPrev1 = ps["momentumPrev1"][component].load_chunk(local_region["offset"], local_region["extent"])
                         series.flush()
@@ -178,6 +171,18 @@ class RandomLoader(Thread):
                         loaded_particles[writing_index+i_c] = loaded_particles[writing_index-3+i_c] - momPrev1_reduced # force = momentum - momentumPrev1
                         del momPrev1_reduced
 
+
+                    writing_index = 0
+                    if "position" in self.reqPhaseSpaceVars:
+                        writing_index +=3
+                    if "momentum" in self.reqPhaseSpaceVars:
+                        for particleBoxIndex in np.arange(len(numParticles)):
+                            loaded_particles[writing_index+i_c, particleBoxIndex] = \
+                                (loaded_particles[writing_index+i_c, particleBoxIndex] - self.normalization["momentum_mean"]) \
+                                / self.normalization["momentum_std"]
+
+                        writing_index +=3
+                    if "force" in self.reqPhaseSpaceVars:
                         ## Normalize force
                         for particleBoxIndex in np.arange(len(numParticles)):
                             loaded_particles[writing_index+i_c, particleBoxIndex] = \

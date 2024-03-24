@@ -30,3 +30,10 @@ load_model = 'inn_vae_latent_544_sim007_24k0zbm4'
 config_inn = dict(
 
 )
+
+normalization_values = dict(
+    momentum_mean = 1.2091940752668797e-08,
+    momentum_std = 0.11923234769525472,
+    force_mean = -2.7682006649827533e-09,
+    force_std = 7.705477610810592e-05
+)

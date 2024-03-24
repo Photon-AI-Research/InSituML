@@ -433,10 +433,6 @@ class StreamLoader(Thread):
                     ])
                     del component_buffers.momentum
                     ## Normalize momentum
-                    for particleBoxIndex in range(len(loaded_particles[writing_index+i_c])):
-                        loaded_particles[writing_index+i_c, particleBoxIndex] = \
-                            (loaded_particles[writing_index+i_c, particleBoxIndex] - self.hyperParameterDefaults["normalization"]["momentum_mean"]) \
-                            / self.hyperParameterDefaults["normalization"]["momentum_std"]
                     writing_index +=3
 
                 if "force" in self.reqPhaseSpaceVars:
@@ -447,11 +443,23 @@ class StreamLoader(Thread):
                     loaded_particles[writing_index+i_c] = loaded_particles[writing_index-3+i_c] - momPrev1_reduced # force
                     del momPrev1_reduced
                     ## Normalize force
+
+                writing_index = 0
+                if "position" in self.reqPhaseSpaceVars:
+                    writing_index +=3
+                if "momentum" in self.reqPhaseSpaceVars:
+                    for particleBoxIndex in range(len(loaded_particles[writing_index+i_c])):
+                        loaded_particles[writing_index+i_c, particleBoxIndex] = \
+                            (loaded_particles[writing_index+i_c, particleBoxIndex] - self.hyperParameterDefaults["normalization"]["momentum_mean"]) \
+                            / self.hyperParameterDefaults["normalization"]["momentum_std"]
+
+                    writing_index +=3
+                if "force" in self.reqPhaseSpaceVars:
+                    ## Normalize force
                     for particleBoxIndex in range(len(loaded_particles[writing_index+i_c])):
                         loaded_particles[writing_index+i_c, particleBoxIndex] = \
                             (loaded_particles[writing_index+i_c, particleBoxIndex] - self.hyperParameterDefaults["normalization"]["force_mean"]) \
                             / self.hyperParameterDefaults["normalization"]["force_std"]
-
 
                 del component_buffers
                 del loaded_buffers[component]

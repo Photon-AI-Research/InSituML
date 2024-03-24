@@ -10,13 +10,6 @@ ps_dims = 6 # Actually used in the model configuration by now
 
 number_of_particles = 4000
 
-normalization_values = dict(
-    momentum_mean = 0.,
-    momentum_std = 1.,
-    force_mean = 0.,
-    force_std = 1.,
-)
-
 streamLoader_config = dict(
     t0 = 890,
     t1 = 898, # endpoint=false, t1 is not used in training
@@ -29,7 +22,6 @@ streamLoader_config = dict(
 #    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files for 32GPUs  on frontier
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
-    normalization = normalization_values,
     number_particles_per_gpu = 4096,
     ## offline training params
     num_epochs = .25
