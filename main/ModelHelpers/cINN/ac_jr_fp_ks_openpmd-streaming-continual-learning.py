@@ -252,6 +252,7 @@ def main():
         filepath = io_config.modelPathPattern
 
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+
         if config["load_best_model"]:
             original_state_dict = torch.load(filepath.format(config["load_best_model"]), map_location=map_location)
             # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}

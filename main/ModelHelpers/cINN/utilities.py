@@ -358,7 +358,6 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_r
         plt.close()
     else:
         plt.show()
-
         
 def save_checkpoint(model, optimizer, path, last_loss, epoch, min_valid_loss=None, wandb_run_id=None):
     state = {
