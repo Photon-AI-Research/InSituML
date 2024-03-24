@@ -188,7 +188,7 @@ namespace picongpu
             {
             }
 
-            namespace radWindowFunction = radWindowFunctionTriplett;
+            namespace radWindowFunction = radWindowFunctionNone;
 
         } // namespace radiation
     } // namespace plugins
