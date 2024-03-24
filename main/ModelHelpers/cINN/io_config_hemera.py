@@ -6,14 +6,7 @@ modelPathPattern = 'trained_models/{}/best_model_'
 ps_dims = 6 # Actually used in the model configuration by now
             # ToDo: Use in StreamingLoader
 
-number_of_particles = 100
-
-normalization_values = dict(
-    momentum_mean = 0.,
-    momentum_std = 1.,
-    force_mean = 0.,
-    force_std = 1.,
-)
+number_of_particles = 4000
 
 streamLoader_config = dict(
     t0 =  890,
