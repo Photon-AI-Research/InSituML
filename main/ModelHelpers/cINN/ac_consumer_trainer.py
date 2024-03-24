@@ -7,6 +7,7 @@ from threading import Thread
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
+from utilities import save_checkpoint_conditionally
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -72,6 +73,7 @@ class ModelTrainer(Thread):
     def run(self):
 
         rest_training_left_counter=0
+        checkpoint_interval = 5
 
         def logLosses(losses):
             # print loss terms
@@ -113,7 +115,10 @@ class ModelTrainer(Thread):
             # only logging from of the master process
             if self.batch_passes > 0:
                 logLosses(losses)
-                    
+                
+                if self.batch_passes % checkpoint_interval == 0:
+                    save_checkpoint_conditionally(self.model, self.optimizer, '.', self.batch_passes, losses)
+                   
             self.batch_passes += 1
             
             self.optimizer.zero_grad()
@@ -142,6 +147,7 @@ class ModelTrainer(Thread):
                 if rest_training_left_counter>self.ts_after_stopped_production:
                     if self.batch_passes > 0:
                         logLosses(losses) # log last batch
+                        save_checkpoint_conditionally(self.model, self.optimizer, '.', self.batch_passes, losses)
                     break
 
         print("Training ended after {} samples in {} batches.".format(self.training_samples, self.batch_passes))
