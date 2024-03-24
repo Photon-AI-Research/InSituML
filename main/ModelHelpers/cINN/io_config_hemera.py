@@ -18,9 +18,16 @@ normalization_values = dict(
     force_std = data_stats['std_force'],
 )
 
+normalization_values = dict(
+    momentum_mean = 0.,
+    momentum_std = 1.,
+    force_mean = 0.,
+    force_std = 1.,
+)
+
 streamLoader_config = dict(
-    t0 =  890,
-    t1 = 900, # endpoint=false, t1 is not used in training
+    t0 =  900,
+    t1 = 1001, # endpoint=false, t1 is not used in training
     # t0 =  1800,
     # t1 = 1810, # endpoint=false, t1 is not used in training
     streaming_config = None,
@@ -31,9 +38,9 @@ streamLoader_config = dict(
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
     normalization = normalization_values,
-    number_particles_per_gpu = 1000,
+    number_particles_per_gpu = 150000,
     ## offline training params
-    num_epochs = 2
+    num_epochs = 1
 )
 
 openPMD_queue_size=8

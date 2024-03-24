@@ -249,10 +249,11 @@ def main():
         filepath = io_config.modelPathPattern
 
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
-        original_state_dict = torch.load(filepath.format(config["load_best_model"]), map_location=map_location)
-        # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
-        model.load_state_dict(original_state_dict)
-        print('Loaded pre-trained model successfully')
+        if config["load_best_model"]:
+            original_state_dict = torch.load(filepath.format(config["load_best_model"]), map_location=map_location)
+            # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+            model.load_state_dict(original_state_dict)
+            print('Loaded pre-trained model successfully')
 
         optimizer = optim.Adam(model.parameters(), lr=config["lr"])
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
@@ -335,7 +336,8 @@ def main():
                                         particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
         else:
             timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
-            
+        
+        #wandb_logger = WandbLogger(project="khi_public_stream",args=config, entity='jeyhun')
         trainBF = TrainBatchBuffer(openPMDBuffer, **io_config.trainBatchBuffer_config)
         modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
 
