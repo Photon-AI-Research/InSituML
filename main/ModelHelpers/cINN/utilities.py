@@ -358,3 +358,30 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_r
         plt.close()
     else:
         plt.show()
+
+def save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id):
+        state = {
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'last_loss': last_loss.item(),
+            'epoch': epoch,
+            'min_valid_loss': min_valid_loss,
+            'wandb_run_id': wandb_run_id,
+        }
+
+        torch.save(state, path + '/model_' + str(epoch))
+        
+def load_checkpoint(path_to_checkpoint, model):
+    # Load the saved file
+    checkpoint = torch.load(path_to_checkpoint)
+
+    # Restore the model and optimizer state dict
+    model.load_state_dict(checkpoint['model'])
+
+    # Restore other information from the checkpoint
+    last_loss = checkpoint['last_loss']
+    epoch = checkpoint['epoch']
+    min_valid_loss = checkpoint['min_valid_loss']
+    wandb_run_id = checkpoint['wandb_run_id']
+
+    return model, last_loss, min_valid_loss, epoch, wandb_run_id

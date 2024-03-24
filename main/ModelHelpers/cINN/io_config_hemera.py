@@ -1,4 +1,5 @@
 modelPathPattern = 'trained_models/{}/best_model_'
+import numpy as np
 
 #######################################
 ## openPMD data loader configuration ##
@@ -8,11 +9,13 @@ ps_dims = 6 # Actually used in the model configuration by now
 
 number_of_particles = 100
 
+data_stats = np.load('mean_std_007/global_stats_900_1001.npz')
+
 normalization_values = dict(
-    momentum_mean = 0.,
-    momentum_std = 1.,
-    force_mean = 0.,
-    force_std = 1.,
+    momentum_mean = data_stats['mean_momentum'],
+    momentum_std = data_stats['std_momentum'],
+    force_mean = data_stats['mean_force'],
+    force_std = data_stats['std_force'],
 )
 
 streamLoader_config = dict(

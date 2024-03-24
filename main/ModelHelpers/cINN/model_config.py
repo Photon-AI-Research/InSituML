@@ -26,7 +26,7 @@ ndim_tot = 544,
 ndim_x = 544,
 ndim_y = 512,
 ndim_z = 32,
-load_model = 'inn_vae_latent_544_sim007_24k0zbm4'
+load_best_model = 'inn_vae_latent_544_sim007_24k0zbm4',
 )
 
 config_inn = dict(
