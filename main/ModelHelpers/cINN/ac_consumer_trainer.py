@@ -9,6 +9,28 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
 
+"""
+This class prints losses and optionally calls another logger to log losses in another way.
+"""
+class LossLogger:
+    def __init__(self, otherLogger):
+        self.printedHeader = False
+        self.logger = otherLogger
+
+    def __call__(self, losses, batch_index):
+        if not self.printedHeader:
+            print('\t'.join(['#loss:', 'batch_index'] + list(losses.keys())), flush=True)
+            self.printedHeader = True
+
+        # print loss terms
+        print('\t'.join(['loss:', str(batch_index)] + list(str(v.item()) for v in losses.values())), flush=True)
+        # loss_message_parts = [f'batch_index: {self.batch_passes-1} ']
+                        
+        if self.logger is not None:
+            
+            for loss_name, loss_value in losses.items():
+                self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
+
 class ModelTrainer(Thread):
     """
     This class implements a trainer based on extracting random batches from the trainer buffer and training the model.
@@ -56,7 +78,6 @@ class ModelTrainer(Thread):
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.sleep_before_retry = sleep_before_retry
-        self.logger = logger
         
         self.checkpoint_interval = checkpoint_interval
         self.out_prefix = out_prefix
@@ -76,23 +97,11 @@ class ModelTrainer(Thread):
             self.gpu_id = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             # should we not still push the model there?
 
+        self.logger = LossLogger(logger)
+
     def run(self):
 
         rest_training_left_counter=0
-
-        def logLosses(losses):
-            # print loss terms
-            loss_message_parts = [f'batch_index: {self.batch_passes-1} ']
-            for loss_name, loss_value in losses.items():
-                loss_message_parts.append(f'{loss_name}: {loss_value.item():.4f}')
-
-            loss_message = ' | '.join(loss_message_parts)
-            print(loss_message)
-                            
-            if self.logger is not None:
-                
-                for loss_name, loss_value in losses.items():
-                    self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
 
         while True:
             
@@ -119,8 +128,8 @@ class ModelTrainer(Thread):
 
             # only logging from of the master process
             if self.batch_passes > 0:
-                logLosses(losses)
-                
+                self.logger(losses, self.batch_passes-1)
+
                 if self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0:
                     save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     
@@ -151,7 +160,7 @@ class ModelTrainer(Thread):
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
                     if self.batch_passes > 0:
-                        logLosses(losses) # log last batch
+                        self.logger(losses, self.batch_passes-1) # log last batch
                         if self.checkpoint_final or ( self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0 ):
                             save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     break
