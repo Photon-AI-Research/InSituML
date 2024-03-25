@@ -9,7 +9,6 @@ ps_dims = 6 # Actually used in the model configuration by now
             # ToDo: Use in StreamingLoader
 
 number_of_particles = 4096
-checkpoint_interval = 5
 
 streamLoader_config = dict(
     t0 = 890,
@@ -30,6 +29,9 @@ trainBatchBuffer_config = dict(
     consume_size=4,
 )
 
+
+modelTrainer_config = dict(
+)
 
 runner = "srun"
 type_streamer = "streaming"

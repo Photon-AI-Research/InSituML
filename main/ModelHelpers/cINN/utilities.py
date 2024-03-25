@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
+import os
 
 # Losses
 def MMD_multiscale(x, y):
@@ -360,12 +361,12 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_r
         plt.show()
         
         
-def save_checkpoint(model, optimizer, path, last_loss, epoch, min_valid_loss=None, wandb_run_id=None):
+def save_checkpoint(model, optimizer, prefix, last_loss, iteration, min_valid_loss=None, wandb_run_id=None):
     state = {
         'model': model.state_dict(),
         'optimizer': optimizer.state_dict(),
         'last_loss': last_loss,
-        'epoch': epoch,
+        'iteration': iteration,
     }
     
     if min_valid_loss is not None:
@@ -374,7 +375,7 @@ def save_checkpoint(model, optimizer, path, last_loss, epoch, min_valid_loss=Non
     if wandb_run_id is not None:
         state['wandb_run_id'] = wandb_run_id
 
-    torch.save(state, path + '/model_' + str(epoch))
+    torch.save(state, prefix + 'model_' + str(iteration))
     
         
 def load_checkpoint(path_to_checkpoint, model, optimizer):
@@ -385,21 +386,23 @@ def load_checkpoint(path_to_checkpoint, model, optimizer):
     optimizer.load_state_dict(checkpoint['optimizer'])
 
     last_loss = checkpoint['last_loss']
-    epoch = checkpoint['epoch']
+    iteration = checkpoint['iteration']
     
     min_valid_loss = checkpoint.get('min_valid_loss', None)
     wandb_run_id = checkpoint.get('wandb_run_id', None)
 
-    return model, optimizer, last_loss, min_valid_loss, epoch, wandb_run_id
+    return model, optimizer, last_loss, min_valid_loss, iteration, wandb_run_id
 
-def save_checkpoint_conditionally(model, optimizer, path, epoch, last_loss, min_valid_loss=None, wandb_run_id=None):
-    checkpoint_filename = f'model_{epoch}'
-    checkpoint_path = os.path.join(path, checkpoint_filename)
+def save_checkpoint_conditionally(model, optimizer, prefix, iteration, last_loss, min_valid_loss=None, wandb_run_id=None):
+    checkpoint_path = prefix + 'model_' + str(iteration)
+    checkpoint_dirname = os.path.dirname(checkpoint_path)
+    if checkpoint_dirname and not os.path.exists(checkpoint_dirname):
+        os.mkdir(checkpoint_dirname)
 
-    # Check if the checkpoint for this epoch already exists
+    # Check if the checkpoint for this iteration already exists
     if not os.path.exists(checkpoint_path):
 
-        save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id)
-        print(f"Checkpoint for epoch {epoch} saved.")
+        save_checkpoint(model, optimizer, prefix, last_loss, iteration, min_valid_loss, wandb_run_id)
+        print(f"Checkpoint for iteration {iteration} saved.")
     else:
-        print(f"Checkpoint for epoch {epoch} already exists. Skipping save.")
+        print(f"Checkpoint for iteration {iteration} already exists. Skipping save.")
