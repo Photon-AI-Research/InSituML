@@ -48,6 +48,7 @@ class TrainBatchBuffer(Thread):
         if consume_size is None:
             self.consume_size = training_bs
         else: # number of items consumed from the loaded is, in general, independent of batch size
+            # if consume_size is set lower than training buffer, then the buffer would hang for first batch pass.  
             assert consume_size >= training_bs, f"Consume size:{consume_size} should be set larger or equal  than the training_bs: {training_bs}"
             self.consume_size = consume_size
 
