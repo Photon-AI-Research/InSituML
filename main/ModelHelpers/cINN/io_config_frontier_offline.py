@@ -14,10 +14,10 @@ streamLoader_config = dict(
     t0 = 890,
     t1 = 898, # endpoint=false, t1 is not used in training
     streaming_config = None, # set to None when reading from file
-#    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput/openPMD/simData_%T.bp5", # files for 8GPUs on frontier
-#    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files for 8GPUs on frontier
-    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput/openPMD/simData_%T.bp5", # files for 16GPUs on frontier
-    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files for 16GPUs on frontier
+    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput/openPMD/simData_%T.bp5", # files for 8GPUs on frontier
+    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files for 8GPUs on frontier
+#    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput/openPMD/simData_%T.bp5", # files for 16GPUs on frontier
+#    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files for 16GPUs on frontier
 #    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp", # files for 32GPUs on frontier
 #    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files for 32GPUs  on frontier
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin

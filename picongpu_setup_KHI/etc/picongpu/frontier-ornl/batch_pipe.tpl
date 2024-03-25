@@ -356,6 +356,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       --ntasks-per-node=4                         \
       --gpus-per-node=4                           \
       --cpus-per-task=!TBG_coresPerPipeInstance   \
+      --gpus-per-task=1                           \
       --network=single_node_vni,job_vni           \
       /mnt/bb/$USER/sync_bins/launch.sh           \
       /mnt/bb/$USER/sync_bins/python              \
@@ -389,6 +390,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       --ntasks-per-node=!TBG_devicesPerNode \
       --gpus-per-node=!TBG_devicesPerNode   \
       --cpus-per-task=!TBG_coresPerGPU      \
+      --gpus-per-task=1                     \
       --network=single_node_vni,job_vni     \
       -K1                                   \
       /mnt/bb/$USER/sync_bins/launch.sh     \
