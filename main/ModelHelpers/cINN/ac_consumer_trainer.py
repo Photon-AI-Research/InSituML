@@ -7,8 +7,7 @@ from threading import Thread
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+from utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
 
 class ModelTrainer(Thread):
     """
@@ -44,6 +43,9 @@ class ModelTrainer(Thread):
                  gpu_id=None,
                  sleep_before_retry=2,
                  ts_after_stopped_production=0,
+                 checkpoint_interval = 0,
+                 out_prefix = "",
+                 checkpoint_final = False,
                  logger=None):
         
         Thread.__init__(self)
@@ -56,9 +58,13 @@ class ModelTrainer(Thread):
         self.sleep_before_retry = sleep_before_retry
         self.logger = logger
         
+        self.checkpoint_interval = checkpoint_interval
+        self.out_prefix = out_prefix
+        self.checkpoint_final = checkpoint_final
         self.batch_passes = 0
         self.training_samples = 0
         self.ts_after_stopped_production = ts_after_stopped_production
+
 
         if gpu_id is not None:
 
@@ -67,7 +73,8 @@ class ModelTrainer(Thread):
             self.model.to(self.gpu_id)
             self.model = DDP(self.model, device_ids=[self.gpu_id])
         else:
-            self.gpu_id = device
+            self.gpu_id = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            # should we not still push the model there?
 
     def run(self):
 
@@ -113,6 +120,9 @@ class ModelTrainer(Thread):
             # only logging from of the master process
             if self.batch_passes > 0:
                 logLosses(losses)
+                
+                if self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0:
+                    save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     
             self.batch_passes += 1
             
@@ -142,6 +152,8 @@ class ModelTrainer(Thread):
                 if rest_training_left_counter>self.ts_after_stopped_production:
                     if self.batch_passes > 0:
                         logLosses(losses) # log last batch
+                        if self.checkpoint_final or ( self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0 ):
+                            save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     break
 
         print("Training ended after {} samples in {} batches.".format(self.training_samples, self.batch_passes))

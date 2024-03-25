@@ -35,6 +35,9 @@ trainBatchBuffer_config = dict(
     consume_size=4,
 )
 
+modelTrainer_config = dict(
+)
+
 runner="srun"
 type_streamer="offline"
 

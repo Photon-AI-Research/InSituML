@@ -30,6 +30,9 @@ trainBatchBuffer_config = dict(
 )
 
 
+modelTrainer_config = dict(
+)
+
 runner = "srun"
 type_streamer = "streaming"
 
