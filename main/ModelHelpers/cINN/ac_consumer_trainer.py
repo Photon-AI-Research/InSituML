@@ -45,6 +45,7 @@ class ModelTrainer(Thread):
                  gpu_id=None,
                  sleep_before_retry=2,
                  ts_after_stopped_production=0,
+                 checkpoint_interval = 5,
                  logger=None):
         
         Thread.__init__(self)
@@ -57,6 +58,7 @@ class ModelTrainer(Thread):
         self.sleep_before_retry = sleep_before_retry
         self.logger = logger
         
+        self.checkpoint_interval = checkpoint_interval
         self.batch_passes = 0
         self.training_samples = 0
         self.ts_after_stopped_production = ts_after_stopped_production
@@ -73,7 +75,6 @@ class ModelTrainer(Thread):
     def run(self):
 
         rest_training_left_counter=0
-        checkpoint_interval = 5
 
         def logLosses(losses):
             # print loss terms
@@ -116,7 +117,7 @@ class ModelTrainer(Thread):
             if self.batch_passes > 0:
                 logLosses(losses)
                 
-                if self.batch_passes % checkpoint_interval == 0:
+                if self.batch_passes % self.checkpoint_interval == 0:
                     save_checkpoint_conditionally(self.model, self.optimizer, '.', self.batch_passes, losses)
                     
             self.batch_passes += 1

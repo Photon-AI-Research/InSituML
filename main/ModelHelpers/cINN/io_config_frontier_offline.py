@@ -9,6 +9,7 @@ ps_dims = 6 # Actually used in the model configuration by now
             # ToDo: Use in StreamingLoader
 
 number_of_particles = 4000
+checkpoint_interval = 5
 
 streamLoader_config = dict(
     t0 = 890,

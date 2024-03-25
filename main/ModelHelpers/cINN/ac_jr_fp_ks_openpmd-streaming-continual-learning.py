@@ -341,7 +341,7 @@ def main():
         
         #wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')    
         trainBF = TrainBatchBuffer(openPMDBuffer, **io_config.trainBatchBuffer_config)
-        modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, logger = None)
+        modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, checkpoint_interval = io_config.checkpoint_interval, logger = None)
 
         ####################
         ## Start training ##
