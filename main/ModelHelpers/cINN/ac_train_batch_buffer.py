@@ -48,6 +48,7 @@ class TrainBatchBuffer(Thread):
         if consume_size is None:
             self.consume_size = training_bs
         else: # number of items consumed from the loaded is, in general, independent of batch size
+            assert consume_size > training_bs, f"Consume size:{consume_size} should be set larger than the training_bs: {training_bs}"
             self.consume_size = consume_size
 
         self.use_continual_learning = self.continual_bs > 0
