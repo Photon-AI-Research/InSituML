@@ -23,9 +23,9 @@ try:
             dist1, dist2, idx1, idx2 = self.chm_obj(x, y)
             loss = torch.mean(dist1) + torch.mean(dist2)
             return loss
-except:
-    #error message added in args_transforms
-    pass
+
+except Exception as ex:
+    print(f"Exception {ex} found. Optimized Chamfer loss is not loaded")
 
 class ChamfersLossDiagonal(nn.Module):
     """

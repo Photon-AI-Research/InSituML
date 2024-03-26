@@ -29,12 +29,12 @@ ndim_z = 32,
 load_model = 'inn_vae_latent_544_sim007_24k0zbm4',
 
 ## for optimized chamfer distance
-loss_function = 'chamfers_o'
+loss_function = 'chamfersloss_o',
 loss_kwargs = {'property_':'momentum_force'}
 
 ## for emd without peops library.
-loss_function = 'emd'
-loss_kwargs = {'backend':'tensorized'}
+#loss_function = 'earthmovers',
+#loss_kwargs = {'backend':'tensorized'}
 )
 
 config_inn = dict(
