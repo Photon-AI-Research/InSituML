@@ -19,6 +19,8 @@ import torch.nn as nn
 from utilities import MMD_multiscale, fit
 from ks_models import PC_MAF, INNModel
 
+from train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
+from train_khi_AE_refactored.encoder_decoder import Encoder
 from train_khi_AE_refactored.encoder_decoder import Encoder
 from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
 from train_khi_AE_refactored.loss_functions import EarthMoversLoss
@@ -178,12 +180,14 @@ def main():
         torch.cuda.set_device(rank)
         torch.cuda.empty_cache()
 
+        loss_fn_for_VAE = MAPPING_TO_LOSS[model_config.config['loss_function']](**model_config.config['loss_kwargs'])
+
         VAE_obj = VAE(encoder = Encoder,
                 encoder_kwargs = VAE_encoder_kwargs,
                 decoder = Conv3DDecoder,
                 z_dim=model_config.latent_space_dims,
                 decoder_kwargs = VAE_decoder_kwargs,
-                loss_function = EarthMoversLoss(**model_config.config['emd_kwargs']),
+                loss_function = loss_fn_for_VAE,
                 property_="momentum_force",
                 particles_to_sample = io_config.number_of_particles,
                 ae_config="non_deterministic",
