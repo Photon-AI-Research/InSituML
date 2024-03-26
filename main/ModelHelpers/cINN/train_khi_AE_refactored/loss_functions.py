@@ -105,9 +105,9 @@ class EarthMoversLoss(SamplesLoss):
     Simple class for earthmovers loss and compatibility in training code of autoencoders.
     Reference: https: // www.kernel - operations.io / geomloss / _auto_examples / comparisons / plot_gradient_flows_2D.html
     """
-    def __init__(self, p=1, blur=.01, reduction = "mean"):
+    def __init__(self, p=1, blur=.01, backend='auto',reduction = "mean"):
         
-        super().__init__(loss="sinkhorn", p=p, blur=blur)
+        super().__init__(loss="sinkhorn", p=p, blur=blur, backend=backend)
         self.reduction = reduction
     
     def forward(self, x, y):
