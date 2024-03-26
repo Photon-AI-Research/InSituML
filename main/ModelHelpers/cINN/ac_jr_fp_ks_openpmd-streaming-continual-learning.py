@@ -279,7 +279,10 @@ def main():
         lr = lr * config["lr_scaling"](bs_factor)
         print("Skaling learning rate from {} to {} due to bs factor {}".format(config["lr"], lr, bs_factor))
         optimizer = optim.Adam(model.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
+        if ( "lr_annealingRate" not in config ) or config["lr_annealingRate"] is None:
+            scheduler = None
+        else:
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=config["lr_annealingRate"])
 
         return optimizer, scheduler, model
 
