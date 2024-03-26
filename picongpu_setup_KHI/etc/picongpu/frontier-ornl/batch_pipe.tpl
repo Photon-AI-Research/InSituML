@@ -207,7 +207,7 @@ export PYTHONPATH="$(echo "$PYTHONPATH" | sed -E 's_:(/lustre/orion|/ccs/home)[^
 export LD_LIBRARY_PATH="$(echo "$LD_LIBRARY_PATH" | tr : '\n' | clean_duplicates_stable | tr '\n' :)"
 echo -e "LD_LIBRARY_PATH after cleaning duplicate entries:\n>\t$(echo "$LD_LIBRARY_PATH" | sed -E 's|:|\n>\t|g')"
 
-echo "BEGIN DATE: $(date)"
+echo "BEGIN DATE: $(date +%F)"
 
 # set user rights to u=rwx;g=r-x;o=---
 umask 0027
@@ -334,7 +334,6 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
     export WORLD_SIZE=!TBG_tasks
 
-    echo "Start InSituML"
     test $n_broken_nodes -ne 0 && exclude_nodes="-x./bad_nodes.txt"
 
     echo '!TBG_inconfig_pipe' | tee inconfig.json
@@ -348,6 +347,11 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
 # Do not forget to add the srun option
 #    --cpu-bind=verbose,mask_cpu:$mask \
 # once we know how the binding is done
+    
+    echo "Start InSituML"
+
+    begin_run=$(date +%s.%N)
+    echo "BEGIN RUN [seconds since 1970-01-01 00:00:00 UTC]: ${begin_run}"
 
     srun -l                                       \
       --ntasks !TBG_tasks                         \
@@ -370,10 +374,9 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     ##################
     ## Run PIConGPU ##
     ##################
-    echo "Start PIConGPU."
     # Need threaded MPI for SST on ECP systems with MPI backend of ADIOS2 SST.
     # This might or might not be needed with libfabric-based SST which will be available with ADIOS2 v2.10.
-    export PIC_USE_THREADED_MPI=MPI_THREAD_MULTIPLE
+    # export PIC_USE_THREADED_MPI=MPI_THREAD_MULTIPLE
     export MPICH_OFI_CXI_PID_BASE=$((MPICH_OFI_CXI_PID_BASE+1))
     # L3 cache groups 2 4 6 8
     #mask=0xfe,0xfe00,0xfe0000,0xfe000000,0xfe00000000,0xfe0000000000,0xfe000000000000,0xfe00000000000000
@@ -381,6 +384,8 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
 # Do not forget to add the srun option
 #    --cpu-bind=verbose,mask_cpu:$mask \
 # once we know how the binding is done
+
+    echo "Start PIConGPU."
 
     srun -l                                 \
       --overlap                             \
@@ -405,4 +410,9 @@ else
     echo "Job stopped because of previous issues." >&2
 fi
 
-echo "END DATE: $(date)"
+end_run=$(date +%s.%N)
+echo "END RUN: ${end_run}"
+
+run_time=$(echo "scale=3; ${end_run} - ${begin_run}" | bc)
+echo "RUN TIME [seconds]: ${run_time}"
+
