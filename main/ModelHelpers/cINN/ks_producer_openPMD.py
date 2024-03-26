@@ -160,6 +160,7 @@ class RandomLoader(Thread):
                         loaded_particles[writing_index+i_c] = torch_stack([
                             torch_from_numpy(momentum[r]) for r in randomParticles
                         ])
+                        writing_index +=3
                         del momentum
                         
                     if "force" in self.reqPhaseSpaceVars:
