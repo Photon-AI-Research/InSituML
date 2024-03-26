@@ -8,6 +8,61 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
+from mpi4py import MPI
+import os, time
+
+"""
+This class prints losses and optionally calls another logger to log losses in another way.
+"""
+class LossLogger:
+    def __init__(self, otherLogger=None, max_logs=20, out_prefix=""):
+        self.printedHeader = False
+        self.logger = otherLogger
+
+        comm = MPI.COMM_WORLD
+        stride = (comm.size + max_logs) // max_logs - 1
+        if stride == 0:
+            stride += 1
+        self.log = comm.rank % stride == 0
+
+        if self.log:
+            self.log_path = f"{out_prefix}loss_{comm.rank}.dat"
+
+            checkpoint_dirname = os.path.dirname(self.log_path)
+            if checkpoint_dirname and not os.path.exists(checkpoint_dirname):
+                try:
+                    os.mkdir(checkpoint_dirname)
+                except FileExistsError:
+                    pass
+
+            self.out_stream = open(self.log_path, 'w')
+
+            self.last_time_point = int(time.time() * 1000)
+
+    def __del__(self):
+        if self.log:
+            self.out_stream.close()
+
+
+    def __call__(self, losses, batch_index):
+        if not self.log:
+            return
+        if not self.printedHeader:
+            self.out_stream.write('\t'.join(['# batch_index', "time"] + list(losses.keys())) + '\n')
+            self.printedHeader = True
+
+        current = int(time.time() * 1000)
+        # print loss terms
+        self.out_stream.write('\t'.join([str(batch_index), str(current - self.last_time_point)] + list(str(v.item()) for v in losses.values())) + '\n')
+        self.out_stream.flush()
+        # loss_message_parts = [f'batch_index: {self.batch_passes-1} ']
+
+        if self.logger is not None:
+            
+            for loss_name, loss_value in losses.items():
+                self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
+
+        self.last_time_point = current
 
 class ModelTrainer(Thread):
     """
@@ -46,6 +101,7 @@ class ModelTrainer(Thread):
                  checkpoint_interval = 0,
                  out_prefix = "",
                  checkpoint_final = False,
+                 max_logs = 20,
                  logger=None):
         
         Thread.__init__(self)
@@ -56,7 +112,6 @@ class ModelTrainer(Thread):
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.sleep_before_retry = sleep_before_retry
-        self.logger = logger
         
         self.checkpoint_interval = checkpoint_interval
         self.out_prefix = out_prefix
@@ -76,23 +131,11 @@ class ModelTrainer(Thread):
             self.gpu_id = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             # should we not still push the model there?
 
+        self.logger = LossLogger(logger, max_logs=max_logs, out_prefix=out_prefix)
+
     def run(self):
 
         rest_training_left_counter=0
-
-        def logLosses(losses):
-            # print loss terms
-            loss_message_parts = [f'batch_index: {self.batch_passes-1} ']
-            for loss_name, loss_value in losses.items():
-                loss_message_parts.append(f'{loss_name}: {loss_value.item():.4f}')
-
-            loss_message = ' | '.join(loss_message_parts)
-            print(loss_message)
-                            
-            if self.logger is not None:
-                
-                for loss_name, loss_value in losses.items():
-                    self.logger.log_scalar(scalar=loss_value.item(), name=loss_name, epoch=self.batch_passes-1)
 
         while True:
             
@@ -119,8 +162,8 @@ class ModelTrainer(Thread):
 
             # only logging from of the master process
             if self.batch_passes > 0:
-                logLosses(losses)
-                
+                self.logger(losses, self.batch_passes-1)
+
                 if self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0:
                     save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     
@@ -151,7 +194,7 @@ class ModelTrainer(Thread):
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
                     if self.batch_passes > 0:
-                        logLosses(losses) # log last batch
+                        self.logger(losses, self.batch_passes-1) # log last batch
                         if self.checkpoint_final or ( self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0 ):
                             save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     break
