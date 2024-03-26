@@ -25,7 +25,7 @@ try:
             return loss
 
 except Exception as ex:
-    print(f"Exception {ex} found. Optimized Chamfer loss is not loaded")
+    print(f"Exception {ex} found While loading loss function.")
 
 class ChamfersLossDiagonal(nn.Module):
     """
