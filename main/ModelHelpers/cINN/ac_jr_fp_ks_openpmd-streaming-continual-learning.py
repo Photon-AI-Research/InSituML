@@ -183,7 +183,7 @@ def main():
                 decoder = Conv3DDecoder,
                 z_dim=model_config.latent_space_dims,
                 decoder_kwargs = VAE_decoder_kwargs,
-                loss_function = EarthMoversLoss(),
+                loss_function = EarthMoversLoss(**model_config.config['emd_kwargs']),
                 property_="momentum_force",
                 particles_to_sample = io_config.number_of_particles,
                 ae_config="non_deterministic",
