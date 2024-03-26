@@ -20,7 +20,7 @@ streamLoader_config = dict(
     #pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp", # files on frontier
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
-    number_particles_per_gpu = 4000,
+    number_particles_per_gpu = 1000,
     ## offline training params
     num_epochs = 1
 )
