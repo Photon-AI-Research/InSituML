@@ -31,12 +31,12 @@ ndim_z = 32,
 load_model = 'inn_vae_latent_544_sim007_24k0zbm4',
 
 ## for optimized chamfer distance
-loss_function = 'chamfersloss_o',
-loss_kwargs = {'property_':'momentum_force'}
+# loss_function = 'chamfersloss_o',
+# loss_kwargs = {'property_':'momentum_force'},
 
 ## for emd without peops library.
-#loss_function = 'earthmovers',
-#loss_kwargs = {'backend':'tensorized'}
+loss_function = 'earthmovers',
+loss_kwargs = {},
 
 lr_annealingRate = None,
 lr_scaling = ( lambda x : sqrt(x) )

@@ -40,7 +40,7 @@ allocate_and_run_hemera() {
 
         echo 'Starting training...'
         export WORLD_SIZE=$WORLD_SIZE
-        export MASTER_PORT="1$( echo -n $SLURM_JOBID | tail -c 4 )"
+        export MASTER_PORT=12340
         master_addr=\$(scontrol show hostnames \"\$SLURM_JOB_NODELIST\" | head -n 1)
         export MASTER_ADDR=\$master_addr
         mpirun -n $TORCH_RANKS_PER_NODE python ac_jr_fp_ks_openpmd-streaming-continual-learning.py --io_config=io_config_hemera.py --type_streamer=offline
