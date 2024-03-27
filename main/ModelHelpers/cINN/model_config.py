@@ -37,6 +37,7 @@ load_model_checkpoint = 'inn_vae_latent_544_sim014_859eopan/model_150', #'inn_va
 
 ## for emd without peops library.
 loss_function = 'earthmovers',
+#loss_kwargs = {'backend':'tensorized'}, # Did not reduce runtime
 loss_kwargs = {},
 
 betas = (0.8, 0.9),
