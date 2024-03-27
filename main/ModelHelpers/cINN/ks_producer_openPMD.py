@@ -5,6 +5,9 @@ The buffer is expected to be fillable by a `put()` method.
 Furthermore, policies are taken which transform particle or radiation data from the their standard layouts to the requested layout.
 """
 from threading import Thread
+from queue import Full
+import sys
+from time import sleep
 
 import numpy as np
 from torch import from_numpy as torch_from_numpy
@@ -34,7 +37,7 @@ class RandomLoader(Thread):
     All of this is orchestrated in the run() method.
     """
 
-    def __init__(self, batchDataBuffer, hyperParameterDefaults, particleDataTransformationPolicy=None, radiationDataTransformationPolicy=None):
+    def __init__(self, batchDataBuffer, hyperParameterDefaults, particleDataTransformationPolicy=None, radiationDataTransformationPolicy=None, consumer_thread = None):
         """ Set parameters of the loader
 
         Arguments:
@@ -58,6 +61,7 @@ class RandomLoader(Thread):
         self.particlePerGPU = hyperParameterDefaults['number_particles_per_gpu']
         self.amplitude_direction = hyperParameterDefaults['amplitude_direction']
         self.normalization = hyperParameterDefaults["normalization"]
+        self.consumer_thread = consumer_thread
         
         self.rng = np.random.default_rng()
 
@@ -234,7 +238,17 @@ class RandomLoader(Thread):
                     distributed_amplitudes = self.radiationTransformPolicy(distributed_amplitudes)
                 
 
-                self.data.put([loaded_particles, distributed_amplitudes])
+                while True:
+                    try:
+                        self.data.put([loaded_particles, distributed_amplitudes], block=False)
+                        break
+                    except Full:
+                        if self.consumer_thread is not None and not self.consumer_thread.is_alive():
+                            print("[EE] consumer is dead. aborting.", file=sys.stderr)
+                            sys.exit(1)
+                        else:
+                            sleep(1)
+                            continue
 
             """All timesteps have been read once within this epoch. Epoch finished."""
             print("Finished epoch", i_epoch)

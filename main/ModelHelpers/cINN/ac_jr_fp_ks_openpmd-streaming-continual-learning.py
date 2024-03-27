@@ -370,16 +370,15 @@ def main():
         start_time = time.time()
 
         modelTrainer.start()
-        trainBF.start()
         timeBatchLoader.start()
+        # tell the producer who is consuming, so it can check if the consumer died and terminate in this case
+        timeBatchLoader.consumer_thread = modelTrainer
 
 
         modelTrainer.join()
         print("Join model trainer")
         #stdout.flush()
 
-        trainBF.join()
-        print("Join continual learning buffer")
         #stdout.flush()
         timeBatchLoader.join()
         print("Join openPMD data loader")

@@ -13,6 +13,9 @@ This file only works with the openPMD-api version installed from this branch:
 Authors: Klaus Steiniger, Franz Poeschel
 """
 from threading import Thread
+from queue import Full
+import sys
+from time import sleep
 
 import numpy as np
 from torch import from_numpy as torch_from_numpy
@@ -178,7 +181,7 @@ class StreamLoader(Thread):
     This is orchestrated in the run() method.
     """
 
-    def __init__(self, batchDataBuffer, hyperParameterDefaults, particleDataTransformationPolicy=None, radiationDataTransformationPolicy=None):
+    def __init__(self, batchDataBuffer, hyperParameterDefaults, particleDataTransformationPolicy=None, radiationDataTransformationPolicy=None, consumer_thread = None):
         """ Set parameters of the loader
 
         Arguments:
@@ -198,6 +201,7 @@ class StreamLoader(Thread):
         self.radiationTransformPolicy = radiationDataTransformationPolicy
         self.comm = MPI.COMM_WORLD
         self.hyperParameterDefaults = hyperParameterDefaults
+        self.consumer_thread = consumer_thread
         if hyperParameterDefaults["streaming_config"] is not None:
             self.streamingConfig = hyperParameterDefaults["streaming_config"]
         else:
@@ -536,7 +540,17 @@ class StreamLoader(Thread):
                 distributed_amplitudes = self.radiationTransformPolicy(distributed_amplitudes)
 
             # Put particle and radiation data in shared buffer
-            self.data.put([loaded_particles, distributed_amplitudes])
+            while True:
+                try:
+                    self.data.put([loaded_particles, distributed_amplitudes], block=False)
+                    break
+                except Full:
+                    if self.consumer_thread is not None and not self.consumer_thread.is_alive():
+                        print("[EE] consumer is dead. aborting.", file=sys.stderr)
+                        sys.exit(1)
+                    else:
+                        sleep(1)
+                        continue
 
             print("Done loading iteration %i"%(iteration.time))
             stdout.flush()
