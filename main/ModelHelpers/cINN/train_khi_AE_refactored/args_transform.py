@@ -3,7 +3,7 @@ from .encoder_decoder import Encoder, MLPDecoder, Conv3DDecoder
 from .loss_functions import EarthMoversLoss, ChamfersLoss, ChamfersLossDiagonal
 import ast
 import torch.nn as nn
-
+import traceback
 
 MAPPING_TO_LOSS = {
     "earthmovers":EarthMoversLoss,
@@ -16,9 +16,8 @@ MAPPING_TO_LOSS = {
 try:
     from .loss_functions import ChamfersLossOptimized
     MAPPING_TO_LOSS["chamfersloss_o"] = ChamfersLossOptimized
-except Exception as ex:
-    print(f"Exception {ex} found. Optimized Chamfer loss is not loaded")
-
+except Exception:
+    traceback.print_exc()
 
 MAPPING_TO_ED = {
     "encoder_simple":Encoder,
