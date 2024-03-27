@@ -1,19 +1,31 @@
 import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
-# import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as dist_chamfer_3D
-# 
-# class ChamfersLossOptimized(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.chm_obj = dist_chamfer_3D.chamfer_3DDist()
-# 
-#     def forward(self, x, y):
-#         dist1, dist2, idx1, idx2 = self.chm_obj(x, y)
-#         loss = torch.mean(dist1) + torch.mean(dist2)
-#         return loss
-        
-            
+
+try:
+    import ChamferDistancePytorch.chamfer6D.dist_chamfer_6D as dist_chamfer_6D
+    import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as dist_chamfer_3D
+
+    class ChamfersLossOptimized(nn.Module):
+        def __init__(self, property_="momentum_force"):
+
+            super().__init__()
+
+            if property_=="momentum_force":
+                self.chm_obj = dist_chamfer_6D.chamfer_6DDist()
+            elif property_ != "all":
+                self.chm_obj = dist_chamfer_3D.chamfer_6DDist()
+            else:
+                raise ValueError(f"""Either wrong property_ name or property_ 'all' can't
+                                be used with ChamfersLossOptimized""")
+
+        def forward(self, x, y):
+            dist1, dist2, idx1, idx2 = self.chm_obj(x, y)
+            loss = torch.mean(dist1) + torch.mean(dist2)
+            return loss
+
+except Exception as ex:
+    print(f"Exception {ex} found While loading loss function.")
 
 class ChamfersLossDiagonal(nn.Module):
     """
