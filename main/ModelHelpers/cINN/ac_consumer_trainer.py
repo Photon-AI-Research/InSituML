@@ -184,7 +184,8 @@ class ModelTrainer(Thread):
                     p.grad.data.clamp_(-5.00, 5.00)
 
             self.optimizer.step()
-            self.scheduler.step()
+            if self.scheduler:
+                self.scheduler.step()
             
             if self.training_buffer.openpmdProduction == False:
                 print(f"Note: The streaming has stopped, the trainer will run for "

@@ -7,6 +7,7 @@ from ac_train_batch_buffer import TrainBatchBuffer
 from ac_consumer_trainer import ModelTrainer
 from threading import Thread
 import torch
+import numpy as np
 from time import sleep
 from random import random
 from queue import Queue
@@ -89,6 +90,9 @@ def main():
     if args.type_streamer is None:
         args.type_streamer = io_config.type_streamer
 
+    if not "training_bs" in io_config.trainBatchBuffer_config:
+        io_config.trainBatchBuffer_config["training_bs"] = 4
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     openPMDBuffer = Queue(io_config.openPMD_queue_size) ## Buffer shared between openPMD data loader and model
@@ -98,6 +102,14 @@ def main():
     streamLoader_config["normalization"] = model_config.normalization_values
 
     config = model_config.config
+
+    if "WORLD_SIZE" in os.environ:
+        world_size = int(os.environ["WORLD_SIZE"])
+    elif "SLURM_NTASKS" in os.environ:
+        print("[WW] WORLD_SIZE not defined in env, falling back to SLURM_NTASKS.", file=sys.stderr)
+        world_size = int(os.environ["SLURM_NTASKS"])
+    else:
+        raise RuntimeError("cannot determine WORLD_SIZE")
 
     class ModelFinal(nn.Module):
         def __init__(self,
@@ -262,8 +274,15 @@ def main():
             model.load_state_dict(original_state_dict)
             print('Loaded pre-trained model successfully')
 
-        optimizer = optim.Adam(model.parameters(), lr=config["lr"])
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8)
+        lr = config["lr"]
+        bs_factor = io_config.trainBatchBuffer_config["training_bs"] / 2 * world_size
+        lr = lr * config["lr_scaling"](bs_factor)
+        print("Skaling learning rate from {} to {} due to bs factor {}".format(config["lr"], lr, bs_factor))
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+        if ( "lr_annealingRate" not in config ) or config["lr_annealingRate"] is None:
+            scheduler = None
+        else:
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=config["lr_annealingRate"])
 
         return optimizer, scheduler, model
 
@@ -272,7 +291,7 @@ def main():
         os.environ['MASTER_PORT'] = '12355'
         dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-    def run_copies(rank=None, world_size=None, runner=None):
+    def run_copies(rank=None, world_size=world_size, runner=None):
         
         if runner=="torchrun":
             dist.init_process_group("nccl")
@@ -282,7 +301,6 @@ def main():
             rank = rank % torch.cuda.device_count()
 
         elif runner=="mpirun":
-            world_size = int(os.environ["WORLD_SIZE"])
             
             rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
             
@@ -293,7 +311,6 @@ def main():
             print(f'Initiated DDP GPU {rank}', flush=True)
 
         elif runner=="srun":
-            world_size = int(os.environ["WORLD_SIZE"])
             
             rank = 0
             
@@ -353,16 +370,15 @@ def main():
         start_time = time.time()
 
         modelTrainer.start()
-        trainBF.start()
         timeBatchLoader.start()
+        # tell the producer who is consuming, so it can check if the consumer died and terminate in this case
+        timeBatchLoader.consumer_thread = modelTrainer
 
 
         modelTrainer.join()
         print("Join model trainer")
         #stdout.flush()
 
-        trainBF.join()
-        print("Join continual learning buffer")
         #stdout.flush()
         timeBatchLoader.join()
         print("Join openPMD data loader")

@@ -1,3 +1,5 @@
+from math import sqrt
+
 #########################
 ## Model configuration ##
 #########################
@@ -35,6 +37,9 @@ loss_kwargs = {'property_':'momentum_force'}
 ## for emd without peops library.
 #loss_function = 'earthmovers',
 #loss_kwargs = {'backend':'tensorized'}
+
+lr_annealingRate = None,
+lr_scaling = ( lambda x : sqrt(x) )
 )
 
 config_inn = dict(
