@@ -1,6 +1,6 @@
 from os import environ
 
-modelPathPattern = 'trained_models/{}/best_model_'
+modelPathPattern = 'trained_models/{}'
 
 #######################################
 ## openPMD data loader configuration ##
