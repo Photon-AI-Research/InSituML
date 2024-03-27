@@ -17,7 +17,7 @@ import os
 from torch import optim
 import torch.nn as nn
 
-from utilities import MMD_multiscale, fit
+from utilities import MMD_multiscale, fit, load_checkpoint
 from ks_models import PC_MAF, INNModel
 
 from train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
@@ -273,12 +273,17 @@ def main():
             # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
             model.load_state_dict(original_state_dict)
             print('Loaded pre-trained model successfully')
+        
+        else:
+            model, _, _, _, _, _ = load_checkpoint(filepath.format(config["load_model_checkpoint"]), model,map_location=map_location)
+            print('Loaded model checkpoint successfully')
 
         lr = config["lr"]
         bs_factor = io_config.trainBatchBuffer_config["training_bs"] / 2 * world_size
         lr = lr * config["lr_scaling"](bs_factor)
         print("Skaling learning rate from {} to {} due to bs factor {}".format(config["lr"], lr, bs_factor))
-        optimizer = optim.Adam(model.parameters(), lr=lr)
+        optimizer = optim.Adam(model.parameters(), lr=lr, betas=config["betas"],
+                             eps=config["eps"], weight_decay=config["weight_decay"])
         if ( "lr_annealingRate" not in config ) or config["lr_annealingRate"] is None:
             scheduler = None
         else:

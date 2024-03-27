@@ -378,16 +378,19 @@ def save_checkpoint(model, optimizer, prefix, last_loss, iteration, min_valid_lo
     torch.save(state, prefix + 'model_' + str(iteration))
     
         
-def load_checkpoint(path_to_checkpoint, model, optimizer):
+def load_checkpoint(path_to_checkpoint, model, optimizer = None, map_location=None):
     # Load the saved file
-    checkpoint = torch.load(path_to_checkpoint)
-
-    model.load_state_dict(checkpoint['model'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
-
-    last_loss = checkpoint['last_loss']
-    iteration = checkpoint['iteration']
+    try:
+        checkpoint = torch.load(path_to_checkpoint, map_location=map_location)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Checkpoint file at {path_to_checkpoint} was not found.")
     
+    model.load_state_dict(checkpoint['model'])
+    if optimizer:
+        optimizer.load_state_dict(checkpoint['optimizer'])
+    
+    last_loss = checkpoint.get('last_loss', None) 
+    iteration = checkpoint.get('iteration', None) 
     min_valid_loss = checkpoint.get('min_valid_loss', None)
     wandb_run_id = checkpoint.get('wandb_run_id', None)
 
