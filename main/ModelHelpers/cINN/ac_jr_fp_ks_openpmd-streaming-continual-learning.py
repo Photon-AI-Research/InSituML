@@ -35,6 +35,12 @@ from dummy_openpmd_producer import DummyOpenPMDProducer
 import pathlib
 import importlib.util
 
+import pykeops
+
+pykeops.clean_pykeops()
+
+pykeops.set_build_folder("/mnt/bb/%s/pykeops_cache_%s"%(os.environ['USER'], os.environ['SLURM_PROCID']))
+
 print("Done importing modules.")
 sys.stdout.flush()
 

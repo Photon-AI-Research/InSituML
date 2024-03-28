@@ -135,6 +135,9 @@ if [ $? -ne 0 ] ; then
 fi
 unset MODULES_NO_OUTPUT
 
+#########################################################
+## Move environment and binaries to node local storage ##
+##
 compressed_env="${PREFIX}.tar.gz"
 
 # Create a folder for putting our binaries inside the NVMe on every node.
@@ -207,7 +210,8 @@ export PYTHONPATH="$(echo "$PYTHONPATH" | sed -E 's_:(/lustre/orion|/ccs/home)[^
 export LD_LIBRARY_PATH="$(echo "$LD_LIBRARY_PATH" | tr : '\n' | clean_duplicates_stable | tr '\n' :)"
 echo -e "LD_LIBRARY_PATH after cleaning duplicate entries:\n>\t$(echo "$LD_LIBRARY_PATH" | sed -E 's|:|\n>\t|g')"
 
-echo "BEGIN DATE: $(date +%F)"
+echo "BEGIN DATE: $(date '+%F%t%T')"
+begin_memtest=$(date +%s.%N)
 
 # set user rights to u=rwx;g=r-x;o=---
 umask 0027
@@ -268,6 +272,10 @@ else
     echo "Note: GPU memory test was skipped as no binary 'cuda_memtest' available or compute node is not exclusively allocated. This does not affect PIConGPU, starting it now" >&2
 fi
 
+end_memtest=$(date +%s.%N)
+memtest_time=$(echo "scale=3; ${end_memtest} - ${begin_memtest}" | bc)
+echo "MEMTEST TIME [seconds]: ${memtest_time}"
+
 # Note: chunk distribution strategies are not yet mainlined in openPMD
 # This env variable is hence currently a no-op, except if you use
 # this branch/PR: https://github.com/openPMD/openPMD-api/pull/824
@@ -322,6 +330,17 @@ tar -czf "$oldpwd/insituml.tar.gz" "${insituml##*/}"
 popd
 sbcast insituml.tar.gz "/mnt/bb/$USER/insituml.tar.gz"
 srun -N !TBG_nodes_adjusted --ntasks-per-node=1 tar -xzf "/mnt/bb/$USER/insituml.tar.gz" --directory "/mnt/bb/$USER/"
+
+## Copy ML input files to input directory
+##
+mkdir -p ../input/training
+
+cp -t ../input/training/ \
+  ${insituml}/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py \
+  ${insituml}/main/ModelHelpers/cINN/io_config_frontier_streaming.py \
+  ${insituml}/main/ModelHelpers/cINN/model_config.py
+
+
 
 if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     ##################
