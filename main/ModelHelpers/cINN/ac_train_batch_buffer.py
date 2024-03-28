@@ -20,7 +20,7 @@ class RadiationDataWriter:
 
         os.makedirs(os.path.dirname(rank_dir), exist_ok=True)
 
-        filename = rank_dir + '_' + str(timestep)
+        filename = rank_dir + '_' + str(timestep) + '.npy'
 
         with open(filename, 'wb') as writer:
             np.save(writer, data)
