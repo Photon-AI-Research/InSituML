@@ -27,8 +27,12 @@ openPMD_queue_size=4
 trainBatchBuffer_config = dict(
     training_bs=2,
     continual_bs=2,
-    stall_loader=False,
+    stall_loader=True,
     consume_size=2,
+    #Train buffer.
+    buffersize = 10,
+    #long buffer
+    cl_mem_size = 100,
 )
 
 
