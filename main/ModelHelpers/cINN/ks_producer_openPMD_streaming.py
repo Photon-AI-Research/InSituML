@@ -190,6 +190,8 @@ class StreamLoader(Thread):
             dataReadPolicy (functor) : Provides particle and radiation data per time step
             dataTransformationPolicy (functor) :
         """
+        print(">>>>> __init__() method of StreamLoader")
+        stdout.flush()
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
@@ -227,6 +229,8 @@ class StreamLoader(Thread):
 
     def run(self):
         """Function being executed when thread is started."""
+        print(">>>>> run() method of StreamLoader")
+        stdout.flush()
         # Open openPMD particle and radiation series
 
         # Open openPMD particle and radiation series
@@ -241,6 +245,9 @@ class StreamLoader(Thread):
             self.comm,
             self.streamingConfig)
 
+        print(">>>>> StreamLoader: Series defined.")
+        stdout.flush()
+
         # The streams wait until a reader connects.
         # To avoid deadlocks, we need to open both concurrently
         # (PIConGPU opens the streams one after the other)
@@ -250,6 +257,9 @@ class StreamLoader(Thread):
         t2.start()
         t1.join()
         t2.join()
+
+        print(">>>>> StreamLoader: Series parsed.")
+        stdout.flush()
 
         inranks = series.get_rank_table(collective=True)
         if not inranks:
