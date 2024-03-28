@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.distributed as dist
 import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
 import os
@@ -362,8 +363,17 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_r
         
         
 def save_checkpoint(model, optimizer, prefix, last_loss, iteration, min_valid_loss=None, wandb_run_id=None):
+    print("save_checkpoint rank:", dist.get_rank())
+    if dist.is_available() and dist.is_initialized() and dist.get_rank() != 0:
+        return # only one rank should save
+
+    try:
+        model_state_dict = model.module.state_dict()
+    except AttributeError:
+        model_state_dict = model.state_dict()
+
     state = {
-        'model': model.state_dict(),
+        'model': model_state_dict,
         'optimizer': optimizer.state_dict(),
         'last_loss': last_loss,
         'iteration': iteration,

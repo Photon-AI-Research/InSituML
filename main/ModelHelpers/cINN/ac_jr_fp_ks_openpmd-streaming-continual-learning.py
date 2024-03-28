@@ -274,9 +274,11 @@ def main():
             model.load_state_dict(original_state_dict)
             print('Loaded pre-trained model successfully')
         
-        else:
+        elif config["load_model_checkpoint"] is not None:
             model, _, _, _, _, _ = load_checkpoint(filepath.format(config["load_model_checkpoint"]), model,map_location=map_location)
             print('Loaded model checkpoint successfully')
+        else:
+            pass # run with random init
 
         lr = config["lr"]
         bs_factor = io_config.trainBatchBuffer_config["training_bs"] / 2 * world_size
