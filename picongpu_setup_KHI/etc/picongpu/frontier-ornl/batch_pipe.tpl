@@ -353,6 +353,9 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
     export WORLD_SIZE=!TBG_tasks
 
+    export NCCL_SOCKET_FAMILY="AF_INET4"
+    export NCCL_DEBUG=INFO
+
     test $n_broken_nodes -ne 0 && exclude_nodes="-x./bad_nodes.txt"
 
     echo '!TBG_inconfig_pipe' | tee inconfig.json
