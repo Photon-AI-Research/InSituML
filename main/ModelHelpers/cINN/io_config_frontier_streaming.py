@@ -37,6 +37,7 @@ trainBatchBuffer_config = dict(
 
 
 modelTrainer_config = dict(
+    checkpoint_final = True,
 )
 
 runner = "srun"
