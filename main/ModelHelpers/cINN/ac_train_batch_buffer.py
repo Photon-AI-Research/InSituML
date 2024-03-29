@@ -10,7 +10,7 @@ class RadiationDataWriter:
 
     def __init__(self, rank, dirpath):
 
-        rank_dir = self.dirpath + '_' + str(rank)
+        rank_dir = self.dirpath + '/' + str(rank)
 
         os.makedirs(os.path.dirname(rank_dir), exist_ok=True)
 
@@ -18,9 +18,7 @@ class RadiationDataWriter:
 
     def __call__(self, data):
 
-        os.makedirs(os.path.dirname(rank_dir), exist_ok=True)
-
-        filename = rank_dir + '_' + str(timestep) + '.npy'
+        filename = rank_dir + '/ts_' + str(timestep) + '.npy'
 
         with open(filename, 'wb') as writer:
             np.save(writer, data)
@@ -72,7 +70,9 @@ class TrainBatchBuffer(Thread):
         self.training_bs = training_bs
         self.continual_bs = continual_bs
 
-        self.radition_data_writer = RadiationDataWriter(rank, radiation_data_folder)
+        if radiation_data_folder:
+            self.radition_data_writer = RadiationDataWriter(rank,
+                                                            radiation_data_folder)
 
         if consume_size is None:
             self.consume_size = training_bs
@@ -151,7 +151,8 @@ class TrainBatchBuffer(Thread):
                     self.openpmdProduction = False
                     break
 
-                self.radition_data_writer(particles_radiation[1].numpy())
+                if hasattr(self, radition_data_writer):
+                    self.radition_data_writer(particles_radiation[1].numpy())
 
                 # in case items are bunched-up by the producer, we keep superfluous ones for the next round
                 self.particles_radiation = self.reshape(particles_radiation)
