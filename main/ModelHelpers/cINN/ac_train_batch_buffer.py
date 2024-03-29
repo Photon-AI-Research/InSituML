@@ -2,6 +2,28 @@ from threading import Thread
 import torch
 from cl_memory import ExperienceReplay
 from random import sample
+import os
+from collections import defaultdict
+import numpy as np
+
+class RadiationDataWriter:
+
+    def __init__(self, rank, dirpath):
+
+        self.rank_dir = dirpath + '/rank_' + str(rank)
+
+        os.makedirs(self.rank_dir, exist_ok=True)
+
+        self.timestep = 0
+
+    def __call__(self, data):
+
+        filename = self.rank_dir + '/ts_' + str(self.timestep) + '.npy'
+
+        with open(filename, 'wb') as writer:
+            np.save(writer, data)
+
+        self.timestep +=1
 
 class TrainBatchBuffer(Thread):
     """
@@ -37,7 +59,9 @@ class TrainBatchBuffer(Thread):
                  cl_mem_size=2048,
                  do_tranpose=True,
                  stall_loader=False,
-                 consume_size = None):
+                 consume_size = None,
+                 radiation_data_folder = 'RadiationData',
+                 rank = None):
 
         Thread.__init__(self)
 
@@ -45,6 +69,11 @@ class TrainBatchBuffer(Thread):
         self.do_tranpose = do_tranpose
         self.training_bs = training_bs
         self.continual_bs = continual_bs
+
+        if radiation_data_folder:
+            self.radition_data_writer = RadiationDataWriter(rank,
+                                                            radiation_data_folder)
+
         if consume_size is None:
             self.consume_size = training_bs
         else: # number of items consumed from the loaded is, in general, independent of batch size
@@ -101,6 +130,7 @@ class TrainBatchBuffer(Thread):
         
         openPMDBufferReadCount = 0
         openPMDBufferSize = self.openPMDbuffer.qsize()
+
         updating = False
         if openPMDBufferSize:
             updating = True
@@ -120,6 +150,9 @@ class TrainBatchBuffer(Thread):
                 elif particles_radiation is None:
                     self.openpmdProduction = False
                     break
+
+                if hasattr(self, 'radition_data_writer'):
+                    self.radition_data_writer(particles_radiation[1].numpy())
 
                 # in case items are bunched-up by the producer, we keep superfluous ones for the next round
                 self.particles_radiation = self.reshape(particles_radiation)
