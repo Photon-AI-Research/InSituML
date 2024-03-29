@@ -366,6 +366,15 @@ def main():
                                         particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
         else:
             timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
+
+
+        if rank == 0:
+            # print some parameters
+            print("#Param streamLoader_config.amplitude_direction=", streamLoader_config["amplitude_direction"], flush=True)
+            print("#Param streamLoader_config.pathpattern1=", streamLoader_config["pathpattern1"], flush=True)
+            print("#Param config.load_model=", config["load_model"], flush=True)
+            print("#Param config.load_model_checkpoint=", config["load_model_checkpoint"], flush=True)
+            print("#Param type_streamer=", io_config.type_streamer, flush=True)
         
         #wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')    
         trainBF = TrainBatchBuffer(openPMDBuffer, rank=rank,  **io_config.trainBatchBuffer_config)
