@@ -83,8 +83,7 @@ class TrainBatchBuffer(Thread):
                  do_tranpose=True,
                  stall_loader=False,
                  consume_size = None,
-                 radiation_data_folder = 'RadiationData',
-                 rank = None):
+                 radiation_data_folder = None):
 
         Thread.__init__(self)
 
