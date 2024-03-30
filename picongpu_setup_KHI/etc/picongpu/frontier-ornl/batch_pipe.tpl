@@ -179,7 +179,7 @@ verify_synced() {
     ldd `which picongpu`
     srun python -c 'import openpmd_api; print("OPENPMD PATH:", openpmd_api)'
 }
-verify_synced | sed 's|^|>\t|'
+#DEBUG verify_synced | sed 's|^|>\t|'
 
 # Remove duplicates from the LD_LIBRARY_PATH to speed up application launches
 # at large scale.
@@ -209,7 +209,7 @@ clean_duplicates_stable()
 # remove parallel filesystems from PYTHONPATH
 export PYTHONPATH="$(echo "$PYTHONPATH" | sed -E 's_:(/lustre/orion|/ccs/home)[^:]*__g')"
 export LD_LIBRARY_PATH="$(echo "$LD_LIBRARY_PATH" | tr : '\n' | clean_duplicates_stable | tr '\n' :)"
-echo -e "LD_LIBRARY_PATH after cleaning duplicate entries:\n>\t$(echo "$LD_LIBRARY_PATH" | sed -E 's|:|\n>\t|g')"
+#DEBUG echo -e "LD_LIBRARY_PATH after cleaning duplicate entries:\n>\t$(echo "$LD_LIBRARY_PATH" | sed -E 's|:|\n>\t|g')"
 
 # set user rights to u=rwx;g=r-x;o=---
 umask 0027
