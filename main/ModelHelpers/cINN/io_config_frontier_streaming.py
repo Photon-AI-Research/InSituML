@@ -12,7 +12,7 @@ number_of_particles = 4096
 
 streamLoader_config = dict(
     t0 = 900,
-    t1 = 920, # endpoint=false, t1 is not used in training
+    t1 = 1001, # endpoint=false, t1 is not used in training
     pathpattern1 = "openPMD/simData.sst", # streaming on frontier
     pathpattern2 = "radiationOpenPMD/e_radAmplitudes.sst", # streaming on frontier
     streaming_config = "@inconfig.json", #None, # set to None when reading from file
@@ -24,19 +24,23 @@ streamLoader_config = dict(
 
 openPMD_queue_size=4
 
+batch_size=4
+
 trainBatchBuffer_config = dict(
-    training_bs=2,
-    continual_bs=2,
+    training_bs=batch_size,
+    continual_bs=batch_size,
     stall_loader=True,
-    consume_size=2,
+    consume_size=1,
+    min_tb_from_unchanged_now_bf = 4,
     #Train buffer.
     buffersize = 10,
     #long buffer
-    cl_mem_size = 100,
+    cl_mem_size = 20
 )
 
 
 modelTrainer_config = dict(
+    checkpoint_interval = 2000,
     checkpoint_final = True,
 )
 
