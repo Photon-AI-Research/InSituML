@@ -380,6 +380,8 @@ def main():
             print("#Param trainBatchBuffer_config.consume_size=", io_config.trainBatchBuffer_config["consume_size"], flush=True)
             print("#Param trainBatchBuffer_config.training_bs=", io_config.trainBatchBuffer_config["training_bs"], flush=True)
             print("#Param trainBatchBuffer_config.continual_bs=", io_config.trainBatchBuffer_config["continual_bs"], flush=True)
+            print("#Param trainBatchBuffer_config.min_tb_from_unchanged_now_bf=", io_config.trainBatchBuffer_config.get("min_tb_from_unchanged_now_bf", 0), flush=True)
+            print("#Param trainBatchBuffer_config.max_tb_from_unchanged_now_bf=", io_config.trainBatchBuffer_config.get("max_tb_from_unchanged_now_bf", 3), flush=True)
         
         #wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')    
         trainBF = TrainBatchBuffer(openPMDBuffer, **io_config.trainBatchBuffer_config)

@@ -35,9 +35,10 @@ batch_size=int(environ["BATCH_SIZE"]) if "BATCH_SIZE" in environ else 4
 
 trainBatchBuffer_config = dict(
     training_bs=batch_size,
-    continual_bs=batch_size,
+    continual_bs=batch_size-1, # 7 is the max we can fit on P100 with our stupid chamfer's impl
     stall_loader=True,
     consume_size=1,
+    min_tb_from_unchanged_now_bf = 4,
     #Train buffer.
     buffersize = 10,
     #long buffer

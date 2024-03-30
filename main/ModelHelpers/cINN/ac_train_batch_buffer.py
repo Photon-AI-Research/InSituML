@@ -79,6 +79,7 @@ class TrainBatchBuffer(Thread):
                  training_bs = 4,
                  buffersize = 5,
                  max_tb_from_unchanged_now_bf = 3,
+                 min_tb_from_unchanged_now_bf = 0,
                  continual_bs = 4,
                  cl_mem_size=2048,
                  do_tranpose=True,
@@ -122,7 +123,8 @@ class TrainBatchBuffer(Thread):
         # still production from openPMD production.
         self.openpmdProduction = True
         self.noReadCount = 0
-        self.max_tb_from_unchanged_now_bf = max_tb_from_unchanged_now_bf
+        self.min_tb_from_unchanged_now_bf = min_tb_from_unchanged_now_bf
+        self.max_tb_from_unchanged_now_bf = max(max_tb_from_unchanged_now_bf, min_tb_from_unchanged_now_bf)
 
         self.particles_radiation = [] # unpack buffer
 
@@ -233,7 +235,12 @@ class TrainBatchBuffer(Thread):
         print("Attempting a batch extraction from train buffer")
         
         self.run_thread=True
-        self.run()
+        # No training until there batch size element in the buffer.
+        if len(self.buffer_)<self.buffersize or (self.noReadCount>=self.min_tb_from_unchanged_now_bf and
+                self.openpmdProduction):
+            self.run()
+        else:
+            self.noReadCount += 1
         # No training until there batch size element in the buffer.
         if len(self.buffer_)<self.training_bs or (self.noReadCount>self.max_tb_from_unchanged_now_bf and
                                                   self.openpmdProduction):
