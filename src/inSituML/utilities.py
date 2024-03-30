@@ -159,83 +159,127 @@ def create_momentum_density_plots(
     px_pr,
     py_pr,
     pz_pr,
+    px_pr_ae,
+    py_pr_ae,
+    pz_pr_ae,
+    chamfers_loss=None,
+    emd_loss_inn=None,
+    emd_loss_vae=None,
     bins=100,
     t=1000,
-    path="",
-    enable_wandb=False,
-    wandb=None,
+    gpu_box =0,
+    path='',
+    show_plot = True,
+    enable_wandb = False
 ):
-
+    
     # Specify the number of bins for each axis
     bins_px = np.linspace(min(px), max(px), bins)
     bins_py = np.linspace(min(py), max(py), bins)
     bins_pz = np.linspace(min(pz), max(pz), bins)
+    
+    loss_info = ''
+    loss_info_inn = ''
+    loss_info_vae = ''
 
+    if chamfers_loss is not None:
+        loss_info += '\nChamfers: {:.4f}'.format(chamfers_loss)
+    if emd_loss_inn is not None:
+        loss_info_inn += '\nEMD: {:.4f}'.format(emd_loss_inn)
+    if emd_loss_vae is not None:
+        loss_info_vae += '\nEMD: {:.4f}'.format(emd_loss_vae)
+    
     # Create subplots for each plane
-    plt.figure(figsize=(15, 10))
-
+    plt.figure(figsize=(15, 15)) 
+    
     # px-py Plane Ground Truth
-    plt.subplot(231)
-    plt.hist2d(px, py, bins=[bins_px, bins_py], cmap="Blues")
-    plt.colorbar(label="Density")
-    plt.xlabel("px")
-    plt.ylabel("py")
-    plt.title("px-py Plane Ground Truth at t = {}".format(t))
-
+    plt.subplot(331)
+    plt.hist2d(px, py, bins=[bins_px, bins_py], cmap='Blues')
+    plt.colorbar(label='Density')
+    plt.xlabel('px')
+    plt.ylabel('py')
+    plt.title('px-py GT at t = {}, box = {}'.format(t,gpu_box))
+    
     # px-pz Plane Ground Truth
-    plt.subplot(232)
-    plt.hist2d(px, pz, bins=[bins_px, bins_pz], cmap="Greens")
-    plt.colorbar(label="Density")
-    plt.xlabel("px")
-    plt.ylabel("pz")
-    plt.title("px-pz Plane Ground Truth at t = {}".format(t))
-
+    plt.subplot(332)
+    plt.hist2d(px, pz, bins=[bins_px, bins_pz], cmap='Greens')
+    plt.colorbar(label='Density')
+    plt.xlabel('px')
+    plt.ylabel('pz')
+    plt.title('px-pz GT at t = {}, box = {}'.format(t,gpu_box))
+    
     # py-pz Plane Ground Truth
-    plt.subplot(233)
-    plt.hist2d(py, pz, bins=[bins_py, bins_pz], cmap="Reds")
-    plt.colorbar(label="Density")
-    plt.xlabel("py")
-    plt.ylabel("pz")
-    plt.title("py-pz Plane Ground Truth at t = {}".format(t))
-
+    plt.subplot(333)
+    plt.hist2d(py, pz, bins=[bins_py, bins_pz], cmap='Reds')
+    plt.colorbar(label='Density')
+    plt.xlabel('py')
+    plt.ylabel('pz')
+    plt.title('py-pz GT at t = {}, box = {}'.format(t,gpu_box))
+    
     # px-py Plane Prediction
-    plt.subplot(234)
-    plt.hist2d(px_pr, py_pr, bins=[bins_px, bins_py], cmap="Blues")
-    plt.colorbar(label="Density")
-    plt.xlabel("px_pr")
-    plt.ylabel("py_pr")
-    plt.title("px-py Plane Prediction at t = {}".format(t))
-
+    plt.subplot(334)
+    plt.hist2d(px_pr, py_pr, bins=[bins_px, bins_py], cmap='Blues')
+    plt.colorbar(label='Density')
+    plt.xlabel('px_pr')
+    plt.ylabel('py_pr')
+    plt.title('px-py INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    
     # px-pz Plane Prediction
-    plt.subplot(235)
-    plt.hist2d(px_pr, pz_pr, bins=[bins_px, bins_pz], cmap="Greens")
-    plt.colorbar(label="Density")
-    plt.xlabel("px_pr")
-    plt.ylabel("pz_pr")
-    plt.title("px-pz Plane Prediction at t = {}".format(t))
-
+    plt.subplot(335)
+    plt.hist2d(px_pr, pz_pr, bins=[bins_px, bins_pz], cmap='Greens')
+    plt.colorbar(label='Density')
+    plt.xlabel('px_pr')
+    plt.ylabel('pz_pr')
+    plt.title('px-pz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    
     # py-pz Plane Prediction
-    plt.subplot(236)
-    plt.hist2d(py_pr, pz_pr, bins=[bins_py, bins_pz], cmap="Reds")
-    plt.colorbar(label="Density")
-    plt.xlabel("py_pr")
-    plt.ylabel("pz_pr")
-    plt.title("py-pz Plane Prediction at t = {}".format(t))
-
+    plt.subplot(336)
+    plt.hist2d(py_pr, pz_pr, bins=[bins_py, bins_pz], cmap='Reds')
+    plt.colorbar(label='Density')
+    plt.xlabel('py_pr')
+    plt.ylabel('pz_pr')
+    plt.title('py-pz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    
+    # px-py Plane Prediction
+    plt.subplot(337)
+    plt.hist2d(px_pr_ae, py_pr_ae, bins=[bins_px, bins_py], cmap='Blues')
+    plt.colorbar(label='Density')
+    plt.xlabel('px_pr')
+    plt.ylabel('py_pr')
+    plt.title('px-py VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    
+    # px-pz Plane Prediction
+    plt.subplot(338)
+    plt.hist2d(px_pr_ae, pz_pr_ae, bins=[bins_px, bins_pz], cmap='Greens')
+    plt.colorbar(label='Density')
+    plt.xlabel('px_pr')
+    plt.ylabel('pz_pr')
+    plt.title('px-pz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    
+    # py-pz Plane Prediction
+    plt.subplot(339)
+    plt.hist2d(py_pr_ae, pz_pr_ae, bins=[bins_py, bins_pz], cmap='Reds')
+    plt.colorbar(label='Density')
+    plt.xlabel('py_pr')
+    plt.ylabel('pz_pr')
+    plt.title('py-pz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    
     plt.tight_layout()
 
     # Save the plots as image files
     if path:
-        plt.savefig(path + "/momentum_density_plots_{}.png".format(t))
 
+        plt.savefig(path + '/momentum_density_plots_{}_{}.png'.format(t,gpu_box))
+    
     if enable_wandb:
         # Log the overlapping histogram plot
-        wandb.log({"Px vs Py vs Pz histograms": wandb.Image(plt)})
-
+        wandb.log({"Px vs Py vs Pz histograms (t={},box={})".format(t,gpu_box): wandb.Image(plt)})
         plt.close()
+    elif show_plot:
+        plt.show()   
     else:
-        plt.show()
-
+        plt.close()
+        
 
 def create_force_density_plots(
     fx,
@@ -244,84 +288,136 @@ def create_force_density_plots(
     fx_pr,
     fy_pr,
     fz_pr,
+    fx_pr_ae,
+    fy_pr_ae,
+    fz_pr_ae,
+    chamfers_loss=None,
+    emd_loss_inn=None,
+    emd_loss_vae=None,
     bins=100,
     t=1000,
-    path="",
-    enable_wandb=False,
-    wandb=None,
+    gpu_box =0,
+    path='',
+    show_plot = True,
+    enable_wandb = False
 ):
-
+    
     # Specify the number of bins for each axis
     bins_fx = np.linspace(min(fx), max(fx), bins)
     bins_fy = np.linspace(min(fy), max(fy), bins)
     bins_fz = np.linspace(min(fz), max(fz), bins)
+    
+    # loss_info = ''
+    # if chamfers_loss is not None:
+    #     loss_info += '\nChamfers: {:.4f}'.format(chamfers_loss)
+    # if emd_loss is not None:
+    #     loss_info += '\nEMD: {:.4f}'.format(emd_loss)
+        
+    loss_info = ''
+    loss_info_inn = ''
+    loss_info_vae = ''
 
+    if chamfers_loss is not None:
+        loss_info += '\nChamfers: {:.4f}'.format(chamfers_loss)
+    if emd_loss_inn is not None:
+        loss_info_inn += '\nEMD: {:.4f}'.format(emd_loss_inn)
+    if emd_loss_vae is not None:
+        loss_info_vae += '\nEMD: {:.4f}'.format(emd_loss_vae)
+
+        
     # Create subplots for each plane
-    plt.figure(figsize=(15, 10))  # Adjust the figure size
-
+    plt.figure(figsize=(15, 15))  # Adjust the figure size
+    
     # fx-fy Plane Ground Truth
-    plt.subplot(231)
-    plt.hist2d(fx, fy, bins=[bins_fx, bins_fy], cmap="Blues")
-    plt.colorbar(label="Density")
-    plt.xlabel("fx")
-    plt.ylabel("fy")
-    plt.title("fx-fy Plane Ground Truth at t = {}".format(t))
-
+    plt.subplot(331)
+    plt.hist2d(fx, fy, bins=[bins_fx, bins_fy], cmap='Blues')
+    plt.colorbar(label='Density')
+    plt.xlabel('fx')
+    plt.ylabel('fy')
+    plt.title('fx-fy GT at t = {}, box = {}'.format(t,gpu_box))
+    
     # fx-fz Plane Ground Truth
-    plt.subplot(232)
-    plt.hist2d(fx, fz, bins=[bins_fx, bins_fz], cmap="Greens")
-    plt.colorbar(label="Density")
-    plt.xlabel("fx")
-    plt.ylabel("fz")
-    plt.title("fx-fz Plane Ground Truth at t = {}".format(t))
-
+    plt.subplot(332)
+    plt.hist2d(fx, fz, bins=[bins_fx, bins_fz], cmap='Greens')
+    plt.colorbar(label='Density')
+    plt.xlabel('fx')
+    plt.ylabel('fz')
+    plt.title('fx-fz GT at t = {}, box = {}'.format(t,gpu_box))
+    
     # fy-fz Plane Ground Truth
-    plt.subplot(233)
-    plt.hist2d(fy, fz, bins=[bins_fy, bins_fz], cmap="Reds")
-    plt.colorbar(label="Density")
-    plt.xlabel("fy")
-    plt.ylabel("fz")
-    plt.title("fy-fz Plane Ground Truth at t = {}".format(t))
-
+    plt.subplot(333)
+    plt.hist2d(fy, fz, bins=[bins_fy, bins_fz], cmap='Reds')
+    plt.colorbar(label='Density')
+    plt.xlabel('fy')
+    plt.ylabel('fz')
+    plt.title('fy-fz GT at t = {}, box = {}'.format(t,gpu_box))
+    
     # fx-fy Plane Prediction
-    plt.subplot(234)
-    plt.hist2d(fx_pr, fy_pr, bins=[bins_fx, bins_fy], cmap="Blues")
-    plt.colorbar(label="Density")
-    plt.xlabel("fx_pr")
-    plt.ylabel("fy_pr")
-    plt.title("fx-fy Plane Prediction at t = {}".format(t))
-
+    plt.subplot(334)
+    plt.hist2d(fx_pr, fy_pr, bins=[bins_fx, bins_fy], cmap='Blues')
+    plt.colorbar(label='Density')
+    plt.xlabel('fx_pr')
+    plt.ylabel('fy_pr')
+    plt.title('fx-fy INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    
     # fx-fz Plane Prediction
-    plt.subplot(235)
-    plt.hist2d(fx_pr, fz_pr, bins=[bins_fx, bins_fz], cmap="Greens")
-    plt.colorbar(label="Density")
-    plt.xlabel("fx_pr")
-    plt.ylabel("fz_pr")
-    plt.title("fx-fz Plane Prediction at t = {}".format(t))
-
+    plt.subplot(335)
+    plt.hist2d(fx_pr, fz_pr, bins=[bins_fx, bins_fz], cmap='Greens')
+    plt.colorbar(label='Density')
+    plt.xlabel('fx_pr')
+    plt.ylabel('fz_pr')
+    plt.title('fx-fz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    
     # fy-fz Plane Prediction
-    plt.subplot(236)
-    plt.hist2d(fy_pr, fz_pr, bins=[bins_fy, bins_fz], cmap="Reds")
-    plt.colorbar(label="Density")
-    plt.xlabel("fy_pr")
-    plt.ylabel("fz_pr")
-    plt.title("fy-fz Plane Prediction at t = {}".format(t))
-
+    plt.subplot(336)
+    plt.hist2d(fy_pr, fz_pr, bins=[bins_fy, bins_fz], cmap='Reds')
+    plt.colorbar(label='Density')
+    plt.xlabel('fy_pr')
+    plt.ylabel('fz_pr')
+    plt.title('fy-fz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    
+    # fx-fy Plane Prediction
+    plt.subplot(337)
+    plt.hist2d(fx_pr_ae, fy_pr_ae, bins=[bins_fx, bins_fy], cmap='Blues')
+    plt.colorbar(label='Density')
+    plt.xlabel('fx_pr')
+    plt.ylabel('fy_pr')
+    plt.title('fx-fy VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    
+    # fx-fz Plane Prediction
+    plt.subplot(338)
+    plt.hist2d(fx_pr_ae, fz_pr_ae, bins=[bins_fx, bins_fz], cmap='Greens')
+    plt.colorbar(label='Density')
+    plt.xlabel('fx_pr')
+    plt.ylabel('fz_pr')
+    plt.title('fx-fz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    
+    # fy-fz Plane Prediction
+    plt.subplot(339)
+    plt.hist2d(fy_pr_ae, fz_pr_ae, bins=[bins_fy, bins_fz], cmap='Reds')
+    plt.colorbar(label='Density')
+    plt.xlabel('fy_pr')
+    plt.ylabel('fz_pr')
+    plt.title('fy-fz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    
     plt.tight_layout()
 
     # Save the plots as image files
     if path:
-        plt.savefig(path + "/force_density_plots_{}.png".format(t))
 
+        plt.savefig(path + '/force_density_plots_{}_{}.png'.format(t,gpu_box))
+    
     if enable_wandb:
         # Log the overlapping histogram plot
-        wandb.log({"Fx vs Fy vs FZ histograms": wandb.Image(plt)})
+        wandb.log({"Fx vs Fy vs FZ histograms (t={},box={})".format(t,gpu_box): wandb.Image(plt)})
 
         plt.close()
+    elif show_plot:
+        plt.show()   
     else:
-        plt.show()
-
-
+        
+        plt.close() 
+        
 def random_sample(data, sample_size):
     # Check if the sample size is greater than the number of points in the data
     if sample_size > data.shape[0]:
@@ -372,9 +468,9 @@ def plot_radiation(
     frequency_range=512,
     t=1000,
     gpu_box=0,
-    path="",
-    enable_wandb=False,
-    wandb=None,
+    path='',
+    show_plot = True,
+    enable_wandb=False
 ):
     """
     Plot radiation intensity against frequency and
@@ -420,28 +516,27 @@ def plot_radiation(
     if predicted_intensity is not None:
         predicted_intensity = to_numpy(predicted_intensity)[:frequency_range]
         predicted_smoothed = smooth_data(predicted_intensity)
-
+        
         plt.plot(
             frequency,
             predicted_smoothed,
-            label="Predicted Radiation Intensity (Smoothed)",
-            linestyle="--",
-            color="red",
-            marker="o",
+            label='Predicted Radiation Intensity (Smoothed)',
+            linestyle='--',
+            color='red',
+            marker='o',
             markersize=5,
-            zorder=1,
+            zorder=1
         )
         plt.plot(
             frequency,
             predicted_intensity,
-            label="Predicted Radiation Intensity (Raw)",
-            linestyle="--",
-            color="red",
-            alpha=0.3,
-            zorder=0,
-            markersize=3,
+            label='Predicted Radiation Intensity (Raw)',
+            linestyle='--',
+            color='red',
+            alpha=0.3, zorder=0,
+            markersize=3
         )
-
+        plt.xscale('log')
         # Compute MSE
         mse = np.mean((ground_truth_intensity - predicted_intensity) ** 2)
 
@@ -468,16 +563,15 @@ def plot_radiation(
         plt.savefig(f"{path}/radiation_plots_{t}_{gpu_box}.png")
 
     if enable_wandb:
-        import wandb
-
         wandb.log(
-            {"Radiation (t={},box={})".format(t, gpu_box): wandb.Image(plt)}
-        )
+            {"Radiation (t={},box={})".format(t, gpu_box): wandb.Image(plt)})
         plt.close()
+    elif show_plot:
+        plt.show()   
     else:
-        plt.show()
-
-
+        plt.close() 
+        
+        
 def save_checkpoint(
     model,
     optimizer,
@@ -568,7 +662,7 @@ def save_checkpoint_conditionally(
             " Skipping save."
         )
 
-
+        
 def normalize_point(point, vmin, vmax, a=0., b=1.):
     '''
     Normalize point from a set of points with vmin(minimum) and vmax(maximum)
@@ -607,3 +701,16 @@ def denormalize_point(point_normalized, vmin, vmax, a=0., b=1.):
     result_array = torch.cat((denormalized_first_three_col, point_normalized[:, 3:]), dim=1).to(point_normalized.dtype)
 
     return result_array
+
+def filter_dims(phase_space, property_="positions"):
+    
+    if property_ == "positions":
+        return phase_space[:,:,:3]
+    elif property_ == "momentum":
+        return phase_space[:,:,3:6]
+    elif property_ == "force":
+        return phase_space[:,:,6:]
+    elif property_ == "momentum_force":
+        return phase_space[:,:,3:]
+    else:
+        return phase_space
