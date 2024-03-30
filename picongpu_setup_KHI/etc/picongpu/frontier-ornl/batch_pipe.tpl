@@ -353,8 +353,21 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
     export WORLD_SIZE=!TBG_tasks
 
-    export NCCL_SOCKET_FAMILY="AF_INET4"
-    export NCCL_DEBUG=INFO
+    # NCCL and torch.distributed (logging) settings
+    # see (https://pytorch.org/docs/stable/distributed.html#logging)
+    # and (https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/env.html)
+    export NCCL_SOCKET_FAMILY="AF_INET4" # address family setting for communication
+    export NCCL_DEBUG=WARN # possible choices: VERSION, WARN, INFO,TRACE
+    export TORCH_CPP_LOG_LEVEL=WARNING # possible choices: ERROR, WARNING, INFO
+    export TORCH_DISTRIBUTED_DEBUG=INFO # possible choices: INFO, DETAIL (only active if TORCH_CPP_LOG_LEVEL=INFO)
+
+    # Settings for torch DDP to use libfabric, couldn't find out how to make it use libfabric
+    # ATS = Address Translation Service, could not find documentation on this,
+    #   but has been used in (https://github.com/ROCm/aws-ofi-rccl?tab=readme-ov-file#running-rccl-perf-tests),
+    #   also see (https://h5bench.readthedocs.io/en/latest/running.html#sunspot-alcf)
+    #export FI_CXI_ATS=0
+    #export FI_LOG_LEVEL=TRACE
+    #export NCCL_NET_GDR_LEVEL=3
 
     test $n_broken_nodes -ne 0 && exclude_nodes="-x./bad_nodes.txt"
 
