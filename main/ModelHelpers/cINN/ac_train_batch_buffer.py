@@ -11,7 +11,7 @@ comm = MPI.COMM_WORLD
 
 class RadiationDataWriter:
 
-    def __init__(self, rank, dirpath):
+    def __init__(self, dirpath):
 
         self.dirpath = dirpath
 
@@ -93,8 +93,7 @@ class TrainBatchBuffer(Thread):
         self.continual_bs = continual_bs
 
         if radiation_data_folder:
-            self.radition_data_writer = RadiationDataWriter(rank,
-                                                            radiation_data_folder)
+            self.radition_data_writer = RadiationDataWriter(radiation_data_folder)
 
         if consume_size is None:
             self.consume_size = training_bs
