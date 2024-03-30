@@ -5,7 +5,6 @@ from random import sample
 import os
 from collections import defaultdict
 import numpy as np
-from time import sleep
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -34,10 +33,8 @@ class RadiationDataWriter:
     def __call__(self, data):
 
         if self.rank==0 and self.start_write:
-            while self.request.Get_status()==False:
-                sleep(5)
-            else:
-                self.write(self.data_gathered)
+            self.request.Wait()
+            self.write(self.data_gathered)
         
         self.data_gathered = None
         if self.rank==0:
