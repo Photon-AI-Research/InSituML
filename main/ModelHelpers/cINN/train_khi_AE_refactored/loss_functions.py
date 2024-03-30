@@ -94,7 +94,7 @@ class ChamfersLoss(nn.Module):
             y(Tensor): Ground truth values
         """
         relative_distances = torch.cdist(x, y, p=self.p)
-        return self.chamfers_distance(relative_distances)
+        return self.chamfers_distance(relative_distances) / relative_distances.shape[-1]
 
     def chamfers_distance(self, relative_distances):
         """
