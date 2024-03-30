@@ -5,23 +5,47 @@ from random import sample
 import os
 from collections import defaultdict
 import numpy as np
+from time import sleep
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
 
 class RadiationDataWriter:
 
-    def __init__(self, rank, dirpath):
+    def __init__(self, dirpath):
 
-        self.rank_dir = dirpath + '/rank_' + str(rank)
+        self.dirpath = dirpath
 
-        os.makedirs(self.rank_dir, exist_ok=True)
+        self.rank = comm.Get_rank()
+
+        os.makedirs(self.dirpath, exist_ok=True)
 
         self.timestep = 0
+        #First timestep must only gather data
+        self.start_write = False
 
-    def __call__(self, data):
+    def write(self, data):
 
-        filename = self.rank_dir + '/ts_' + str(self.timestep) + '.npy'
+        filename = self.dirpath + '/ts_' + str(self.timestep) + '.npy'
 
         with open(filename, 'wb') as writer:
             np.save(writer, data)
+
+    def __call__(self, data):
+
+        if self.rank==0 and self.start_write:
+            while self.request.Get_status()==False:
+                sleep(5)
+            else:
+                self.write(self.data_gathered)
+        
+        self.data_gathered = None
+        if self.rank==0:
+           self.data_gathered = np.empty((comm.size,)+data.shape)
+
+        self.request = comm.Igather(data, self.data_gathered)
+
+        self.start_write = True
 
         self.timestep +=1
 
@@ -60,8 +84,7 @@ class TrainBatchBuffer(Thread):
                  do_tranpose=True,
                  stall_loader=False,
                  consume_size = None,
-                 radiation_data_folder = 'RadiationData',
-                 rank = None):
+                 radiation_data_folder = None):
 
         Thread.__init__(self)
 
@@ -71,8 +94,7 @@ class TrainBatchBuffer(Thread):
         self.continual_bs = continual_bs
 
         if radiation_data_folder:
-            self.radition_data_writer = RadiationDataWriter(rank,
-                                                            radiation_data_folder)
+            self.radition_data_writer = RadiationDataWriter(radiation_data_folder)
 
         if consume_size is None:
             self.consume_size = training_bs

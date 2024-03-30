@@ -382,7 +382,7 @@ def main():
             print("#Param trainBatchBuffer_config.continual_bs=", io_config.trainBatchBuffer_config["continual_bs"], flush=True)
         
         #wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')    
-        trainBF = TrainBatchBuffer(openPMDBuffer, rank=rank,  **io_config.trainBatchBuffer_config)
+        trainBF = TrainBatchBuffer(openPMDBuffer, **io_config.trainBatchBuffer_config)
         modelTrainer = ModelTrainer(trainBF, model, optimizer, scheduler, gpu_id=rank, **io_config.modelTrainer_config, logger = None)
 
         ####################
