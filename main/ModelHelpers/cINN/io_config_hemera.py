@@ -24,27 +24,28 @@ streamLoader_config = dict(
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
     number_particles_per_gpu = 30000,
+    verbose=False,
     ## offline training params
     num_epochs = 2
 )
 
 openPMD_queue_size=8
 
-batch_size=2
+batch_size=int(environ["BATCH_SIZE"]) if "BATCH_SIZE" in environ else 4
 
 trainBatchBuffer_config = dict(
     training_bs=batch_size,
     continual_bs=batch_size,
     stall_loader=True,
-    consume_size=batch_size,
+    consume_size=1,
     #Train buffer.
     buffersize = 10,
     #long buffer
-    cl_mem_size = 100,
+    cl_mem_size = 20*32, # 20% of data, but all:1, so 32 blocks go to one rank
 )
 modelTrainer_config = dict(
-    checkpoint_interval = 32,
-    checkpoint_final = False,
+    checkpoint_interval = 800,
+    checkpoint_final = True,
     out_prefix = "slurm-{}/".format(environ["SLURM_JOBID"]) if "SLURM_JOBID" in environ else ""
 )
 
