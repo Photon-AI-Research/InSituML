@@ -5,6 +5,7 @@ from random import sample
 import os
 from collections import defaultdict
 import numpy as np
+from time import sleep
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
