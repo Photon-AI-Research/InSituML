@@ -31,13 +31,17 @@ ndim_z = 32,
 load_model = None, #'inn_vae_latent_544_sim007_24k0zbm4/best_model_',
 load_model_checkpoint = 'inn_vae_latent_544_sim014_859eopan/model_150', #'inn_vae_latent_544_sim014_859eopan/model_950',
     
+#   "earthmovers"
+#   "chamfersloss"
+#   "chamfersloss_d"
+#   "chamfersloss_0"
 ## for optimized chamfer distance
-# loss_function = 'chamfersloss_o',
-# loss_kwargs = {'property_':'momentum_force'},
+loss_function = 'chamfersloss',
+loss_kwargs = {},
 
 ## for emd without peops library.
-loss_function = 'earthmovers',
-loss_kwargs = {},
+# loss_function = 'earthmovers',
+# loss_kwargs = {},
 
 betas = (0.8, 0.9),
 eps = 1e-6,
