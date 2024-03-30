@@ -11,7 +11,7 @@ comm = MPI.COMM_WORLD
 
 class RadiationDataWriter:
 
-    def __init__(self, dirpath):
+    def __init__(self, dirpath, rank):
 
         self.dirpath = dirpath
 
@@ -81,6 +81,7 @@ class TrainBatchBuffer(Thread):
                  cl_mem_size=2048,
                  do_tranpose=True,
                  stall_loader=False,
+                 verbose=False,
                  consume_size = None,
                  radiation_data_folder = None):
 
@@ -91,8 +92,9 @@ class TrainBatchBuffer(Thread):
         self.training_bs = training_bs
         self.continual_bs = continual_bs
 
+        self.rank = comm.Get_rank()
         if radiation_data_folder:
-            self.radition_data_writer = RadiationDataWriter(radiation_data_folder)
+            self.radition_data_writer = RadiationDataWriter(radiation_data_folder, rank)
 
         if consume_size is None:
             self.consume_size = training_bs
@@ -115,6 +117,7 @@ class TrainBatchBuffer(Thread):
         self.run_thread = False
 
         self.stall_loader = stall_loader
+        self.verbose = verbose
         
         # to indicate whether there are
         # still production from openPMD production.
@@ -153,7 +156,8 @@ class TrainBatchBuffer(Thread):
         updating = False
         if openPMDBufferSize:
             updating = True
-            print("Updating the train buffer")
+            if self.verbose:
+                print("Updating the train buffer")
             
         while openPMDBufferReadCount < min(self.consume_size, openPMDBufferSize):
             # This condition can discard items left in particles_radiation even
@@ -175,7 +179,8 @@ class TrainBatchBuffer(Thread):
 
                 # in case items are bunched-up by the producer, we keep superfluous ones for the next round
                 self.particles_radiation = self.reshape(particles_radiation)
-                print("##TrainBatchBuffer## particles_radiation.reshape", len(self.particles_radiation))
+                if self.verbose:
+                    print("##TrainBatchBuffer## particles_radiation.reshape", len(self.particles_radiation))
 
             itemsToTake = min(self.consume_size - openPMDBufferReadCount, len(self.particles_radiation))
             itemsToSchedule = len(self.buffer_) + itemsToTake - self.buffersize
@@ -207,11 +212,12 @@ class TrainBatchBuffer(Thread):
         else:
             self.noReadCount += 1
 
-        print("##TrainBatchBuffer## openPMDBufferReadCount", openPMDBufferReadCount)
+        if self.verbose or self.rank == 0:
+            print("##TrainBatchBuffer## openPMDBufferReadCount", openPMDBufferReadCount)
         
         self.run_thread = False
         
-        if updating: 
+        if updating and self.verbose: 
             print("Train Buffer Updated")
 
     def reshape(self, particles_radiation):
@@ -229,7 +235,8 @@ class TrainBatchBuffer(Thread):
 
 
     def get_batch(self):
-        print("Attempting a batch extraction from train buffer")
+        if self.verbose:
+            print("Attempting a batch extraction from train buffer")
         
         self.run_thread=True
         # No training until there batch size element in the buffer.
@@ -241,11 +248,12 @@ class TrainBatchBuffer(Thread):
         # No training until there batch size element in the buffer.
         if len(self.buffer_)<self.training_bs or (self.noReadCount>self.max_tb_from_unchanged_now_bf and
                                                   self.openpmdProduction):
-            print(f"Batch extraction failed.. \n"
-                   f"Either train buffer has less element than training size \n"
-                   f"Train Buffer Size: {len(self.buffer_)}, training batch size: {self.training_bs} \n"
-                   f"Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches "
-                   f"allowed from unchanged trainbuffer state: {self.max_tb_from_unchanged_now_bf}\n")
+            if self.verbose or self.rank == 0:
+                print(f"Batch extraction failed.. \n"
+                       f"Either train buffer has less element than training size \n"
+                       f"Train Buffer Size: {len(self.buffer_)}, training batch size: {self.training_bs} \n"
+                       f"Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches "
+                       f"allowed from unchanged trainbuffer state: {self.max_tb_from_unchanged_now_bf}\n")
             return None
         
         #random sampling
