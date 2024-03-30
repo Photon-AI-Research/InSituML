@@ -98,6 +98,7 @@ export OMP_NUM_THREADS=!TBG_coresPerGPU
 
 ## end calculations ##
 
+echo "BEGIN DATE: $(date '+%F%t%T')"
 echo 'Start job with !TBG_nodes_adjusted nodes. Required are !TBG_nodes nodes.'
 
 if (( !TBG_nodes < 2 )); then
@@ -210,9 +211,6 @@ export PYTHONPATH="$(echo "$PYTHONPATH" | sed -E 's_:(/lustre/orion|/ccs/home)[^
 export LD_LIBRARY_PATH="$(echo "$LD_LIBRARY_PATH" | tr : '\n' | clean_duplicates_stable | tr '\n' :)"
 echo -e "LD_LIBRARY_PATH after cleaning duplicate entries:\n>\t$(echo "$LD_LIBRARY_PATH" | sed -E 's|:|\n>\t|g')"
 
-echo "BEGIN DATE: $(date '+%F%t%T')"
-begin_memtest=$(date +%s.%N)
-
 # set user rights to u=rwx;g=r-x;o=---
 umask 0027
 
@@ -233,6 +231,8 @@ else
 fi
 
 .TBG_numHostedDevicesPerNode=8
+
+begin_memtest=$(date +%s.%N)
 
 # test if cuda_memtest binary is available and we have the node exclusive
 if [ $run_cuda_memtest -eq 1 ] ; then
@@ -374,6 +374,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
 
     begin_run=$(date +%s.%N)
     echo "BEGIN RUN [seconds since 1970-01-01 00:00:00 UTC]: ${begin_run}"
+    echo "BEGIN RUN: $(date '+%F%t%T')"
 
     srun -l                                       \
       --ntasks !TBG_tasks                         \
@@ -388,6 +389,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       /mnt/bb/$USER/sync_bins/python              \
         "/mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
         --io_config /mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/io_config_frontier_streaming.py --runner srun \
+        --model_config /mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/model_config.py \
         > ../training.out 2> ../training.err              &
 
     sleep 1
