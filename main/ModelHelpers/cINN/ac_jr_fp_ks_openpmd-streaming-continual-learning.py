@@ -374,7 +374,12 @@ def main():
             print("#Param streamLoader_config.pathpattern1=", streamLoader_config["pathpattern1"], flush=True)
             print("#Param config.load_model=", config["load_model"], flush=True)
             print("#Param config.load_model_checkpoint=", config["load_model_checkpoint"], flush=True)
+            print("#Param config.loss_function=", config["loss_function"], flush=True)
             print("#Param type_streamer=", io_config.type_streamer, flush=True)
+            print("#Param trainBatchBuffer_config.cl_mem_size=", io_config.trainBatchBuffer_config["cl_mem_size"], flush=True)
+            print("#Param trainBatchBuffer_config.consume_size=", io_config.trainBatchBuffer_config["consume_size"], flush=True)
+            print("#Param trainBatchBuffer_config.training_bs=", io_config.trainBatchBuffer_config["training_bs"], flush=True)
+            print("#Param trainBatchBuffer_config.continual_bs=", io_config.trainBatchBuffer_config["continual_bs"], flush=True)
         
         #wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')    
         trainBF = TrainBatchBuffer(openPMDBuffer, rank=rank,  **io_config.trainBatchBuffer_config)
