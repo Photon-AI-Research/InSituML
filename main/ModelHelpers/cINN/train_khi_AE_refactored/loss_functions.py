@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
+import traceback
 
 try:
     import ChamferDistancePytorch.chamfer6D.dist_chamfer_6D as dist_chamfer_6D
@@ -24,8 +25,8 @@ try:
             loss = torch.mean(dist1) + torch.mean(dist2)
             return loss
 
-except Exception as ex:
-    print(f"Exception {ex} found While loading loss function.")
+except Exception:
+    traceback.print_exc()
 
 class ChamfersLossDiagonal(nn.Module):
     """

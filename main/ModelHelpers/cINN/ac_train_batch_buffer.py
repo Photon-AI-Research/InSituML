@@ -77,8 +77,6 @@ class TrainBatchBuffer(Thread):
         if consume_size is None:
             self.consume_size = training_bs
         else: # number of items consumed from the loaded is, in general, independent of batch size
-            # if consume_size is set lower than training buffer, then the buffer would hang for first batch pass.  
-            assert consume_size >= training_bs, f"Consume size:{consume_size} should be set larger or equal  than the training_bs: {training_bs}"
             self.consume_size = consume_size
 
         self.use_continual_learning = self.continual_bs > 0
@@ -136,7 +134,7 @@ class TrainBatchBuffer(Thread):
             updating = True
             print("Updating the train buffer")
             
-        while openPMDBufferReadCount < min(self.training_bs, openPMDBufferSize):
+        while openPMDBufferReadCount < min(self.consume_size, openPMDBufferSize):
             # This condition can discard items left in particles_radiation even
             # openPMDbuffer does not have enough items to deliver consume_size,
             # but this case has no relevance, because when we srem and not
