@@ -11,26 +11,33 @@ ps_dims = 6 # Actually used in the model configuration by now
 number_of_particles = 4096
 
 streamLoader_config = dict(
-    t0 = 890,
-    t1 = 898, # endpoint=false, t1 is not used in training
+    t0 = 900,
+    t1 = 920, # endpoint=false, t1 is not used in training
     pathpattern1 = "openPMD/simData.sst", # streaming on frontier
     pathpattern2 = "radiationOpenPMD/e_radAmplitudes.sst", # streaming on frontier
     streaming_config = "@inconfig.json", #None, # set to None when reading from file
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
-    number_particles_per_gpu = 4096
+    number_particles_per_gpu = 30000,
+    verbose = True
 )
 
 openPMD_queue_size=4
 
 trainBatchBuffer_config = dict(
-    continual_bs=4,
-    stall_loader=False,
-    consume_size=4,
+    training_bs=2,
+    continual_bs=2,
+    stall_loader=True,
+    consume_size=2,
+    #Train buffer.
+    buffersize = 10,
+    #long buffer
+    cl_mem_size = 100,
 )
 
 
 modelTrainer_config = dict(
+    checkpoint_final = True,
 )
 
 runner = "srun"
