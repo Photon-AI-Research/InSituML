@@ -40,9 +40,7 @@ class RadiationDataWriter:
         self.data_gathered = None
         print(self.rank, data)
         if self.rank==0:
-           self.data_gathered = np.empty((comm.size,
-                                          data.shape[0],
-                                          data.shape[1]))
+           self.data_gathered = np.empty((comm.size,)+data.shape)
 
         self.request = comm.Igather(data, self.data_gathered)
 
