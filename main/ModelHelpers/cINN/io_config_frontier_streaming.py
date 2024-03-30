@@ -19,7 +19,7 @@ streamLoader_config = dict(
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
     number_particles_per_gpu = 30000,
-    verbose = True
+    verbose = False
 )
 
 openPMD_queue_size=4
