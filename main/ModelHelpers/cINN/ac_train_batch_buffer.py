@@ -33,12 +33,12 @@ class RadiationDataWriter:
     def __call__(self, data):
 
         if self.rank==0 and self.start_write:
-            print(self.request.Get_status(), 'status of the request')
-            print(self.data_gathered)
-            self.write(self.data_gathered)
+            while self.request.Get_status()==False:
+                sleep(5)
+            else:
+                self.write(self.data_gathered)
         
         self.data_gathered = None
-        print(self.rank, data)
         if self.rank==0:
            self.data_gathered = np.empty((comm.size,)+data.shape)
 
