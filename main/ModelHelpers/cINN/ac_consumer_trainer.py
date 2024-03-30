@@ -10,6 +10,7 @@ import torch.distributed as dist
 from utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
 from mpi4py import MPI
 import os, time
+import pickle
 
 """
 This class prints losses and optionally calls another logger to log losses in another way.
@@ -133,12 +134,14 @@ class ModelTrainer(Thread):
 
         self.logger = LossLogger(logger, max_logs=max_logs, out_prefix=out_prefix)
 
+        # torch.cuda.memory._record_memory_history(max_entries=1000000)
+
     def run(self):
 
         rest_training_left_counter=0
 
         while True:
-            
+
             phase_space_radiation = self.training_buffer.get_batch()
 
             #this is now only indicating that there 
@@ -168,6 +171,8 @@ class ModelTrainer(Thread):
                     save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     
             self.batch_passes += 1
+
+            # torch.cuda.memory._dump_snapshot("profile_{}.pickle".format(self.batch_passes))
             
             self.optimizer.zero_grad()
             
