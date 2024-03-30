@@ -190,8 +190,6 @@ class StreamLoader(Thread):
             dataReadPolicy (functor) : Provides particle and radiation data per time step
             dataTransformationPolicy (functor) :
         """
-        print(">>>>> __init__() method of StreamLoader")
-        stdout.flush()
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
@@ -229,10 +227,6 @@ class StreamLoader(Thread):
 
     def run(self):
         """Function being executed when thread is started."""
-        print(">>>>> run() method of StreamLoader")
-        stdout.flush()
-        # Open openPMD particle and radiation series
-
         # Open openPMD particle and radiation series
         series = opmd.Series(
             self.particlePathPattern,
@@ -245,8 +239,9 @@ class StreamLoader(Thread):
             self.comm,
             self.streamingConfig)
 
-        print(">>>>> StreamLoader: Series defined.")
-        stdout.flush()
+        if self.comm.rank == 0 or self.verbose:
+            print(">>>>> StreamLoader: Series defined.")
+            stdout.flush()
 
         # The streams wait until a reader connects.
         # To avoid deadlocks, we need to open both concurrently
@@ -258,8 +253,9 @@ class StreamLoader(Thread):
         t1.join()
         t2.join()
 
-        print(">>>>> StreamLoader: Series parsed.")
-        stdout.flush()
+        if self.comm.rank == 0 or self.verbose:
+            print(">>>>> StreamLoader: Series parsed.")
+            stdout.flush()
 
         inranks = series.get_rank_table(collective=True)
         if not inranks:
@@ -301,7 +297,7 @@ class StreamLoader(Thread):
             if not (self.hyperParameterDefaults['t0']
                     <= iteration.iteration_index
                     < self.hyperParameterDefaults['t1']):
-                if self.comm.rank == 0 and self.verbose:
+                if self.comm.rank == 0 or self.verbose:
                     print("Skipping iteration {} as it is not in the specified range [t0,t1)=[{},{})".format(
                         iteration.iteration_index,
                         self.hyperParameterDefaults['t0'],
@@ -310,8 +306,9 @@ class StreamLoader(Thread):
                 get_next_radiation()
                 continue
 
-            print("Start processing iteration %i"%(iteration.time))
-            stdout.flush()
+            if self.comm.rank == 0 or self.verbose:
+                print("Start processing iteration %i"%(iteration.time))
+                stdout.flush()
             ## obtain particle distribution over GPUs ##
             #
             ps = iteration.particles["e_all"] #particle species
@@ -329,7 +326,8 @@ class StreamLoader(Thread):
             numParticles = np.array([chunk.extent[0] for chunk in local_particles_chunks])
             #particlePerGPU = numParticles.min()
             particlePerGPU = self.hyperParameterDefaults['number_particles_per_gpu']
-            print("particles per GPU", particlePerGPU)
+            if self.comm.rank == 0 or self.verbose:
+                print("particles per GPU", particlePerGPU)
             randomParticlesPerGPU = np.array([
                 self.rng.choice(numParticles[i], particlePerGPU, replace=False) \
                     for i in range(num_processed_chunks_per_rank)])
@@ -562,13 +560,15 @@ class StreamLoader(Thread):
                         sleep(1)
                         continue
 
-            print("Done loading iteration %i"%(iteration.time))
-            stdout.flush()
+            if self.comm.rank == 0 or self.verbose:
+                print("Done loading iteration %i"%(iteration.time))
+                stdout.flush()
 
 
         # signal that there are no further items
-        print("Processed all iterations")
-        stdout.flush()
+        if self.comm.rank == 0 or self.verbose:
+            print("Processed all iterations")
+            stdout.flush()
         self.data.put(None)
 
         # close series
