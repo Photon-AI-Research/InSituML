@@ -23,18 +23,18 @@ class RadiationDataWriter:
         #First timestep must only gather data
         self.start_write = False
 
-    def write(self, data):
+    def write(self):
 
         filename = self.dirpath + '/ts_' + str(self.timestep) + '.npy'
 
+        self.request.Wait()
         with open(filename, 'wb') as writer:
-            np.save(writer, data)
+            np.save(writer, self.data_gathered)
 
     def __call__(self, data):
 
         if self.rank==0 and self.start_write:
-            self.request.Wait()
-            self.write(self.data_gathered)
+            self.write()
         
         self.data_gathered = None
         if self.rank==0:
@@ -45,6 +45,11 @@ class RadiationDataWriter:
         self.start_write = True
 
         self.timestep +=1
+
+    def __del__(self):
+        if self.rank==0 and self.start_write:
+            self.write()
+
 
 class TrainBatchBuffer(Thread):
     """
@@ -94,7 +99,9 @@ class TrainBatchBuffer(Thread):
 
         self.rank = comm.Get_rank()
         if radiation_data_folder:
-            self.radition_data_writer = RadiationDataWriter(radiation_data_folder, rank)
+            self.radiation_data_writer = RadiationDataWriter(radiation_data_folder, self.rank)
+        else:
+            self.radiation_data_writer = None
 
         if consume_size is None:
             self.consume_size = training_bs
@@ -174,8 +181,8 @@ class TrainBatchBuffer(Thread):
                     self.openpmdProduction = False
                     break
 
-                if hasattr(self, 'radition_data_writer'):
-                    self.radition_data_writer(particles_radiation[1].numpy())
+                if self.radiation_data_writer is not None:
+                    self.radiation_data_writer(particles_radiation[1].numpy())
 
                 # in case items are bunched-up by the producer, we keep superfluous ones for the next round
                 self.particles_radiation = self.reshape(particles_radiation)
