@@ -2,7 +2,7 @@ from threading import Thread
 import torch
 from cl_memory import ExperienceReplay
 from random import sample
-import os
+import os, time
 from collections import defaultdict
 import numpy as np
 
@@ -28,8 +28,7 @@ class RadiationDataWriter:
         filename = self.dirpath + '/ts_' + str(self.timestep) + '.npy'
 
         self.request.Wait()
-        with open(filename, 'wb') as writer:
-            np.save(writer, self.data_gathered)
+        np.save(filename, self.data_gathered)
 
     def __call__(self, data):
 
@@ -38,9 +37,11 @@ class RadiationDataWriter:
         
         self.data_gathered = None
         if self.rank==0:
-           self.data_gathered = np.empty((comm.size,)+data.shape)
+           self.data_gathered = np.zeros((comm.size,)+data.shape)
 
-        self.request = comm.Igather(data, self.data_gathered)
+        self.data = data
+
+        self.request = comm.Igather(self.data, self.data_gathered)
 
         self.start_write = True
 
