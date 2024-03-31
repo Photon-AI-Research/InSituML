@@ -174,9 +174,12 @@ def create_momentum_density_plots(
 ):
     
     # Specify the number of bins for each axis
-    bins_px = np.linspace(min(px), max(px), bins)
-    bins_py = np.linspace(min(py), max(py), bins)
-    bins_pz = np.linspace(min(pz), max(pz), bins)
+    # bins_px = np.linspace(min(px), max(px), bins)
+    # bins_py = np.linspace(min(py), max(py), bins)
+    # bins_pz = np.linspace(min(pz), max(pz), bins)
+    bins_px = np.linspace(-0.3, 0.3, bins)
+    bins_py = np.linspace(-0.005, 0.005, bins)
+    bins_pz = np.linspace(-0.005, 0.005, bins)
     
     loss_info = ''
     loss_info_inn = ''
@@ -189,6 +192,10 @@ def create_momentum_density_plots(
     if emd_loss_vae is not None:
         loss_info_vae += '\nEMD: {:.4f}'.format(emd_loss_vae)
     
+    # xlim_px = (-0.3, 0.3) 
+    # ylim_py = (-0.005, 0.005)  
+    # ylim_pz = (-0.005, 0.005)
+    
     # Create subplots for each plane
     plt.figure(figsize=(15, 15)) 
     
@@ -199,6 +206,8 @@ def create_momentum_density_plots(
     plt.xlabel('px')
     plt.ylabel('py')
     plt.title('px-py GT at t = {}, box = {}'.format(t,gpu_box))
+    # plt.xlim(xlim_px)
+    # plt.ylim(ylim_py)
     
     # px-pz Plane Ground Truth
     plt.subplot(332)
@@ -207,6 +216,8 @@ def create_momentum_density_plots(
     plt.xlabel('px')
     plt.ylabel('pz')
     plt.title('px-pz GT at t = {}, box = {}'.format(t,gpu_box))
+    # plt.xlim(xlim_px)
+    # plt.ylim(ylim_pz)
     
     # py-pz Plane Ground Truth
     plt.subplot(333)
@@ -215,6 +226,8 @@ def create_momentum_density_plots(
     plt.xlabel('py')
     plt.ylabel('pz')
     plt.title('py-pz GT at t = {}, box = {}'.format(t,gpu_box))
+    # plt.xlim(ylim_py)
+    # plt.ylim(ylim_pz)
     
     # px-py Plane Prediction
     plt.subplot(334)
@@ -223,6 +236,8 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('py_pr')
     plt.title('px-py INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    # plt.xlim(xlim_px)
+    # plt.ylim(ylim_py)
     
     # px-pz Plane Prediction
     plt.subplot(335)
@@ -231,6 +246,8 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('pz_pr')
     plt.title('px-pz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    # plt.xlim(xlim_px)
+    # plt.ylim(ylim_pz)
     
     # py-pz Plane Prediction
     plt.subplot(336)
@@ -239,6 +256,8 @@ def create_momentum_density_plots(
     plt.xlabel('py_pr')
     plt.ylabel('pz_pr')
     plt.title('py-pz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    # plt.xlim(ylim_py)
+    # plt.ylim(ylim_pz)
     
     # px-py Plane Prediction
     plt.subplot(337)
@@ -247,6 +266,8 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('py_pr')
     plt.title('px-py VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    # plt.xlim(xlim_px)
+    # plt.ylim(ylim_py)
     
     # px-pz Plane Prediction
     plt.subplot(338)
@@ -255,6 +276,8 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('pz_pr')
     plt.title('px-pz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    # plt.xlim(xlim_px)
+    # plt.ylim(ylim_pz)
     
     # py-pz Plane Prediction
     plt.subplot(339)
@@ -263,6 +286,8 @@ def create_momentum_density_plots(
     plt.xlabel('py_pr')
     plt.ylabel('pz_pr')
     plt.title('py-pz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    # plt.xlim(ylim_py)
+    # plt.ylim(ylim_pz)
     
     plt.tight_layout()
 
@@ -303,9 +328,12 @@ def create_force_density_plots(
 ):
     
     # Specify the number of bins for each axis
-    bins_fx = np.linspace(min(fx), max(fx), bins)
-    bins_fy = np.linspace(min(fy), max(fy), bins)
-    bins_fz = np.linspace(min(fz), max(fz), bins)
+    # bins_fx = np.linspace(min(fx), max(fx), bins)
+    # bins_fy = np.linspace(min(fy), max(fy), bins)
+    # bins_fz = np.linspace(min(fz), max(fz), bins)
+    bins_fx = np.linspace(-0.00005, 0.00005, bins)
+    bins_fy = np.linspace(-0.00005, 0.00005, bins)
+    bins_fz = np.linspace(-0.00005, 0.00005, bins)
     
     # loss_info = ''
     # if chamfers_loss is not None:
@@ -324,7 +352,11 @@ def create_force_density_plots(
     if emd_loss_vae is not None:
         loss_info_vae += '\nEMD: {:.4f}'.format(emd_loss_vae)
 
-        
+    
+    # xlim_fx = (-0.00005, 0.00005) 
+    # ylim_fy = (-0.00005, 0.00005)  
+    # ylim_fz = (-0.00005, 0.00005)
+    
     # Create subplots for each plane
     plt.figure(figsize=(15, 15))  # Adjust the figure size
     
@@ -335,6 +367,8 @@ def create_force_density_plots(
     plt.xlabel('fx')
     plt.ylabel('fy')
     plt.title('fx-fy GT at t = {}, box = {}'.format(t,gpu_box))
+    # plt.xlim(xlim_fx)
+    # plt.ylim(ylim_fy)
     
     # fx-fz Plane Ground Truth
     plt.subplot(332)
@@ -343,6 +377,8 @@ def create_force_density_plots(
     plt.xlabel('fx')
     plt.ylabel('fz')
     plt.title('fx-fz GT at t = {}, box = {}'.format(t,gpu_box))
+    # plt.xlim(xlim_fx)
+    # plt.ylim(ylim_fz)
     
     # fy-fz Plane Ground Truth
     plt.subplot(333)
@@ -351,6 +387,8 @@ def create_force_density_plots(
     plt.xlabel('fy')
     plt.ylabel('fz')
     plt.title('fy-fz GT at t = {}, box = {}'.format(t,gpu_box))
+    # plt.xlim(ylim_fy)
+    # plt.ylim(ylim_fz)
     
     # fx-fy Plane Prediction
     plt.subplot(334)
@@ -359,6 +397,8 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fy_pr')
     plt.title('fx-fy INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    # plt.xlim(xlim_fx)
+    # plt.ylim(ylim_fy)
     
     # fx-fz Plane Prediction
     plt.subplot(335)
@@ -367,6 +407,8 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fz_pr')
     plt.title('fx-fz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    # plt.xlim(xlim_fx)
+    # plt.ylim(ylim_fz)
     
     # fy-fz Plane Prediction
     plt.subplot(336)
@@ -375,6 +417,8 @@ def create_force_density_plots(
     plt.xlabel('fy_pr')
     plt.ylabel('fz_pr')
     plt.title('fy-fz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
+    # plt.xlim(ylim_fy)
+    # plt.ylim(ylim_fz)
     
     # fx-fy Plane Prediction
     plt.subplot(337)
@@ -383,6 +427,8 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fy_pr')
     plt.title('fx-fy VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    # plt.xlim(xlim_fx)
+    # plt.ylim(ylim_fy)
     
     # fx-fz Plane Prediction
     plt.subplot(338)
@@ -391,6 +437,8 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fz_pr')
     plt.title('fx-fz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    # plt.xlim(xlim_fx)
+    # plt.ylim(ylim_fz)
     
     # fy-fz Plane Prediction
     plt.subplot(339)
@@ -399,6 +447,8 @@ def create_force_density_plots(
     plt.xlabel('fy_pr')
     plt.ylabel('fz_pr')
     plt.title('fy-fz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
+    # plt.xlim(ylim_fy)
+    # plt.ylim(ylim_fz)
     
     plt.tight_layout()
 
@@ -714,3 +764,116 @@ def filter_dims(phase_space, property_="positions"):
         return phase_space[:,:,3:]
     else:
         return phase_space
+    
+
+def normalize_mean_6d(original_array, mean_std_file):
+    data_stats = np.load(mean_std_file)
+    # Extract global mean and standard deviation
+    global_mean_momentum = data_stats['mean_momentum']
+    global_mean_force = data_stats['mean_force']
+    global_std_momentum = data_stats['std_momentum']
+    global_std_force = data_stats['std_force']
+
+    is_torch_tensor = torch.is_tensor(original_array)
+
+    if is_torch_tensor:
+        original_array = original_array.float()  
+        global_mean_momentum = torch.tensor(global_mean_momentum, dtype=original_array.dtype, device=original_array.device)
+        global_mean_force = torch.tensor(global_mean_force, dtype=original_array.dtype, device=original_array.device)
+        global_std_momentum = torch.tensor(global_std_momentum, dtype=original_array.dtype, device=original_array.device)
+        global_std_force = torch.tensor(global_std_force, dtype=original_array.dtype, device=original_array.device)
+
+        # Normalize x, y, z positions
+        xyz_columns = original_array[:, :3]
+        mins = torch.min(xyz_columns, dim=0).values
+        maxs = torch.max(xyz_columns, dim=0).values
+        xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
+
+        # Mean normalization for momentum dimensions
+        momentum_columns_normalized = (original_array[:, 3:6] - global_mean_momentum) / global_std_momentum
+
+        # Mean normalization for force dimensions
+        force_columns_normalized = (original_array[:, 6:9] - global_mean_force) / global_std_force
+
+        # Combine the normalized columns into one array
+        normalized_array = torch.cat((xyz_columns_normalized, momentum_columns_normalized, force_columns_normalized), dim=1)
+    else:
+        # Normalize x, y, z positions
+        xyz_columns = original_array[:, :3]
+        mins = np.min(xyz_columns, axis=0)
+        maxs = np.max(xyz_columns, axis=0)
+        xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
+
+        # Mean normalization for momentum dimensions
+        momentum_columns_normalized = (original_array[:, 3:6] - global_mean_momentum) / global_std_momentum
+
+        # Mean normalization for force dimensions
+        force_columns_normalized = (original_array[:, 6:9] - global_mean_force) / global_std_force
+
+        # Combine the normalized columns into one array
+        normalized_array = np.concatenate((xyz_columns_normalized, momentum_columns_normalized, force_columns_normalized), axis=1)
+
+    return normalized_array
+
+
+def denormalize_mean_6d(normalized_array, mean_std_file):
+    data_stats = np.load(mean_std_file)
+    # Extract global mean and standard deviation directly as numpy arrays
+    global_mean_momentum = data_stats['mean_momentum']
+    global_mean_force = data_stats['mean_force']
+    global_std_momentum = data_stats['std_momentum']
+    global_std_force = data_stats['std_force']
+
+    is_torch_tensor = torch.is_tensor(normalized_array)
+
+    if is_torch_tensor:
+        # Convert numpy arrays to PyTorch tensors if input is a tensor
+        global_mean_momentum = torch.tensor(global_mean_momentum, dtype=normalized_array.dtype, device=normalized_array.device)
+        global_mean_force = torch.tensor(global_mean_force, dtype=normalized_array.dtype, device=normalized_array.device)
+        global_std_momentum = torch.tensor(global_std_momentum, dtype=normalized_array.dtype, device=normalized_array.device)
+        global_std_force = torch.tensor(global_std_force, dtype=normalized_array.dtype, device=normalized_array.device)
+
+    # Denormalize momentum dimensions
+    momentum_columns_denormalized = normalized_array[:, :3] * global_std_momentum + global_mean_momentum
+
+    # Denormalize force dimensions
+    force_columns_denormalized = normalized_array[:, 3:6] * global_std_force + global_mean_force
+
+    if is_torch_tensor:
+        denormalized_array = torch.cat((momentum_columns_denormalized, force_columns_denormalized), dim=1)
+    else:
+        denormalized_array = np.concatenate((momentum_columns_denormalized, force_columns_denormalized), axis=1)
+
+    return denormalized_array
+
+
+def plot_losses_histogram(emd_losses,
+                          histogram_bins=20,
+                          histogram_alpha=0.5, 
+                          plot_title='Histogram of INN-VAE reconstruction losses with Cluster Means',
+                          x_title='EMD Losses',
+                          t=1000, gpu_box =0,
+                          loss_type = None,
+                          cluster_means=None,
+                          flow_type = None,
+                          save_path=None,
+                          show_plot=True):
+
+    # Create a histogram for visualization
+    plt.hist(emd_losses, bins=histogram_bins, alpha=histogram_alpha, label='Histogram of EMD losses')
+
+    # Plot cluster means if provided
+    if cluster_means is not None:
+        plt.scatter(cluster_means, [0] * len(cluster_means), color='red', zorder=5, label='Cluster Means')
+
+    plt.title(plot_title)
+    plt.xlabel(x_title)
+    plt.legend()
+
+    if save_path:
+        plt.savefig(save_path + '/Loss_histograms_{}_{}_{}_{}.png'.format(flow_type,loss_type,t,gpu_box))
+        plt.close()
+    elif show_plot == True:
+        plt.show()
+    else:
+        plt.close()

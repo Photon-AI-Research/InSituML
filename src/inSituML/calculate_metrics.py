@@ -56,7 +56,7 @@ def main():
     particles_to_sample = 150000,
     activation = 'gelu',
     load_model = None, #'24k0zbm4/best_model_', 
-    load_model_checkpoint = '859eopan/model_150',
+    load_model_checkpoint = 'model_24211', #'model_6058',
     grad_clamp = 5.00,
     lambd_AE = 1.0,
     lambd_IM = 0.001,
@@ -76,11 +76,12 @@ def main():
         "015": [48, 72, 168, 192],
         "016": [32, 96, 160, 224],
     },
-    eval_timesteps = [900,950],
-    N_samples = 2,
+    eval_timesteps = [900,950,1000],
+    N_samples = 5,
     generate_plots = True,
     plot_directory_path = 'metrics/',
-    model_filepath_pattern = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/{}',
+    #model_filepath_pattern = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/{}', 
+    model_filepath_pattern = '/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}', 
     mean_std_file_path = '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_{}/global_stats_{}_{}.npz',
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_{}/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_{}/{}.npy",
@@ -236,87 +237,6 @@ def main():
         param.requires_grad = False
 
 
-    def normalize_mean_6d(original_array, mean_std_file):
-        data_stats = np.load(mean_std_file)
-        # Extract global mean and standard deviation
-        global_mean_momentum = data_stats['mean_momentum']
-        global_mean_force = data_stats['mean_force']
-        global_std_momentum = data_stats['std_momentum']
-        global_std_force = data_stats['std_force']
-
-        is_torch_tensor = torch.is_tensor(original_array)
-
-        if is_torch_tensor:
-            original_array = original_array.float()  
-            global_mean_momentum = torch.tensor(global_mean_momentum, dtype=original_array.dtype, device=original_array.device)
-            global_mean_force = torch.tensor(global_mean_force, dtype=original_array.dtype, device=original_array.device)
-            global_std_momentum = torch.tensor(global_std_momentum, dtype=original_array.dtype, device=original_array.device)
-            global_std_force = torch.tensor(global_std_force, dtype=original_array.dtype, device=original_array.device)
-
-            # Normalize x, y, z positions
-            xyz_columns = original_array[:, :3]
-            mins = torch.min(xyz_columns, dim=0).values
-            maxs = torch.max(xyz_columns, dim=0).values
-            xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
-
-            # Mean normalization for momentum dimensions
-            momentum_columns_normalized = (original_array[:, 3:6] - global_mean_momentum) / global_std_momentum
-
-            # Mean normalization for force dimensions
-            force_columns_normalized = (original_array[:, 6:9] - global_mean_force) / global_std_force
-
-            # Combine the normalized columns into one array
-            normalized_array = torch.cat((xyz_columns_normalized, momentum_columns_normalized, force_columns_normalized), dim=1)
-        else:
-            # Normalize x, y, z positions
-            xyz_columns = original_array[:, :3]
-            mins = np.min(xyz_columns, axis=0)
-            maxs = np.max(xyz_columns, axis=0)
-            xyz_columns_normalized = (xyz_columns - mins) / (maxs - mins)
-
-            # Mean normalization for momentum dimensions
-            momentum_columns_normalized = (original_array[:, 3:6] - global_mean_momentum) / global_std_momentum
-
-            # Mean normalization for force dimensions
-            force_columns_normalized = (original_array[:, 6:9] - global_mean_force) / global_std_force
-
-            # Combine the normalized columns into one array
-            normalized_array = np.concatenate((xyz_columns_normalized, momentum_columns_normalized, force_columns_normalized), axis=1)
-
-        return normalized_array
-
-
-    def denormalize_mean_6d(normalized_array, mean_std_file):
-        data_stats = np.load(mean_std_file)
-        # Extract global mean and standard deviation directly as numpy arrays
-        global_mean_momentum = data_stats['mean_momentum']
-        global_mean_force = data_stats['mean_force']
-        global_std_momentum = data_stats['std_momentum']
-        global_std_force = data_stats['std_force']
-
-        is_torch_tensor = torch.is_tensor(normalized_array)
-
-        if is_torch_tensor:
-            # Convert numpy arrays to PyTorch tensors if input is a tensor
-            global_mean_momentum = torch.tensor(global_mean_momentum, dtype=normalized_array.dtype, device=normalized_array.device)
-            global_mean_force = torch.tensor(global_mean_force, dtype=normalized_array.dtype, device=normalized_array.device)
-            global_std_momentum = torch.tensor(global_std_momentum, dtype=normalized_array.dtype, device=normalized_array.device)
-            global_std_force = torch.tensor(global_std_force, dtype=normalized_array.dtype, device=normalized_array.device)
-
-        # Denormalize momentum dimensions
-        momentum_columns_denormalized = normalized_array[:, :3] * global_std_momentum + global_mean_momentum
-
-        # Denormalize force dimensions
-        force_columns_denormalized = normalized_array[:, 3:6] * global_std_force + global_mean_force
-
-        if is_torch_tensor:
-            denormalized_array = torch.cat((momentum_columns_denormalized, force_columns_denormalized), dim=1)
-        else:
-            denormalized_array = np.concatenate((momentum_columns_denormalized, force_columns_denormalized), axis=1)
-
-        return denormalized_array
-
-
     def particle_transformation(p_gt,normalise=True):
 
         if normalise==True:
@@ -344,39 +264,6 @@ def main():
         r = torch.log(r+config["rad_eps"])
 
         return r
-
-    def plot_losses_histogram(emd_losses,
-                              histogram_bins=20,
-                              histogram_alpha=0.5, 
-                              plot_title='Histogram of INN-VAE reconstruction losses with Cluster Means',
-                              x_title='EMD Losses',
-                              t=1000, gpu_box =0,
-                              loss_type = None,
-                              cluster_means=None,
-                              flow_type = None,
-                              save_path=None,
-                              show_plot=True):
-
-        # Create a histogram for visualization
-        plt.hist(emd_losses, bins=histogram_bins, alpha=histogram_alpha, label='Histogram of EMD losses')
-
-        # Plot cluster means if provided
-        if cluster_means is not None:
-            plt.scatter(cluster_means, [0] * len(cluster_means), color='red', zorder=5, label='Cluster Means')
-
-        plt.title(plot_title)
-        plt.xlabel(x_title)
-        plt.legend()
-
-        if save_path:
-            plt.savefig(save_path + '/Loss_histograms_{}_{}_{}_{}.png'.format(flow_type,loss_type,t,gpu_box))
-            plt.close()
-        elif show_plot == True:
-            plt.show()
-        else:
-            plt.close()
-
-
 
     def evaluate(p_gt,
                  p_gt_og,
@@ -469,8 +356,7 @@ def main():
                     # Calculate the standard deviation of the cluster with the lowest mean
                     std_lowest_mean_cluster = data_points_lowest_mean_cluster.std()
 
-
-                    emd_losses_inn_mean = lowest_mean
+                    emd_losses_inn_mean = torch.tensor(lowest_mean)
                     emd_losses_inn_std = std_lowest_mean_cluster
 
                 if generate_plots == True:
@@ -598,7 +484,7 @@ def main():
                                show_plot = False,
                                #enable_wandb = enable_wandb,
                               )
-
+            
         return emd_losses_inn_mean,emd_losses_inn_std,emd_losses_vae_mean,emd_losses_vae_std,fwd_losses_inn_mean,fwd_losses_inn_std,latent_losses_mean,latent_losses_std
 
 
@@ -644,9 +530,20 @@ def main():
             boxes_emd_losses_vae_std.append(emd_losses_vae_std.numpy())
             boxes_fwd_losses_inn_mean.append(fwd_losses_inn_mean.numpy())
             boxes_fwd_losses_inn_std.append(fwd_losses_inn_std.numpy())
+        
+        # Find the minimum value
+        min_box_emd_loss_inn = min(boxes_emd_losses_inn_mean)
 
+        # Find the index of the minimum value
+        min_index_emd_loss_inn = boxes_emd_losses_inn_mean.index(min_box_emd_loss_inn)
+        
+        print('box with min emd loss:',boxes[min_index_emd_loss_inn])
+        print('min emd loss inn:',min_box_emd_loss_inn)
+        
         # Calculate overall means and standard deviations
         overall_means_and_stds = {
+            'min_box_emd_loss_inn': min_box_emd_loss_inn,
+            'min_index_emd_loss_inn': boxes[min_index_emd_loss_inn],
             'emd_losses_inn_mean_all': sum(boxes_emd_losses_inn_mean) / len(boxes_emd_losses_inn_mean),
             'emd_losses_inn_std_all': sum(boxes_emd_losses_inn_std) / len(boxes_emd_losses_inn_std),
             'emd_losses_vae_mean_all': sum(boxes_emd_losses_vae_mean) / len(boxes_emd_losses_vae_mean),
@@ -665,10 +562,10 @@ def main():
 
         for t_index in timesteps:
             print('t_index:', t_index)
+            left_flow_boxes_data = evaluate_boxes(model, t_index, config, config["device"], config["N_samples"], boxes = config["left_flow_boxes"], flow_type='left_flow')
+            right_flow_boxes_data = evaluate_boxes(model, t_index, config, config["device"], config["N_samples"], boxes = config["right_flow_boxes"], flow_type='right_flow')
             lower_vortex_boxes_data = evaluate_boxes(model, t_index, config, config["device"], config["N_samples"], boxes = config["lower_vortex_boxes"], flow_type='lower_vortex')
             upper_vortex_boxes_data = evaluate_boxes(model, t_index, config, config["device"], config["N_samples"], boxes = config["upper_vortex_boxes"], flow_type='upper_vortex')
-            left_flow_boxes_data = evaluate_boxes(model, t_index, config, config["device"], config["N_samples"], boxes = config["left_flow_boxes"], flow_type='right_flow')
-            right_flow_boxes_data = evaluate_boxes(model, t_index, config, config["device"], config["N_samples"], boxes = config["right_flow_boxes"], flow_type='left_flow')
 
             lower_vortex_boxes_data_across_timesteps.append(lower_vortex_boxes_data)
             upper_vortex_boxes_data_across_timesteps.append(upper_vortex_boxes_data)
@@ -691,8 +588,6 @@ def main():
         y_lower_min, y_lower_max, y_upper_min, y_upper_max = config["y_borders"].get(config["sim"])
 
         p_gt_all = np.load(config["pathpattern1"].format(config["sim"],config["t0"]),allow_pickle = True)
-
-        print(p_gt_all.shape)
 
         lower_vortex_boxes = []
         upper_vortex_boxes = []
