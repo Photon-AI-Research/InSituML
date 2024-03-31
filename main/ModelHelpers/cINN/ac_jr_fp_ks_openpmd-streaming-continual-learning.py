@@ -284,8 +284,13 @@ def main():
         bs_factor = io_config.trainBatchBuffer_config["training_bs"] / 2 * world_size
         lr = lr * config["lr_scaling"](bs_factor)
         print("Skaling learning rate from {} to {} due to bs factor {}".format(config["lr"], lr, bs_factor))
-        optimizer = optim.Adam(model.parameters(), lr=lr, betas=config["betas"],
-                             eps=config["eps"], weight_decay=config["weight_decay"])
+        optimizer = optim.Adam(
+                [
+                    {'params':model.base_network.parameters(), 'lr':lr*config["lrAEmult"]},
+                    {'params':model.inner_model.parameters()},
+                ]#model.parameters()
+                , lr=lr, betas=config["betas"]
+                , eps=config["eps"], weight_decay=config["weight_decay"])
         if ( "lr_annealingRate" not in config ) or config["lr_annealingRate"] is None:
             scheduler = None
         else:
@@ -375,6 +380,7 @@ def main():
             print("#Param config.load_model=", config["load_model"], flush=True)
             print("#Param config.load_model_checkpoint=", config["load_model_checkpoint"], flush=True)
             print("#Param config.loss_function=", config["loss_function"], flush=True)
+            print("#Param config.lrAEmult=", config["lrAEmult"], flush=True)
             print("#Param type_streamer=", io_config.type_streamer, flush=True)
             print("#Param trainBatchBuffer_config.cl_mem_size=", io_config.trainBatchBuffer_config["cl_mem_size"], flush=True)
             print("#Param trainBatchBuffer_config.consume_size=", io_config.trainBatchBuffer_config["consume_size"], flush=True)
