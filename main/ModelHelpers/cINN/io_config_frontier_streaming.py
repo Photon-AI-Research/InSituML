@@ -1,4 +1,5 @@
 import pathlib
+from os import environ
 
 modelPathPattern = str(pathlib.Path(__file__).parent.resolve()) + '/trained_models/{}'
 
@@ -31,7 +32,7 @@ trainBatchBuffer_config = dict(
     continual_bs=batch_size,
     stall_loader=True,
     consume_size=1,
-    min_tb_from_unchanged_now_bf = 4,
+    min_tb_from_unchanged_now_bf = int(environ["MIN_TB_FROM_UNCHANGED_NOW_BF"]) if ("MIN_TB_FROM_UNCHANGED_NOW_BF" in environ) else 4,
     #Train buffer.
     buffersize = 10,
     #long buffer
@@ -40,7 +41,7 @@ trainBatchBuffer_config = dict(
 
 
 modelTrainer_config = dict(
-    checkpoint_interval = 2000,
+    checkpoint_interval = 350,
     checkpoint_final = True,
 )
 
