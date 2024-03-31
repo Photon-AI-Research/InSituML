@@ -39,10 +39,11 @@ trainBatchBuffer_config = dict(
     stall_loader=True,
     consume_size=1,
     min_tb_from_unchanged_now_bf = 4,
+    radiation_data_folder = "streamedRadiation",
     #Train buffer.
     buffersize = 10,
     #long buffer
-    cl_mem_size = 20*32, # 20% of data, but all:1, so 32 blocks go to one rank
+    cl_mem_size = 20*32 # 20% of data, but all:1, so 32 blocks go to one rank
 )
 modelTrainer_config = dict(
     checkpoint_interval = 800,
