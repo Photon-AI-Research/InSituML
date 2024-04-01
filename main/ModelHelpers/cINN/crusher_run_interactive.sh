@@ -21,7 +21,7 @@ cd ${WORK_DIR}
 export MIOPEN_USER_DB_PATH="/mnt/bb/$USER"; export MIOPEN_DISABLE_CACHE=1
 export MASTER_PORT=12340; export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 unset LEARN_R
-export LEARN_R_AE=2
+unset LEARN_R_AE
 unset MIN_TB
 srun -l python ${INSITUML_DIR}/ac_jr_fp_ks_openpmd-streaming-continual-learning.py --io_config ${INSITUML_DIR}/io_config_frontier_offline.py --model_config ${INSITUML_DIR}/model_config_lr-001.py 2>err.txt | tee -a out.txt
 
