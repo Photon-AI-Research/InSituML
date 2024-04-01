@@ -1,5 +1,6 @@
 from math import sqrt
 from os import environ
+import pathlib
 
 #########################
 ## Model configuration ##
@@ -31,7 +32,7 @@ ndim_x = 544,
 ndim_y = 512,
 ndim_z = 32,
 load_model = None, #'inn_vae_latent_544_sim007_24k0zbm4/best_model_',
-load_model_checkpoint = None, #'inn_vae_latent_544_sim014_859eopan/model_150', #'inn_vae_latent_544_sim014_859eopan/model_950',
+load_model_checkpoint = str(pathlib.Path(__file__).parent.resolve()) + '/trained_models/inn_vae_latent_544_CD_sim014_slurm-6923925/model_24000',
     
 #   "earthmovers"
 #   "chamfersloss"

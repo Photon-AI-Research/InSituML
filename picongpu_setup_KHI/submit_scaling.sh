@@ -11,10 +11,10 @@ source insituml_picongpu.profile
 # export LEARNING_RATE
 # export LEARNING_RATE_AE
 
-for jobSize in {24,}; do # for test: {8,}; do
-    for minTB in {16,32}; do
+for jobSize in {8,}; do # for test: {8,}; do
+    for minTB in {4,}; do
         for learningRate in "0.0001"; do
-            for learningRateAE in {10,15,20,25,30,40,60,80,100}; do
+            for learningRateAE in {20,}; do
                 echo ""; echo "========== job size: ${jobSize} | min tb: ${minTB} | learning rate: ${learningRate} | learning rate AE mult: ${learningRateAE} =========="; echo ""
                 export LEARN_R=${learningRate}
                 export LEARN_R_AE=${learningRateAE}
