@@ -37,7 +37,7 @@ class RadiationDataWriter:
         
         self.data_gathered = None
         if self.rank==0:
-           self.data_gathered = np.zeros((comm.size,)+data.shape)
+           self.data_gathered = np.zeros((comm.size,)+data.shape, dtype=data.dtype)
 
         self.data = data
 
