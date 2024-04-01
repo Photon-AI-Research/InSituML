@@ -21,35 +21,43 @@ class RadiationDataWriter:
 
         self.timestep = 0
         #First timestep must only gather data
-        self.start_write = False
+        # self.start_write = False
 
-    def write(self):
+    # def write(self):
 
-        filename = self.dirpath + '/ts_' + str(self.timestep) + '.npy'
+    #     filename = self.dirpath + '/ts_' + str(self.timestep) + '.npy'
 
-        self.request.Wait()
-        np.save(filename, self.data_gathered)
+    #     self.request.Wait()
+    #     np.save(filename, self.data_gathered)
 
     def __call__(self, data):
 
-        if self.rank==0 and self.start_write:
-            self.write()
-        
-        self.data_gathered = None
+        # if self.rank==0 and self.start_write:
+        #     self.write()
+        # 
+        # self.data_gathered = None
+        # self.data = data.copy(order='C')
+
+        # if self.rank==0:
+        #   self.data_gathered = np.zeros((comm.size,) + self.data.shape)
+
+        # self.request = comm.Igather(self.data, self.data_gathered)
+
+        # self.start_write = True
+
+        gathered = comm.gather(data, root=0)
         if self.rank==0:
-           self.data_gathered = np.zeros((comm.size,)+data.shape)
+            filename = self.dirpath + '/ts_' + str(self.timestep) + '.npy'
 
-        self.data = data
+            # self.request.Wait()
+            np.save(filename, gathered)
 
-        self.request = comm.Igather(self.data, self.data_gathered)
-
-        self.start_write = True
 
         self.timestep +=1
 
-    def __del__(self):
-        if self.rank==0 and self.start_write:
-            self.write()
+    # def __del__(self):
+    #     if self.rank==0 and self.start_write:
+    #         self.write()
 
 
 class TrainBatchBuffer(Thread):
