@@ -352,8 +352,10 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     export MASTER_PORT=12340
     export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
     export WORLD_SIZE=!TBG_tasks
-    .TBG_learnR=${LEARN_R:-"0.001"}
+    .TBG_learnR=${LEARN_R:-"0.0001"}
     export LEARNING_RATE=!TBG_learnR
+    .TBG_learnRAE=${LEARN_R_AE:-"20"}
+    export LEARNING_RATE_AE=!TBG_learnRAE
     .TBG_minTB=${MIN_TB:-"4"}
     export MIN_TB_FROM_UNCHANGED_NOW_BF=!TBG_minTB
 

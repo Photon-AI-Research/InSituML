@@ -32,8 +32,8 @@ trainBatchBuffer_config = dict(
     continual_bs=batch_size,
     stall_loader=True,
     consume_size=1,
-    min_tb_from_unchanged_now_bf = int(environ["MIN_TB_FROM_UNCHANGED_NOW_BF"]) if ("MIN_TB_FROM_UNCHANGED_NOW_BF" in environ) else 4,
-    radiation_data_folder = "streamedRadiation",
+    min_tb_from_unchanged_now_bf = int(environ["MIN_TB_FROM_UNCHANGED_NOW_BF"]) if ("MIN_TB_FROM_UNCHANGED_NOW_BF" in environ) else 16,
+    radiation_data_folder = None, #"streamedRadiation", # does not work
     #Train buffer.
     buffersize = 10,
     #long buffer
