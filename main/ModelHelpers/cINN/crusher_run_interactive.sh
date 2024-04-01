@@ -12,11 +12,11 @@ WORK_DIR="/lustre/orion/csc380/proj-shared/ksteinig/2024-03_Training-from-Stream
 
 source ${OPENPMD_ENVIRONMENT}/env.sh
 
-srun bash -c 'echo "$SLURM_PROCID: $SLURM_LOCALID: $SLURM_GPUS_ON_NODE, $SLURM_GPU_BIND, $SLURM_SHARDS_ON_NODE"' | tee out.txt
-
 mkdir -p ${WORK_DIR}
 
 cd ${WORK_DIR}
+
+srun bash -c 'echo "$SLURM_PROCID: $SLURM_LOCALID: $SLURM_GPUS_ON_NODE, $SLURM_GPU_BIND, $SLURM_SHARDS_ON_NODE"' | tee out.txt
 
 export MIOPEN_USER_DB_PATH="/mnt/bb/$USER"; export MIOPEN_DISABLE_CACHE=1
 export MASTER_PORT=12340; export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
