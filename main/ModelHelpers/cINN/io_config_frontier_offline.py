@@ -12,15 +12,17 @@ ps_dims = 6 # Actually used in the model configuration by now
 number_of_particles = 4096
 
 streamLoader_config = dict(
-    t0 = 900,
-    t1 = 1001, # endpoint=false, t1 is not used in training
+    t0 = 898,
+    t1 = 999, # endpoint=false, t1 is not used in training
     streaming_config = None, # set to None when reading from file
-    pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput/openPMD/simData_%T.bp5", # files for 8GPUs on frontier
-    pathpattern2 = "/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files for 8GPUs on frontier
+    pathpattern1 = "/lustre/orion/csc380/proj-shared/ksteinig/2024-03_Training-from-Stream_chamfersdistance_fix-gpu-volume_scaling/24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5", # files for 96GCDs on frontier
+    pathpattern2 = "/lustre/orion/csc380/proj-shared/ksteinig/2024-03_Training-from-Stream_chamfersdistance_fix-gpu-volume_scaling/24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files for 96GCDs on frontier
+#    pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5", # files for 96GCDs on hemera
+#    pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files for 96GCDs on hemera
     amplitude_direction=0, # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
     phase_space_variables = ["momentum", "force"], # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
     number_particles_per_gpu = 30000,
-    verbose = False
+    verbose = False,
     ## offline training params
     num_epochs = .25
 )
