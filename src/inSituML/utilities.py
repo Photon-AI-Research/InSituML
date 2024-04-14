@@ -162,39 +162,45 @@ def create_momentum_density_plots(
     px_pr_ae,
     py_pr_ae,
     pz_pr_ae,
-    chamfers_loss=None,
+    chamfers_loss_inn=None,
+    chamfers_loss_vae = None,
     emd_loss_inn=None,
     emd_loss_vae=None,
-    bins=100,
-    t=1000,
+    bins=100, t=1000,
     gpu_box =0,
     path='',
     show_plot = True,
-    enable_wandb = False
+    enable_wandb = False,
+    denorm = False
 ):
     
     # Specify the number of bins for each axis
     # bins_px = np.linspace(min(px), max(px), bins)
     # bins_py = np.linspace(min(py), max(py), bins)
     # bins_pz = np.linspace(min(pz), max(pz), bins)
-    bins_px = np.linspace(-0.3, 0.3, bins)
-    bins_py = np.linspace(-0.005, 0.005, bins)
-    bins_pz = np.linspace(-0.005, 0.005, bins)
+    if denorm:
+        bins_px = np.linspace(-0.3, 0.3, bins)
+        bins_py = np.linspace(-0.005, 0.005, bins)
+        bins_pz = np.linspace(-0.005, 0.005, bins)
     
+    else:
+        bins_px = np.linspace(-2.52, 2.52, bins)
+        bins_py = np.linspace(-0.042, 0.042, bins)
+        bins_pz = np.linspace(-0.042, 0.042, bins)
+        
     loss_info = ''
     loss_info_inn = ''
     loss_info_vae = ''
 
-    if chamfers_loss is not None:
-        loss_info += '\nChamfers: {:.4f}'.format(chamfers_loss)
+    if chamfers_loss_vae is not None:
+        loss_info_vae += '\nChamfers: {:.6f}'.format(chamfers_loss_vae)
+    if chamfers_loss_inn is not None:
+        loss_info_inn += '\nChamfers: {:.6f}'.format(chamfers_loss_inn)
+        
     if emd_loss_inn is not None:
-        loss_info_inn += '\nEMD: {:.4f}'.format(emd_loss_inn)
+        loss_info_inn += '\nEMD: {:.6f}'.format(emd_loss_inn)
     if emd_loss_vae is not None:
-        loss_info_vae += '\nEMD: {:.4f}'.format(emd_loss_vae)
-    
-    # xlim_px = (-0.3, 0.3) 
-    # ylim_py = (-0.005, 0.005)  
-    # ylim_pz = (-0.005, 0.005)
+        loss_info_vae += '\nEMD: {:.6f}'.format(emd_loss_vae)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 15)) 
@@ -206,8 +212,6 @@ def create_momentum_density_plots(
     plt.xlabel('px')
     plt.ylabel('py')
     plt.title('px-py GT at t = {}, box = {}'.format(t,gpu_box))
-    # plt.xlim(xlim_px)
-    # plt.ylim(ylim_py)
     
     # px-pz Plane Ground Truth
     plt.subplot(332)
@@ -216,8 +220,6 @@ def create_momentum_density_plots(
     plt.xlabel('px')
     plt.ylabel('pz')
     plt.title('px-pz GT at t = {}, box = {}'.format(t,gpu_box))
-    # plt.xlim(xlim_px)
-    # plt.ylim(ylim_pz)
     
     # py-pz Plane Ground Truth
     plt.subplot(333)
@@ -226,8 +228,6 @@ def create_momentum_density_plots(
     plt.xlabel('py')
     plt.ylabel('pz')
     plt.title('py-pz GT at t = {}, box = {}'.format(t,gpu_box))
-    # plt.xlim(ylim_py)
-    # plt.ylim(ylim_pz)
     
     # px-py Plane Prediction
     plt.subplot(334)
@@ -236,8 +236,6 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('py_pr')
     plt.title('px-py INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
-    # plt.xlim(xlim_px)
-    # plt.ylim(ylim_py)
     
     # px-pz Plane Prediction
     plt.subplot(335)
@@ -246,8 +244,6 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('pz_pr')
     plt.title('px-pz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
-    # plt.xlim(xlim_px)
-    # plt.ylim(ylim_pz)
     
     # py-pz Plane Prediction
     plt.subplot(336)
@@ -256,8 +252,6 @@ def create_momentum_density_plots(
     plt.xlabel('py_pr')
     plt.ylabel('pz_pr')
     plt.title('py-pz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
-    # plt.xlim(ylim_py)
-    # plt.ylim(ylim_pz)
     
     # px-py Plane Prediction
     plt.subplot(337)
@@ -266,8 +260,6 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('py_pr')
     plt.title('px-py VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
-    # plt.xlim(xlim_px)
-    # plt.ylim(ylim_py)
     
     # px-pz Plane Prediction
     plt.subplot(338)
@@ -276,8 +268,6 @@ def create_momentum_density_plots(
     plt.xlabel('px_pr')
     plt.ylabel('pz_pr')
     plt.title('px-pz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
-    # plt.xlim(xlim_px)
-    # plt.ylim(ylim_pz)
     
     # py-pz Plane Prediction
     plt.subplot(339)
@@ -286,8 +276,6 @@ def create_momentum_density_plots(
     plt.xlabel('py_pr')
     plt.ylabel('pz_pr')
     plt.title('py-pz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
-    # plt.xlim(ylim_py)
-    # plt.ylim(ylim_pz)
     
     plt.tight_layout()
 
@@ -304,7 +292,7 @@ def create_momentum_density_plots(
         plt.show()   
     else:
         plt.close()
-        
+
 
 def create_force_density_plots(
     fx,
@@ -316,7 +304,8 @@ def create_force_density_plots(
     fx_pr_ae,
     fy_pr_ae,
     fz_pr_ae,
-    chamfers_loss=None,
+    chamfers_loss_inn=None,
+    chamfers_loss_vae = None,
     emd_loss_inn=None,
     emd_loss_vae=None,
     bins=100,
@@ -324,38 +313,36 @@ def create_force_density_plots(
     gpu_box =0,
     path='',
     show_plot = True,
-    enable_wandb = False
+    enable_wandb = False,
+    denorm = False
 ):
     
     # Specify the number of bins for each axis
     # bins_fx = np.linspace(min(fx), max(fx), bins)
     # bins_fy = np.linspace(min(fy), max(fy), bins)
     # bins_fz = np.linspace(min(fz), max(fz), bins)
-    bins_fx = np.linspace(-0.00005, 0.00005, bins)
-    bins_fy = np.linspace(-0.00005, 0.00005, bins)
-    bins_fz = np.linspace(-0.00005, 0.00005, bins)
-    
-    # loss_info = ''
-    # if chamfers_loss is not None:
-    #     loss_info += '\nChamfers: {:.4f}'.format(chamfers_loss)
-    # if emd_loss is not None:
-    #     loss_info += '\nEMD: {:.4f}'.format(emd_loss)
+    if denorm == True:
+        bins_fx = np.linspace(-0.00005, 0.00005, bins)
+        bins_fy = np.linspace(-0.00005, 0.00005, bins)
+        bins_fz = np.linspace(-0.00005, 0.00005, bins)
+    else:
+        bins_fx = np.linspace(-0.65, 0.65, bins)
+        bins_fy = np.linspace(-0.65, 0.65, bins)
+        bins_fz = np.linspace(-0.65, 0.65, bins)
         
     loss_info = ''
     loss_info_inn = ''
     loss_info_vae = ''
-
-    if chamfers_loss is not None:
-        loss_info += '\nChamfers: {:.4f}'.format(chamfers_loss)
-    if emd_loss_inn is not None:
-        loss_info_inn += '\nEMD: {:.4f}'.format(emd_loss_inn)
-    if emd_loss_vae is not None:
-        loss_info_vae += '\nEMD: {:.4f}'.format(emd_loss_vae)
-
     
-    # xlim_fx = (-0.00005, 0.00005) 
-    # ylim_fy = (-0.00005, 0.00005)  
-    # ylim_fz = (-0.00005, 0.00005)
+    if chamfers_loss_vae is not None:
+        loss_info_vae += '\nChamfers: {:.6f}'.format(chamfers_loss_vae)
+    if chamfers_loss_inn is not None:
+        loss_info_inn += '\nChamfers: {:.6f}'.format(chamfers_loss_inn)
+        
+    if emd_loss_inn is not None:
+        loss_info_inn += '\nEMD: {:.6f}'.format(emd_loss_inn)
+    if emd_loss_vae is not None:
+        loss_info_vae += '\nEMD: {:.6f}'.format(emd_loss_vae)
     
     # Create subplots for each plane
     plt.figure(figsize=(15, 15))  # Adjust the figure size
@@ -367,8 +354,6 @@ def create_force_density_plots(
     plt.xlabel('fx')
     plt.ylabel('fy')
     plt.title('fx-fy GT at t = {}, box = {}'.format(t,gpu_box))
-    # plt.xlim(xlim_fx)
-    # plt.ylim(ylim_fy)
     
     # fx-fz Plane Ground Truth
     plt.subplot(332)
@@ -377,8 +362,6 @@ def create_force_density_plots(
     plt.xlabel('fx')
     plt.ylabel('fz')
     plt.title('fx-fz GT at t = {}, box = {}'.format(t,gpu_box))
-    # plt.xlim(xlim_fx)
-    # plt.ylim(ylim_fz)
     
     # fy-fz Plane Ground Truth
     plt.subplot(333)
@@ -387,8 +370,6 @@ def create_force_density_plots(
     plt.xlabel('fy')
     plt.ylabel('fz')
     plt.title('fy-fz GT at t = {}, box = {}'.format(t,gpu_box))
-    # plt.xlim(ylim_fy)
-    # plt.ylim(ylim_fz)
     
     # fx-fy Plane Prediction
     plt.subplot(334)
@@ -397,8 +378,6 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fy_pr')
     plt.title('fx-fy INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
-    # plt.xlim(xlim_fx)
-    # plt.ylim(ylim_fy)
     
     # fx-fz Plane Prediction
     plt.subplot(335)
@@ -407,8 +386,6 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fz_pr')
     plt.title('fx-fz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
-    # plt.xlim(xlim_fx)
-    # plt.ylim(ylim_fz)
     
     # fy-fz Plane Prediction
     plt.subplot(336)
@@ -417,8 +394,6 @@ def create_force_density_plots(
     plt.xlabel('fy_pr')
     plt.ylabel('fz_pr')
     plt.title('fy-fz INN Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_inn))
-    # plt.xlim(ylim_fy)
-    # plt.ylim(ylim_fz)
     
     # fx-fy Plane Prediction
     plt.subplot(337)
@@ -427,8 +402,6 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fy_pr')
     plt.title('fx-fy VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
-    # plt.xlim(xlim_fx)
-    # plt.ylim(ylim_fy)
     
     # fx-fz Plane Prediction
     plt.subplot(338)
@@ -437,8 +410,6 @@ def create_force_density_plots(
     plt.xlabel('fx_pr')
     plt.ylabel('fz_pr')
     plt.title('fx-fz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
-    # plt.xlim(xlim_fx)
-    # plt.ylim(ylim_fz)
     
     # fy-fz Plane Prediction
     plt.subplot(339)
@@ -447,8 +418,6 @@ def create_force_density_plots(
     plt.xlabel('fy_pr')
     plt.ylabel('fz_pr')
     plt.title('fy-fz VAE Pred at t = {}, box = {}{}'.format(t,gpu_box, loss_info_vae))
-    # plt.xlim(ylim_fy)
-    # plt.ylim(ylim_fz)
     
     plt.tight_layout()
 
@@ -877,3 +846,53 @@ def plot_losses_histogram(emd_losses,
         plt.show()
     else:
         plt.close()
+        
+        
+
+def generate_momentum_force_radiation_plots(p_gt, pc_pr, pc_pr_ae,
+                                            r, rad_pred,
+                                            t_index, gpu_index,
+                                            emd_losses_inn_mean, emd_losses_vae_mean,
+                                            plot_directory_path, chamfers_losses_inn_mean=None, chamfers_losses_vae_mean=None, show_plot=False, denorm = False):
+    
+    # Momentum components extraction
+    px, py, pz = p_gt[:, 0], p_gt[:, 1], p_gt[:, 2]
+    px_pr, py_pr, pz_pr = pc_pr[:, 0], pc_pr[:, 1], pc_pr[:, 2]
+    px_pr_ae, py_pr_ae, pz_pr_ae = pc_pr_ae[:, 0], pc_pr_ae[:, 1], pc_pr_ae[:, 2]
+
+    # Force components extraction
+    fx, fy, fz = p_gt[:, 3], p_gt[:, 4], p_gt[:, 5]
+    fx_pr, fy_pr, fz_pr = pc_pr[:, 3], pc_pr[:, 4], pc_pr[:, 5]
+    fx_pr_ae, fy_pr_ae, fz_pr_ae = pc_pr_ae[:, 3], pc_pr_ae[:, 4], pc_pr_ae[:, 5]
+
+    # Call to create momentum density plots
+    create_momentum_density_plots(px, py, pz,
+                                  px_pr, py_pr, pz_pr,
+                                  px_pr_ae, py_pr_ae, pz_pr_ae,
+                                  bins=100, t=t_index, gpu_box=gpu_index,
+                                  emd_loss_inn=emd_losses_inn_mean.item(), 
+                                  emd_loss_vae=emd_losses_vae_mean.item(),
+                                  path=plot_directory_path, show_plot=show_plot,
+                                  # chamfers_loss=chamfers_loss, 
+                                  chamfers_loss_inn = chamfers_losses_inn_mean,
+                                  chamfers_loss_vae = chamfers_losses_vae_mean,
+                                  denorm = denorm)
+
+    # Call to create force density plots
+    create_force_density_plots(fx, fy, fz,
+                               fx_pr, fy_pr, fz_pr,
+                               fx_pr_ae, fy_pr_ae, fz_pr_ae,
+                               bins=100, t=t_index, gpu_box=gpu_index,
+                               emd_loss_inn=emd_losses_inn_mean.item(),
+                               emd_loss_vae=emd_losses_vae_mean.item(),
+                               path=plot_directory_path, show_plot=show_plot,
+                               chamfers_loss_inn = chamfers_losses_inn_mean,
+                               chamfers_loss_vae = chamfers_losses_vae_mean,
+                               denorm = denorm)
+
+    # Call to plot radiation
+    plot_radiation(ground_truth_intensity=r,
+                   predicted_intensity=rad_pred,
+                   t=t_index, gpu_box=gpu_index,
+                   path=plot_directory_path,
+                   show_plot=show_plot)

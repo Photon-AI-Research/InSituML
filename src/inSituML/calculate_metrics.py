@@ -12,6 +12,7 @@ from geomloss import SamplesLoss
 from utilities import *
 from sklearn.cluster import KMeans
 import argparse
+from distutils.util import strtobool
 
 from ks_models import PC_MAF, INNModel
 
@@ -22,13 +23,29 @@ from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
 
 from train_khi_AE_refactored.encoder_decoder import Encoder
 from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
-from train_khi_AE_refactored.loss_functions import EarthMoversLoss
+from train_khi_AE_refactored.loss_functions import EarthMoversLoss, ChamfersLoss
 from train_khi_AE_refactored.networks import ConvAutoencoder, VAE
         
 def main():
     
+    def str_to_bool(v):
+        return bool(strtobool(v))
+
+    parser = argparse.ArgumentParser(description="Update config settings for the script.")
+
+    parser.add_argument("--sim", type=str, help="Simulation to evaluate on.", default="014")
+    parser.add_argument("--N_samples", type=int, help="Number model passes for loss calculation.", default=5)
+    parser.add_argument("--eval_timesteps", nargs='+', type=int, help="Timesteps to evaluate on.", default=[900,950,1000])
+    parser.add_argument("--generate_plots", type=str_to_bool, help="Whether to generate all plots", default=False)
+    parser.add_argument("--generate_best_box_plot", type=str_to_bool, help="Whether to generate best box plot", default=True)
+    parser.add_argument("--plot_directory_path", type=str, help="Directory for saving plots.", default="metrics/")
+    parser.add_argument("--model_filepath_pattern", type=str, help="Model file pattern.", default="/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}")
+    parser.add_argument("--load_model_checkpoint", type=str, help="Load model checkpoint", default="model_24211")
+
+    args = parser.parse_args()
+    
+    
     config = dict(
-    l2_reg = 2e-5,
     y_noise_scale = 1e-1,
     zeros_noise_scale = 5e-2,
     lambd_predict = 3.,
@@ -36,8 +53,6 @@ def main():
     lambd_rev = 400.,
     t0 = 900,
     t1 = 1001,
-    timebatchsize = 4,
-    particlebatchsize = 2,
     ndim_tot = 544,
     ndim_x = 544,
     ndim_y = 512,
@@ -46,25 +61,17 @@ def main():
     latent_space_dims = 544,
     hidden_size = 256,
     dim_pool = 1,
-    lr = 0.00001,
-    num_epochs = 5,
-    blacklist_boxes = None,
-    val_boxes = [3,12,61,51],
     property_ = 'momentum_force',
-    #network = 'convAE17',
-    norm_method = 'mean_6d',
     particles_to_sample = 150000,
     activation = 'gelu',
     load_model = None, #'24k0zbm4/best_model_', 
     load_model_checkpoint = 'model_24211', #'model_6058',
-    grad_clamp = 5.00,
     lambd_AE = 1.0,
     lambd_IM = 0.001,
     weight_kl = 0.001,
     rad_eps = 1e-9,
     network = 'INN_VAE',
     sim = "014",
-    freeze_ae_weights = False,
     y_borders = {
         "002": [96, 160, 352, 416],
         "003": [96, 160, 352, 416],
@@ -75,10 +82,16 @@ def main():
         "014": [32, 96, 160, 224],
         "015": [48, 72, 168, 192],
         "016": [32, 96, 160, 224],
+        "24-nodes_full-picongpu-data": [32, 96, 160, 224],
+        "model_350": [32, 96, 160, 224],
+        "04_01_1807": [32, 96, 160, 224],
+        "04_01_1840": [32, 96, 160, 224],
     },
     eval_timesteps = [900,950,1000],
     N_samples = 5,
-    generate_plots = True,
+    generate_plots = False,
+    generate_best_box_plot = True,
+    radiation_transformation = True,
     plot_directory_path = 'metrics/',
     #model_filepath_pattern = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/{}', 
     model_filepath_pattern = '/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}', 
@@ -86,10 +99,21 @@ def main():
     pathpattern1 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_{}/{}.npy",
     pathpattern2 = "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_{}/{}.npy",
     )
-
+    
+    # Update config with values from command-line arguments
+    config["sim"] = args.sim
+    config["N_samples"] = args.N_samples
+    config["eval_timesteps"] = args.eval_timesteps
+    config["generate_best_box_plot"] = args.generate_best_box_plot
+    config["plot_directory_path"] = args.plot_directory_path
+    config["model_filepath_pattern"] = args.model_filepath_pattern
+    config["load_model_checkpoint"] = args.load_model_checkpoint
+    config["generate_plots"] = args.generate_plots
+            
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config["device"] = device
     emd_loss = SamplesLoss(loss="sinkhorn", p=1, blur=.01, verbose=True, backend='auto')
+    chamfers = ChamfersLoss()
 
     if config["property_"] == "all":
         point_dim = 9
@@ -249,7 +273,12 @@ def main():
 
         return p_gt
 
-
+    
+    def ensure_path_exists(path):
+        """Ensure that a directory exists. If it doesn't, create it."""
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
     def radiation_transformation(r):
 
         # ampliudes in each direction
@@ -264,6 +293,26 @@ def main():
         r = torch.log(r+config["rad_eps"])
 
         return r
+    
+    
+    def cluster_and_extract_lowest_mean_data_points_and_mean(emd_losses_inn_tensor):
+    
+        # Use KMeans to cluster the data into two clusters
+        kmeans = KMeans(n_clusters=2, random_state=0).fit(emd_losses_inn_tensor.reshape(-1, 1))
+
+        # Compute the mean of each cluster
+        cluster_means = kmeans.cluster_centers_.flatten()
+        cluster_labels = kmeans.labels_
+
+        # Identify the cluster with the lowest mean
+        lowest_mean_index = np.argmin(cluster_means)
+        lowest_mean = cluster_means[lowest_mean_index]            
+
+        # Extract the data points belonging to the cluster with the lowest mean
+        data_points_lowest_mean_cluster = emd_losses_inn_tensor[cluster_labels == lowest_mean_index]
+        
+        return data_points_lowest_mean_cluster, lowest_mean,cluster_means
+                
 
     def evaluate(p_gt,
                  p_gt_og,
@@ -274,6 +323,7 @@ def main():
                  device,
                  N_samples,
                  generate_plots = False,
+                 generate_best_box_plot = False,
                  flow_type = 'flow'):
 
         # filename = 
@@ -285,41 +335,50 @@ def main():
                                        flow_type,
                                        f"data_gpu_{gpu_index}_tindex_{t_index}")
 
-        if not os.path.exists(plot_directory_path):
-            os.makedirs(plot_directory_path)
+        # if not os.path.exists(plot_directory_path):
+        #     os.makedirs(plot_directory_path)
         
-        p_gt = p_gt[gpu_index]
-        p_gt_og = p_gt_og[gpu_index]
-        r = r[gpu_index]
-
+        ensure_path_exists(plot_directory_path)
+        
+        p_gt = p_gt[gpu_index] #normalised #p_gt torch.Size([150000, 6])
+        p_gt_og = p_gt_og[gpu_index] #unnormalised
+        r = r[gpu_index] #radiation
 
         cond = r.reshape(1,-1).to(device)
 
-        p_gt_clone = p_gt.clone()
+        p_gt_clone = p_gt.clone() 
         p_gt_clone = p_gt_clone.unsqueeze(0).to(device)
 
         model.eval()
         with torch.no_grad():
             emd_losses_inn = []
             emd_losses_vae = []
+            
+            chamfers_losses_inn = []
+            chamfers_losses_vae = []
+            
             fwd_losses_inn = []
             latent_losses = []
-            for _ in range(N_samples):
+            emd_loss_inn_sam_min = float('inf')
+            for ii in range(N_samples):
                 pc_pr, lat_z_pred = model.reconstruct(p_gt_clone, cond)
-                # print('pc_pr',pc_pr.shape)
                 pc_pr_denorm = denormalize_mean_6d(normalized_array=pc_pr.squeeze(), mean_std_file=config["mean_std_file_path"].format(config["sim"],config["t0"], config["t1"]))
-                # print('pc_pr_denorm',pc_pr_denorm.shape)
+                #pc_pr_denorm torch.Size([4096, 6])
+                #p_gt_og torch.Size([150000, 6])
                 emd_loss_inn_sam = emd_loss(pc_pr_denorm.unsqueeze(0), p_gt_og.unsqueeze(0).to(device))
                 emd_losses_inn.append(emd_loss_inn_sam)
-
-
+                                
+                chamfers_loss_inn_sam = chamfers(pc_pr_denorm.unsqueeze(0), p_gt_og.unsqueeze(0).to(device))
+                chamfers_losses_inn.append(chamfers_loss_inn_sam)
+                
                 _,_,_, pc_pr_ae, z_encoded = model.base_network(p_gt_clone)
 
-                # print('pc_pr_ae',pc_pr_ae.shape)
                 pc_pr_ae_denorm  = denormalize_mean_6d(pc_pr_ae.squeeze(), mean_std_file = config["mean_std_file_path"].format(config["sim"],config["t0"],config["t1"]))
-                # print('pc_pr_ae_denorm',pc_pr_ae_denorm.shape)
                 emd_loss_vae_sam = emd_loss(pc_pr_ae_denorm.unsqueeze(0), p_gt_og.unsqueeze(0).to(device))
                 emd_losses_vae.append(emd_loss_vae_sam)
+                                
+                chamfers_loss_vae_sam = chamfers(pc_pr_ae_denorm.unsqueeze(0),p_gt_og.unsqueeze(0).to(device))
+                chamfers_losses_vae.append(chamfers_loss_vae_sam)
 
                 # latent loss
                 latent_loss_sam = fit(z_encoded.to(device),lat_z_pred.to(device))
@@ -330,34 +389,79 @@ def main():
                 rad_pred = output[:, config["ndim_z"]:].squeeze()
                 l_fit_sam = fit(r.to(device),rad_pred.to(device))
                 fwd_losses_inn.append(l_fit_sam)
+                
+                # find the lowest emd inn value
+                if emd_loss_inn_sam < emd_loss_inn_sam_min and generate_best_box_plot == True:
+                    emd_loss_inn_sam_min = emd_loss_inn_sam
+                    norm_path = plot_directory_path + '/normalised'
+                    denorm_path = plot_directory_path + '/denormalised'
+                    
+                    ensure_path_exists(norm_path)
+                    ensure_path_exists(denorm_path)
+                    
+                    #normalised plots
+                    emd_loss_inn_sam_norm = emd_loss(pc_pr.contiguous(), p_gt_clone.contiguous())
+                    emd_loss_vae_sam_norm = emd_loss(pc_pr_ae.contiguous(), p_gt_clone.contiguous())
+                    chamfers_loss_inn_sam_norm = chamfers(pc_pr,p_gt_clone)
+                    chamfers_loss_vae_sam_norm = chamfers(pc_pr_ae,p_gt_clone)
+                    
+                    generate_momentum_force_radiation_plots(p_gt = p_gt.cpu().numpy(),
+                                                            pc_pr = pc_pr.squeeze().cpu().numpy(),
+                                                            pc_pr_ae = pc_pr_ae.squeeze().cpu().numpy(),
+                                                            r = r, rad_pred = rad_pred,
+                                                            t_index = t_index, gpu_index = gpu_index,
+                                                            emd_losses_inn_mean = emd_loss_inn_sam_norm,
+                                                            emd_losses_vae_mean = emd_loss_vae_sam_norm,
+                                                            chamfers_losses_inn_mean = chamfers_loss_inn_sam_norm.item(),
+                                                            chamfers_losses_vae_mean = chamfers_loss_vae_sam_norm.item(),
+                                                            # chamfers_loss = chamfers_loss_vae_sam_norm.item(),
+                                                            plot_directory_path = norm_path, show_plot=False, denorm= False)
+                                        
+
+                    #denormalised plots
+                    generate_momentum_force_radiation_plots(p_gt = p_gt_og.cpu().numpy(),
+                                                            pc_pr = pc_pr_denorm.squeeze().cpu().numpy(),
+                                                            pc_pr_ae = pc_pr_ae_denorm.squeeze().cpu().numpy(),
+                                                            r=r, rad_pred = rad_pred,
+                                                            t_index = t_index, gpu_index = gpu_index,
+                                                            emd_losses_inn_mean = emd_loss_inn_sam,
+                                                            emd_losses_vae_mean = emd_loss_vae_sam,
+                                                            chamfers_losses_inn_mean = chamfers_loss_inn_sam_norm.item(),
+                                                            chamfers_losses_vae_mean = chamfers_loss_vae_sam_norm.item(),
+                                                            # chamfers_loss = chamfers_loss_vae_sam.item(),
+                                                            plot_directory_path = denorm_path, show_plot=False, denorm = True)
+                
 
 
             emd_losses_inn_tensor = torch.tensor(emd_losses_inn)
+            chamfers_losses_inn_tensor = torch.tensor(chamfers_losses_inn)
             if flow_type == 'right_flow' or flow_type == 'left_flow':
-                ####added
-                # Use KMeans to cluster the data into two clusters
-                kmeans = KMeans(n_clusters=2, random_state=0).fit(emd_losses_inn_tensor.reshape(-1, 1))
 
-                # Compute the mean of each cluster
-                cluster_means = kmeans.cluster_centers_.flatten()
-                cluster_labels = kmeans.labels_
+                data_points_lowest_mean_cluster_emd_inn, lowest_mean_emd_inn,cluster_means_emd_inn = cluster_and_extract_lowest_mean_data_points_and_mean(emd_losses_inn_tensor)
+    
+                data_points_lowest_mean_cluster_chamfers_inn, lowest_mean_chamfers_inn, cluster_means_chamfers_inn = cluster_and_extract_lowest_mean_data_points_and_mean(chamfers_losses_inn_tensor)
 
-                # Identify the cluster with the lowest mean
-                lowest_mean_index = np.argmin(cluster_means)
-                lowest_mean = cluster_means[lowest_mean_index]            
-
-                # Extract the data points belonging to the cluster with the lowest mean
-                data_points_lowest_mean_cluster = emd_losses_inn_tensor[cluster_labels == lowest_mean_index]
-
-                if data_points_lowest_mean_cluster.shape[0]<2:
+                if data_points_lowest_mean_cluster_emd_inn.shape[0]<2:
                     emd_losses_inn_mean = emd_losses_inn_tensor.mean()
                     emd_losses_inn_std = emd_losses_inn_tensor.std()
                 else:
                     # Calculate the standard deviation of the cluster with the lowest mean
-                    std_lowest_mean_cluster = data_points_lowest_mean_cluster.std()
+                    std_lowest_mean_cluster_emd_inn = data_points_lowest_mean_cluster_emd_inn.std()
 
-                    emd_losses_inn_mean = torch.tensor(lowest_mean)
-                    emd_losses_inn_std = std_lowest_mean_cluster
+                    emd_losses_inn_mean = torch.tensor(lowest_mean_emd_inn)
+                    emd_losses_inn_std = std_lowest_mean_cluster_emd_inn
+                    
+                    
+                if data_points_lowest_mean_cluster_chamfers_inn.shape[0]<2:
+                    chamfers_losses_inn_mean = chamfers_losses_inn_tensor.mean()
+                    chamfers_losses_inn_std = chamfers_losses_inn_tensor.std()
+                else:
+                    # Calculate the standard deviation of the cluster with the lowest mean
+                    std_lowest_mean_cluster_chamfers_inn = data_points_lowest_mean_cluster_chamfers_inn.std()
+
+                    chamfers_losses_inn_mean = torch.tensor(lowest_mean_chamfers_inn)
+                    chamfers_losses_inn_std = std_lowest_mean_cluster_chamfers_inn
+                    
 
                 if generate_plots == True:
                     # hist_path = plot_directory_path + flow_type
@@ -367,15 +471,19 @@ def main():
                                   plot_title='Histogram of INN-VAE reconstruction losses with Cluster Means',
                                   x_title='EMD Losses',
                                   t=t_index, gpu_box =gpu_index,
-                                  cluster_means=cluster_means,
+                                  cluster_means=cluster_means_emd_inn,
                                   flow_type = flow_type,
                                   loss_type = 'emd',
                                   save_path=plot_directory_path,
                                   show_plot=False)
 
-            else:
+            else: # Vortex type boxes
                 emd_losses_inn_mean = emd_losses_inn_tensor.mean()
                 emd_losses_inn_std = emd_losses_inn_tensor.std()
+                
+                chamfers_losses_inn_mean = chamfers_losses_inn_tensor.mean()
+                chamfers_losses_inn_std = chamfers_losses_inn_tensor.std()
+                
                 if generate_plots == True:
                     # hist_path = plot_directory_path + flow_type
                     plot_losses_histogram(emd_losses_inn_tensor,
@@ -394,6 +502,10 @@ def main():
             emd_losses_vae_tensor = torch.tensor(emd_losses_vae)
             emd_losses_vae_mean = emd_losses_vae_tensor.mean()
             emd_losses_vae_std = emd_losses_vae_tensor.std()
+            
+            chamfers_losses_vae_tensor = torch.tensor(chamfers_losses_vae)
+            chamfers_losses_vae_mean = chamfers_losses_vae_tensor.mean()
+            chamfers_losses_vae_std = chamfers_losses_vae_tensor.std()
 
             fwd_losses_inn_tensor = torch.tensor(fwd_losses_inn)
             fwd_losses_inn_mean = fwd_losses_inn_tensor.mean()
@@ -418,77 +530,39 @@ def main():
                       save_path=plot_directory_path,
                       show_plot=False)
 
-            #denormalise radiation
-            # rad_pred = torch.exp(rad_pred) - config["rad_eps"]
-            if generate_plots == True:
-                plot_radiation(ground_truth_intensity = r, 
-                               predicted_intensity = rad_pred,
-                               t = t_index,
-                               gpu_box = gpu_index,
-                               path = plot_directory_path,
-                               show_plot = False,
-                               )
-
 
         p_gt= p_gt_og.cpu().numpy()
         pc_pr= pc_pr_denorm.squeeze().cpu().numpy()
         pc_pr_ae= pc_pr_ae_denorm.squeeze().cpu().numpy()
-
-        # Visualization code for momentum
-        px = p_gt[:, 0]  # Px component of momentum
-        py = p_gt[:, 1]  # Py component of momentum
-        pz = p_gt[:, 2]  # Pz component of momentum
-
-        px_pr = pc_pr[:, 0]  # Px component of momentum
-        py_pr = pc_pr[:, 1]  # Py component of momentum
-        pz_pr = pc_pr[:, 2]  # Pz component of momentum
-
-        px_pr_ae = pc_pr_ae[:, 0]  # Px component of momentum
-        py_pr_ae = pc_pr_ae[:, 1]  # Py component of momentum
-        pz_pr_ae = pc_pr_ae[:, 2]  # Pz component of momentum
-
-        # Visualization code for force
-        fx = p_gt[:, 3]  # Fx component of force
-        fy = p_gt[:, 4]  # Fy component of force
-        fz = p_gt[:, 5]  # Fz component of force
-
-        fx_pr = pc_pr[:, 3]  # Fx component of force
-        fy_pr = pc_pr[:, 4]  # Fy component of force
-        fz_pr = pc_pr[:, 5]  # Fz component of force
-
-        fx_pr_ae = pc_pr_ae[:, 3]  # Fx component of force
-        fy_pr_ae = pc_pr_ae[:, 4]  # Fy component of force
-        fz_pr_ae = pc_pr_ae[:, 5]  # Fz component of force
+        
 
         if generate_plots == True:
-            create_momentum_density_plots(px, py, pz,
-                                  px_pr, py_pr, pz_pr,
-                                  px_pr_ae, py_pr_ae, pz_pr_ae,     
-                                  bins=100, t=t_index, gpu_box=gpu_index,
-                                  #chamfers_loss = cd.item(),
-                                  emd_loss_inn=emd_losses_inn_mean.item(),
-                                  emd_loss_vae=emd_losses_vae_mean.item(),
-                                  path = plot_directory_path,
-                                  show_plot = False,
-                                  #enable_wandb = enable_wandb,
-                                 ) 
-
-            create_force_density_plots(fx, fy, fz,
-                               fx_pr, fy_pr, fz_pr,
-                               fx_pr_ae, fy_pr_ae, fz_pr_ae,     
-                               bins=100, t=t_index, gpu_box=gpu_index,
-                               #chamfers_loss = cd.item(),
-                               emd_loss_inn=emd_losses_inn_mean.item(),
-                               emd_loss_vae=emd_losses_vae_mean.item(),
-                               path = plot_directory_path,
-                               show_plot = False,
-                               #enable_wandb = enable_wandb,
-                              )
             
-        return emd_losses_inn_mean,emd_losses_inn_std,emd_losses_vae_mean,emd_losses_vae_std,fwd_losses_inn_mean,fwd_losses_inn_std,latent_losses_mean,latent_losses_std
+            generate_momentum_force_radiation_plots(p_gt = p_gt,
+                                                    pc_pr = pc_pr,
+                                                    pc_pr_ae = pc_pr_ae,
+                                                    r = r,
+                                                    rad_pred = rad_pred,
+                                                    t_index = t_index,
+                                                    gpu_index = gpu_index,
+                                                    emd_losses_inn_mean = emd_losses_inn_mean,
+                                                    emd_losses_vae_mean = emd_losses_vae_mean,
+                                                    chamfers_losses_inn_mean = chamfers_losses_inn_mean.item(),
+                                                    chamfers_losses_vae_mean = chamfers_losses_vae_mean.item(),
+                                                    plot_directory_path = plot_directory_path, show_plot=False, denorm = True)
+            
+        results = {
+                    'emd_losses_inn_mean': emd_losses_inn_mean, 'emd_losses_inn_std': emd_losses_inn_std,
+                    'emd_losses_vae_mean': emd_losses_vae_mean, 'emd_losses_vae_std': emd_losses_vae_std,
+                    'fwd_losses_inn_mean': fwd_losses_inn_mean, 'fwd_losses_inn_std': fwd_losses_inn_std,
+                    'latent_losses_mean': latent_losses_mean, 'latent_losses_std': latent_losses_std,
+                    'chamfers_losses_inn_mean': chamfers_losses_inn_mean, 'chamfers_losses_inn_std': chamfers_losses_inn_std,
+                    'chamfers_losses_vae_mean': chamfers_losses_vae_mean, 'chamfers_losses_vae_std': chamfers_losses_vae_std,
+                }
+        
+        return results
 
-
-    def evaluate_boxes(model, t_index, config, device,N_samples, boxes, flow_type='vortex'):
+    def evaluate_boxes(model, t_index, config, device, N_samples, boxes, flow_type='vortex'):
         # Initialize lists to store results
         boxes_emd_losses_inn_mean = []
         boxes_emd_losses_inn_std = []
@@ -496,12 +570,17 @@ def main():
         boxes_emd_losses_vae_std = []
         boxes_fwd_losses_inn_mean = []
         boxes_fwd_losses_inn_std = []
-
-        # pathpattern1 = config["pathpattern1"]
-        # pathpattern2 = config["pathpattern2"]
+        boxes_latent_losses_mean = []
+        boxes_latent_losses_std = []
+        boxes_chamfers_losses_inn_mean = []
+        boxes_chamfers_losses_inn_std = []
+        boxes_chamfers_losses_vae_mean = []
+        boxes_chamfers_losses_vae_std = []
 
         # raw p_gt
-        p_gt_all = np.load(config["pathpattern1"].format(config["sim"],t_index),allow_pickle = True)
+        filepath1 = config["pathpattern1"].format(config["sim"],t_index)
+        
+        p_gt_all = np.load(filepath1, allow_pickle = True)
 
         # normalised transformed p_gt
         p_gt = particle_transformation(p_gt_all,normalise=True)
@@ -510,46 +589,94 @@ def main():
         p_gt_og = particle_transformation(p_gt_all,normalise=False)
 
         # Load radiation data
-        r = torch.from_numpy(np.load(config["pathpattern2"].format(config["sim"],t_index)).astype(np.cfloat))
-
-        r = radiation_transformation(r)
-
+        filepath2 = config["pathpattern2"].format(config["sim"],t_index)
+        
+        if config["radiation_transformation"] == True:
+            r = torch.from_numpy(np.load(filepath2).astype(np.cfloat))
+            r = radiation_transformation(r)
+        else:
+            r = torch.from_numpy(np.load(filepath2))
+            r = r.squeeze()
+        
         # Iterate over each GPU index
         for gpu_index in boxes:
             print('gpu_index', gpu_index)
             # Call the evaluate function
-            results = evaluate(p_gt, p_gt_og, r, model, t_index,gpu_index, device, N_samples, generate_plots=config["generate_plots"], flow_type=flow_type)
+            results = evaluate(p_gt, p_gt_og, r, model, t_index,gpu_index, device, N_samples, generate_plots=config["generate_plots"], generate_best_box_plot = False, flow_type=flow_type)
 
             # Unpack results
-            emd_losses_inn_mean, emd_losses_inn_std, emd_losses_vae_mean, emd_losses_vae_std, fwd_losses_inn_mean, fwd_losses_inn_std,latent_losses_mean,latent_losses_std = results
+            emd_losses_inn_mean = results['emd_losses_inn_mean']
+            emd_losses_inn_std = results['emd_losses_inn_std']
+            
+            emd_losses_vae_mean = results['emd_losses_vae_mean']
+            emd_losses_vae_std = results['emd_losses_vae_std']
+            
+            fwd_losses_inn_mean = results['fwd_losses_inn_mean']
+            fwd_losses_inn_std = results['fwd_losses_inn_std']
+            
+            latent_losses_mean = results['latent_losses_mean']
+            latent_losses_std = results['latent_losses_std']
+            
+            chamfers_losses_inn_mean = results['chamfers_losses_inn_mean']
+            chamfers_losses_inn_std = results['chamfers_losses_inn_std']
+            
+            chamfers_losses_vae_mean = results['chamfers_losses_vae_mean']
+            chamfers_losses_vae_std = results['chamfers_losses_vae_std']       
 
             # Append results to lists
             boxes_emd_losses_inn_mean.append(emd_losses_inn_mean.numpy())
             boxes_emd_losses_inn_std.append(emd_losses_inn_std.numpy())
+            
             boxes_emd_losses_vae_mean.append(emd_losses_vae_mean.numpy())
             boxes_emd_losses_vae_std.append(emd_losses_vae_std.numpy())
+            
             boxes_fwd_losses_inn_mean.append(fwd_losses_inn_mean.numpy())
             boxes_fwd_losses_inn_std.append(fwd_losses_inn_std.numpy())
         
+            boxes_latent_losses_mean.append(latent_losses_mean.numpy())
+            boxes_latent_losses_std.append(latent_losses_std.numpy())
+            
+            boxes_chamfers_losses_inn_mean.append(chamfers_losses_inn_mean.numpy())
+            boxes_chamfers_losses_inn_std.append(chamfers_losses_inn_std.numpy())
+            
+            boxes_chamfers_losses_vae_mean.append(chamfers_losses_vae_mean.numpy())
+            boxes_chamfers_losses_vae_std.append(chamfers_losses_vae_std.numpy())
+            
         # Find the minimum value
         min_box_emd_loss_inn = min(boxes_emd_losses_inn_mean)
 
         # Find the index of the minimum value
-        min_index_emd_loss_inn = boxes_emd_losses_inn_mean.index(min_box_emd_loss_inn)
+        min_emd_loss_inn_index = boxes_emd_losses_inn_mean.index(min_box_emd_loss_inn)
         
-        print('box with min emd loss:',boxes[min_index_emd_loss_inn])
-        print('min emd loss inn:',min_box_emd_loss_inn)
+        print('box with min emd loss:',boxes[min_emd_loss_inn_index])
+        # print('min emd loss inn:',min_box_emd_loss_inn)
         
+        #generate plots for the best box again
+        best_results = evaluate(p_gt, p_gt_og, r, model, t_index,boxes[min_emd_loss_inn_index], device, N_samples*2, generate_plots=config["generate_plots"], generate_best_box_plot = config["generate_best_box_plot"], flow_type=flow_type)
+        
+        # min_box_emd_loss_inn, _, _, _, _, _,_,_ = best_results
+        min_box_emd_loss_inn_mean = best_results['emd_losses_inn_mean']
+        min_box_emd_loss_inn_std = best_results['emd_losses_inn_std']
+        print('min emd loss inn mean:',min_box_emd_loss_inn_mean)
+        print('min emd loss inn std:',min_box_emd_loss_inn_mean)
+
         # Calculate overall means and standard deviations
         overall_means_and_stds = {
-            'min_box_emd_loss_inn': min_box_emd_loss_inn,
-            'min_index_emd_loss_inn': boxes[min_index_emd_loss_inn],
+            'min_box_emd_loss_inn_mean': min_box_emd_loss_inn_mean,
+            'min_box_emd_loss_inn_std': min_box_emd_loss_inn_std,
+            'min_emd_loss_inn_index': boxes[min_emd_loss_inn_index],
             'emd_losses_inn_mean_all': sum(boxes_emd_losses_inn_mean) / len(boxes_emd_losses_inn_mean),
             'emd_losses_inn_std_all': sum(boxes_emd_losses_inn_std) / len(boxes_emd_losses_inn_std),
             'emd_losses_vae_mean_all': sum(boxes_emd_losses_vae_mean) / len(boxes_emd_losses_vae_mean),
             'emd_losses_vae_std_all': sum(boxes_emd_losses_vae_std) / len(boxes_emd_losses_vae_std),
             'fwd_losses_inn_mean_all': sum(boxes_fwd_losses_inn_mean) / len(boxes_fwd_losses_inn_mean),
-            'fwd_losses_inn_std_all': sum(boxes_fwd_losses_inn_std) / len(boxes_fwd_losses_inn_std)
+            'fwd_losses_inn_std_all': sum(boxes_fwd_losses_inn_std) / len(boxes_fwd_losses_inn_std),
+            'latent_losses_inn_mean_all': sum(boxes_latent_losses_mean) / len(boxes_latent_losses_mean),
+            'latent_losses_inn_std_all': sum(boxes_latent_losses_std) / len(boxes_latent_losses_std),
+            'chamfers_losses_inn_mean_all': sum(boxes_chamfers_losses_inn_mean) / len(boxes_chamfers_losses_inn_mean),
+            'chamfers_losses_inn_std_all': sum(boxes_chamfers_losses_inn_std) / len(boxes_chamfers_losses_inn_std),
+            'chamfers_losses_vae_mean_all': sum(boxes_chamfers_losses_vae_mean) / len(boxes_chamfers_losses_vae_mean),
+            'chamfers_losses_vae_std_all': sum(boxes_chamfers_losses_vae_std) / len(boxes_chamfers_losses_vae_std),
         }
 
         return overall_means_and_stds
@@ -594,7 +721,6 @@ def main():
         right_flow_boxes = []
         left_flow_boxes = []
         for box_id, p_box in enumerate(p_gt_all):
-            # print('p_box', p_box.shape)
             if np.all((p_box[:,1] > y_lower_min) & (p_box[:,1] < y_lower_max)):
                 lower_vortex_boxes.append(box_id)
             elif np.all((p_box[:,1] > y_upper_min) & (p_box[:,1] < y_upper_max)):
