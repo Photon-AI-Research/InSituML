@@ -1,4 +1,5 @@
 from math import sqrt
+from sys import environ
 
 #########################
 ## Model configuration ##
