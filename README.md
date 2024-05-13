@@ -127,6 +127,16 @@ methods:
 2. EpisodicMemoryDataset(Dataset): Class to interface torch-dataset for episodic memory approach to train the model,
 contains regular dataset methods: init, length and indexing
 
+#### main/ModelHelpers/mlp.py
+
+MLP(ContinualLearner): MLP architecture for an autoencoder to be trained in CL approach, contain methods:
+
+<li> xaviar weigth initialization for conv2d, transposedConv2D, linear layers </li>
+<li> create linear layers </li>
+<li> Encoder and Decoder Initialization: sequence of {nn.Linear, activation} blocks </li>
+<li> Inverse from AE: first decode then encode </li>
+<li> Save Checkpoint with all meta data (model's hyperparameters, CL training method) </li>
+
 #### main/ModelHelpers/Autoencoder2D.py
 
 AutoEncoder2D(ContinualLearner): Autoencoder for 2D tensors (processing of images), inherited from ContinualLearning class
