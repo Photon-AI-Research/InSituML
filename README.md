@@ -176,18 +176,38 @@ commented in the code.
 ## /main/utils
 
 -- cifar_coarse.py
-    """
-    Groups the original CFAR100 fine-grained classes into 20 coarse-grained classes.
+Dependencies on other files within the repository: none
 
-    Inherits from CIFAR100 class.
+Has one class:
+
+- class CIFAR100Coarse:  Groups the original CFAR100 fine-grained classes into 20 coarse-grained classes. Inherits from CIFAR100 class.
 
     Parameters:
-        root (str): Root directory of dataset where the dataset exists or will be downloaded.
-        train (bool, optional): If True, creates dataset from training set, otherwise from test set.
-        transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version.
-        target_transform (callable, optional): A function/transform that takes in the target and transforms it.
-        download (bool, optional): If True, downloads the dataset from the internet and puts it in root directory.
-    """
+    - root (str): Root directory of dataset where the dataset exists or will be downloaded.
+    - train (bool, optional): If True, creates dataset from training set, otherwise from test set.
+    - transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version.
+    - target_transform (callable, optional): A function/transform that takes in the target and transforms it.
+    - download (bool, optional): If True, downloads the dataset from the internet and puts it in root directory.
 
 -- dataset_utils.py
+Dependencies on other files within the repository:
+    - from StreamDataReader.StreamBuffer import StreamBuffer
+    - from utils.cifar100_coarse import CIFAR100Coarse
+    
+Has two classes:
+- class SubDataset: Sub-samples a dataset, taking only those samples with label in [sub_labels]. After this selection of samples has been made, it is possible to transform the target-labels, which can be useful when doing continual learning with fixed number of output units.
+- class EFieldDataset: Handles dataset class for electric field data.
+
+
+--  dist_utils.py
+Dependencies on other files within the repository: None
+
+A series of fucntions that provide essential functionality for setting up and managing distributed training processes in PyTorch, including process synchronization, distributed data parallelism, and distributed data sampling.
+
+-- 
+
+
+
+
+ 
 
