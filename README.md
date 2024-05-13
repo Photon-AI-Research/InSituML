@@ -173,6 +173,7 @@ Contains one method to create figures for wandb logging: groundtruth and predict
 in "jet" and in "grey" scaling. The method takes min/max values for normalization of images, but normalization is
 commented in the code.
 
+<<<<<<< HEAD
 ### /main/utils
 
 #### cifar_coarse.py
@@ -220,9 +221,9 @@ Contains utility functions for plotting data:
 `generator.py` generates the toy data for the experience replay implemented in `memory.py`. Both files only have external dependencies. Steve also created `examples/streaming_toy_data/simple_train.py` which imports and uses `memory.py` and `generate.py` to test the experience replay (id: 32536b7). 
 Summary of the experience replay results: https://github.com/Photon-AI-Research/InSituML/issues/28
 
-## main/StreamDataReader
+### main/StreamDataReader
 
-### 1. stream_reader.py, stream_config.json
+#### 1. stream_reader.py, stream_config.json#
 
 This module implements two classes:
 
@@ -269,7 +270,7 @@ First value is the raw data itself. The data from read from PIConGPU with `pic_s
 The data is ultimately appended into a np type for which we are likely to be aware `np_shape`. The data is likely changed
 into nptypes to be pytorch model trainers.
 
-### 2. StreamBuffer.py
+#### 2. StreamBuffer.py
 
 This implements a thread based class
 
@@ -282,7 +283,7 @@ uses the `StreamReader` defined to read the data either saved locally or being s
 - the size of maximum number elements inserted into the buffer.
 - Whether read data locally/offline or stream in.
 
-### 3. async_stream_buffer.py
+#### 3. async_stream_buffer.py
 
 This implements a thread based class
 
