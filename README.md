@@ -182,13 +182,6 @@ Has one class:
 
 - class CIFAR100Coarse:  Groups the original CFAR100 fine-grained classes into 20 coarse-grained classes. Inherits from CIFAR100 class.
 
-    Parameters:
-    - root (str): Root directory of dataset where the dataset exists or will be downloaded.
-    - train (bool, optional): If True, creates dataset from training set, otherwise from test set.
-    - transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version.
-    - target_transform (callable, optional): A function/transform that takes in the target and transforms it.
-    - download (bool, optional): If True, downloads the dataset from the internet and puts it in root directory.
-
 -- dataset_utils.py
 Dependencies on other files within the repository:
     - from StreamDataReader.StreamBuffer import StreamBuffer
@@ -204,9 +197,18 @@ Dependencies on other files within the repository: None
 
 A series of fucntions that provide essential functionality for setting up and managing distributed training processes in PyTorch, including process synchronization, distributed data parallelism, and distributed data sampling.
 
--- 
+-- EpisodicMemory.py
+Dependencies on other files within the repository: None
 
+Has one class:
+- class EpisodicMemory: Represents an episodic memory buffer for continual learning. It allows storing and retrieving data for different tasks, with options for handling memory overflow and providing reference data for gradient-based methods.
 
+-- plot_helper.py
+Dependencies on other files within the repository: None
+
+Contains utility functions for plotting data: 
+- plot_reconstructed_data" plots original and reconstructed images side by side
+- plot_reconstructed_data_taskwise plots original images and reconstructed images task-wise, and plot_heatmap_df plots a heatmap from DataFrame data
 
 
  
