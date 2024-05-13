@@ -99,7 +99,9 @@ Also run examples. The "examples" marker is defined in `conftest.py`.
 $ pytest --examples
 ```
 
-## Description of main/ModelHelpers
+## Description of old code
+
+### main/ModelHelpers
 
 #### main/ModelHelpers/DeviceHelper.py
 
