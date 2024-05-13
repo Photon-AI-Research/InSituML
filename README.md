@@ -211,6 +211,11 @@ Contains utility functions for plotting data:
 - "plot_reconstructed_data_taskwise" plots original images and reconstructed images task-wise
 - "plot_heatmap_df" plots a heatmap from DataFrame data
 
+### src/insituml
 
- 
+@elcorto copied the `main/` folder in the beginning of 2023 to `src/insituml/` (id: 70afbe2). The only change is the addition of `src/insituml/toy_data/memory.py` (id: fe9d47b) to test out experience replay. But since `main/` has been developed further, `src/insituml/` is obsolete (apart from the contents of `toy_data`).
 
+#### src/insituml/toy_data/memory.py + generate.py
+
+`generator.py` generates the toy data for the experience replay implemented in `memory.py`. Both files only have external dependencies. Steve also created `examples/streaming_toy_data/simple_train.py` which imports and uses `memory.py` and `generate.py` to test the experience replay (id: 32536b7). 
+Summary of the experience replay results: https://github.com/Photon-AI-Research/InSituML/issues/28
