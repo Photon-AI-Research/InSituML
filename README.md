@@ -207,8 +207,9 @@ Has one class:
 Dependencies on other files within the repository: None
 
 Contains utility functions for plotting data: 
-- plot_reconstructed_data" plots original and reconstructed images side by side
-- plot_reconstructed_data_taskwise plots original images and reconstructed images task-wise, and plot_heatmap_df plots a heatmap from DataFrame data
+- "plot_reconstructed_data" plots original and reconstructed images side by side
+- "plot_reconstructed_data_taskwise" plots original images and reconstructed images task-wise
+- "plot_heatmap_df" plots a heatmap from DataFrame data
 
 
  
