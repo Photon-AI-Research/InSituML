@@ -1,3 +1,3 @@
-[submodule "main/ModelHelpers/cINN/ChamferDistancePytorch"]
-	path = main/ModelHelpers/cINN/ChamferDistancePytorch
+[submodule "src/inSituML/train_khi_AE_refactored/ChamferDistancePytorch"]
+	path = src/inSituML/train_khi_AE_refactored/ChamferDistancePytorch
 	url = https://github.com/ThibaultGROUEIX/ChamferDistancePytorch
