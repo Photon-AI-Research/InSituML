@@ -7,7 +7,7 @@ from threading import Thread
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
-from utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
+from .utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
 from mpi4py import MPI
 import os, time
 import pickle
