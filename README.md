@@ -99,15 +99,13 @@ Also run examples. The "examples" marker is defined in `conftest.py`.
 $ pytest --examples
 ```
 
-## Description of old code
-
-### Anna Willmann
+## Description of main/ModelHelpers
 
 #### main/ModelHelpers/DeviceHelper.py
 
 The module contains functions:
--  Get type of the default device: cpu or cuda 
--  Move tensor(s) to chosen device 
+    -  Get type of the default device: cpu or cuda 
+    -  Move tensor(s) to chosen device 
 
 DeviceDataLoader(): wrap a dataloader such that each batch is not only indexed but also instantly transfered to
 the correct device
@@ -117,13 +115,11 @@ the correct device
 1. ContinualLearner(nn.Module): Class for realization of a neural network to be trained using CL (further Continual Learning).
 There is saved some information on method to use (EWC by default), implementation of EWC related
 methods:
--  Fisher Value estimate 
--  EWC Loss  
--  Calculates refrence gradients based on sampled memory from previous episodes 
--  Overwrite gradients for parameter update based on dot products as mentioned in A-GEM method 
--  Layerswise gradient calculation and overwriting 
-
-
+    -  Fisher Value estimate 
+    -  EWC Loss  
+    -  Calculates refrence gradients based on sampled memory from previous episodes 
+    -  Overwrite gradients for parameter update based on dot products as mentioned in A-GEM method 
+    -  Layerswise gradient calculation and overwriting
 2. EpisodicMemoryDataset(Dataset): Class to interface torch-dataset for episodic memory approach to train the model,
 contains regular dataset methods: init, length and indexing
 
@@ -131,41 +127,41 @@ contains regular dataset methods: init, length and indexing
 
 MLP(ContinualLearner): MLP architecture for an autoencoder to be trained in CL approach, contain methods:
 
-- xavier weigth initialization for conv2d, transposedConv2D, linear layers
--  create linear layers 
--  Encoder and Decoder Initialization: sequence of {nn.Linear, activation} blocks 
--  Inverse from AE: first decode then encode 
--  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
+    - xavier weigth initialization for conv2d, transposedConv2D, linear layers
+    -  create linear layers 
+    -  Encoder and Decoder Initialization: sequence of {nn.Linear, activation} blocks 
+    -  Inverse from AE: first decode then encode 
+    -  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
 
 #### main/ModelHelpers/Autoencoder2D.py
 
 AutoEncoder2D(ContinualLearner): Autoencoder for 2D tensors (processing of images), inherited from ContinualLearning class
 Contains methods:
--  xavier weigth initialization for conv2d, transposedConv2D, linear layers 
--  create layers of conv2d, transposedConv2D, linear architectures 
--  find an "n-th" half: value/2^n 
--  find flatten size of a linear layer 
--  Encoder Initialization: sequence of {Conv2D, activation, MaxPool of 2} blocks,
- nn.Flatten, linear layer, activation 
--  Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks 
--  Inverse from AE: first decode then encode, uses Upsample instead of Unpool 
--  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
+    -  xavier weigth initialization for conv2d, transposedConv2D, linear layers 
+    -  create layers of conv2d, transposedConv2D, linear architectures 
+    -  find an "n-th" half: value/2^n 
+    -  find flatten size of a linear layer 
+    -  Encoder Initialization: sequence of {Conv2D, activation, MaxPool of 2} blocks,
+     nn.Flatten, linear layer, activation 
+    -  Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks 
+    -  Inverse from AE: first decode then encode, uses Upsample instead of Unpool 
+    -  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
 
 
 #### main/ModelHelpers/Autoencoder3D.py
 
 AutoEncoder3D(ContinualLearner): Autoencoder for 3D tensors (processing of 3D volumes, e.g. distribution of a field in 3D space), inherited from ContinualLearning class
 Contains methods:
--  xavier weigth initialization for conv3d, transposedConv3D, linear layers 
--  create layers of conv3d, transposedConv3D, linear architectures 
--  find an "n-th" half: value/2^n 
--  find flatten size of a linear layer 
--  Encoder Initialization: sequence of {Conv3D, activation, MaxPool of 2} blocks,
- nn.Flatten, linear layer, activation 
--  Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks 
--  Inverse from AE: first decode then encode, uses Upsample instead of Unpool 
--  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
--  Split model between 2 GPUs: encoder is transfered to cuda:0, decoder to cuda:1 
+    -  xavier weigth initialization for conv3d, transposedConv3D, linear layers 
+    -  create layers of conv3d, transposedConv3D, linear architectures 
+    -  find an "n-th" half: value/2^n 
+    -  find flatten size of a linear layer 
+    -  Encoder Initialization: sequence of {Conv3D, activation, MaxPool of 2} blocks,
+     nn.Flatten, linear layer, activation 
+    -  Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks 
+    -  Inverse from AE: first decode then encode, uses Upsample instead of Unpool 
+    -  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
+    -  Split model between 2 GPUs: encoder is transfered to cuda:0, decoder to cuda:1 
 
 #### main/ModelHelpers/MeshDimensionDataset.py
 MeshDimensionDataset(Dataset): a wrap for dataset, used in main/ModelEvaluator.py, main/ModelTrainerTaskWise.py
