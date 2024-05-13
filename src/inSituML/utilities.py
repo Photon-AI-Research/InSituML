@@ -736,12 +736,27 @@ def filter_dims(phase_space, property_="positions"):
     
 
 def normalize_mean_6d(original_array, mean_std_file):
-    data_stats = np.load(mean_std_file)
-    # Extract global mean and standard deviation
-    global_mean_momentum = data_stats['mean_momentum']
-    global_mean_force = data_stats['mean_force']
-    global_std_momentum = data_stats['std_momentum']
-    global_std_force = data_stats['std_force']
+    # Check if mean_std_file is a dictionary
+    if isinstance(mean_std_file, dict):
+        data_stats = mean_std_file
+        global_mean_momentum = data_stats['momentum_mean']
+        global_mean_force = data_stats['force_mean']
+        global_std_momentum = data_stats['momentum_std']
+        global_std_force = data_stats['force_std']
+    else:
+        # Ensure mean_std_file is a path-like object
+        if not isinstance(mean_std_file, (str)):
+            raise TypeError("mean_std_file must be a string or a dictionary")
+
+        # Check if mean_std_file is a valid file path
+        if not os.path.isfile(mean_std_file):
+            raise FileNotFoundError("Provided file path does not exist: " + str(mean_std_file))
+            
+        data_stats = np.load(mean_std_file)
+        global_mean_momentum = data_stats['mean_momentum']
+        global_mean_force = data_stats['mean_force']
+        global_std_momentum = data_stats['std_momentum']
+        global_std_force = data_stats['std_force']
 
     is_torch_tensor = torch.is_tensor(original_array)
 
@@ -786,12 +801,28 @@ def normalize_mean_6d(original_array, mean_std_file):
 
 
 def denormalize_mean_6d(normalized_array, mean_std_file):
-    data_stats = np.load(mean_std_file)
-    # Extract global mean and standard deviation directly as numpy arrays
-    global_mean_momentum = data_stats['mean_momentum']
-    global_mean_force = data_stats['mean_force']
-    global_std_momentum = data_stats['std_momentum']
-    global_std_force = data_stats['std_force']
+    
+    # Check if mean_std_file is a dictionary
+    if isinstance(mean_std_file, dict):
+        data_stats = mean_std_file
+        global_mean_momentum = data_stats['momentum_mean']
+        global_mean_force = data_stats['force_mean']
+        global_std_momentum = data_stats['momentum_std']
+        global_std_force = data_stats['force_std']
+    else:
+        # Ensure mean_std_file is a path-like object
+        if not isinstance(mean_std_file, (str)):
+            raise TypeError("mean_std_file must be a string or a dictionary")
+
+        # Check if mean_std_file is a valid file path
+        if not os.path.isfile(mean_std_file):
+            raise FileNotFoundError("Provided file path does not exist: " + str(mean_std_file))
+            
+        data_stats = np.load(mean_std_file)
+        global_mean_momentum = data_stats['mean_momentum']
+        global_mean_force = data_stats['mean_force']
+        global_std_momentum = data_stats['std_momentum']
+        global_std_force = data_stats['std_force']
 
     is_torch_tensor = torch.is_tensor(normalized_array)
 
