@@ -172,3 +172,22 @@ within this class.
 Contains one method to create figures for wandb logging: groundtruth and prediction in each figure,
 in "jet" and in "grey" scaling. The method takes min/max values for normalization of images, but normalization is
 commented in the code.
+
+## /main/utils
+
+-- cifar_coarse.py
+    """
+    Groups the original CFAR100 fine-grained classes into 20 coarse-grained classes.
+
+    Inherits from CIFAR100 class.
+
+    Parameters:
+        root (str): Root directory of dataset where the dataset exists or will be downloaded.
+        train (bool, optional): If True, creates dataset from training set, otherwise from test set.
+        transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version.
+        target_transform (callable, optional): A function/transform that takes in the target and transforms it.
+        download (bool, optional): If True, downloads the dataset from the internet and puts it in root directory.
+    """
+
+-- dataset_utils.py
+
