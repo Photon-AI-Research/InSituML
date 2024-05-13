@@ -131,7 +131,7 @@ contains regular dataset methods: init, length and indexing
 
 MLP(ContinualLearner): MLP architecture for an autoencoder to be trained in CL approach, contain methods:
 
-- xaviar weigth initialization for conv2d, transposedConv2D, linear layers
+- xavier weigth initialization for conv2d, transposedConv2D, linear layers
 -  create linear layers 
 -  Encoder and Decoder Initialization: sequence of {nn.Linear, activation} blocks 
 -  Inverse from AE: first decode then encode 
@@ -141,7 +141,7 @@ MLP(ContinualLearner): MLP architecture for an autoencoder to be trained in CL a
 
 AutoEncoder2D(ContinualLearner): Autoencoder for 2D tensors (processing of images), inherited from ContinualLearning class
 Contains methods:
--  xaviar weigth initialization for conv2d, transposedConv2D, linear layers 
+-  xavier weigth initialization for conv2d, transposedConv2D, linear layers 
 -  create layers of conv2d, transposedConv2D, linear architectures 
 -  find an "n-th" half: value/2^n 
 -  find flatten size of a linear layer 
@@ -156,7 +156,7 @@ Contains methods:
 
 AutoEncoder3D(ContinualLearner): Autoencoder for 3D tensors (processing of 3D volumes, e.g. distribution of a field in 3D space), inherited from ContinualLearning class
 Contains methods:
--  xaviar weigth initialization for conv3d, transposedConv3D, linear layers 
+-  xavier weigth initialization for conv3d, transposedConv3D, linear layers 
 -  create layers of conv3d, transposedConv3D, linear architectures 
 -  find an "n-th" half: value/2^n 
 -  find flatten size of a linear layer 
