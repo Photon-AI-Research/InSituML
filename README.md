@@ -138,6 +138,21 @@ Contains methods:
 <li> Encoder Initialization: sequence of {Conv2D, activation, MaxPool of 2} blocks,
  nn.Flatten, linear layer, activation </li>
 <li> Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks </li>
-<li> Inverse from AE: first decode then encode </li>
+<li> Inverse from AE: first decode then encode, uses Upsample instead of Unpool </li>
 <li> Save Checkpoint with all meta data (model's hyperparameters, CL training method) </li>
 
+
+#### main/ModelHelpers/Autoencoder3D.py
+
+AutoEncoder3D(ContinualLearner): Autoencoder for 3D tensors (processing of 3D volumes, e.g. distribution of a field in 3D space), inherited from ContinualLearning class
+Contains methods:
+<li> xaviar weigth initialization for conv3d, transposedConv3D, linear layers </li>
+<li> create layers of conv3d, transposedConv3D, linear architectures </li>
+<li> find an "n-th" half: value/2^n </li>
+<li> find flatten size of a linear layer </li>
+<li> Encoder Initialization: sequence of {Conv3D, activation, MaxPool of 2} blocks,
+ nn.Flatten, linear layer, activation </li>
+<li> Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks </li>
+<li> Inverse from AE: first decode then encode, uses Upsample instead of Unpool </li>
+<li> Save Checkpoint with all meta data (model's hyperparameters, CL training method) </li>
+<li> Split model between 2 GPUs: encoder is transfered to cuda:0, decoder to cuda:1 </li>
