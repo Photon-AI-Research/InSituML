@@ -99,6 +99,7 @@ Also run examples. The "examples" marker is defined in `conftest.py`.
 $ pytest --examples
 ```
 
+---
 ## Description of old code
 
 ### main/ModelHelpers
@@ -173,7 +174,6 @@ Contains one method to create figures for wandb logging: groundtruth and predict
 in "jet" and in "grey" scaling. The method takes min/max values for normalization of images, but normalization is
 commented in the code.
 
-<<<<<<< HEAD
 ### /main/utils
 
 #### cifar_coarse.py
@@ -296,3 +296,47 @@ class AsyncStreamBuffer
 This class is similar to `StreamBuffer.py` the data from a streamed output from PIConGPU. The difference that the filling and reading of buffer is handled inside this class instead of default handlers implemented in run method of Thread class in the case of `StreamBuffer.py`
 
 The async part of the implementation is not exactly clear. The new versions of this buffer have been implemented in the `ModelHelpers/cINN`.
+
+### examples/
+
+We have two kinds of offline test data:
+
+* "old" test data in the HZDR cloud (files `simData_bunches_012345.bp` etc.)
+* "new" data called LWFA in HZDR's hemera cluster `/bigdata/hplsim/production/...`
+
+For more details, see the collaborative notes (https://notes.desy.de/ask_us_for_the_link#Data). -> **Notes are not available**
+
+Files using old data:
+
+* `extract_particles.ipynb` (PIC simulation input, particle / "phase space" / point
+  cloud data)
+* `plot_particles.ipynb` (notebook for plotting particle data)
+* `extract_radiation.ipynb` (PIC simulation outputs)
+
+Files using new data:
+
+* `LWFA_particle_data.ipynb`: Load and plot LWFA particle data
+* `LWFA_radiation_data.ipynb`: Load and plot LWFA radiation data
+
+* `radiation.py`: PIConGPU module for radiation data extraction by R. Pausch
+
+`streaming_toy_data`:
+
+* `Nico_toy8_examples`:
+    * `Toy8-INN2018.ipynb`: seems to be an inplementation of the INN (not cINN) of
+      Ardizzone et al. "Analyzing Inverse Problems with Invertible Neural
+      Networks", 2019, http://arxiv.org/abs/1808.04730
+
+    * `Toy8-cINN.ipynb`: cINN training based on Ardizzone et al. "Guided Image
+      Generation with Conditional Invertible Neural Networks", 2019,
+      http://arxiv.org/abs/1907.02392
+
+      Imports tooling from distributed_toy8_inn2019.py which doesn't exist.
+
+    * `Toy8-cINN-ContinualLearning.ipynb`: Same as Toy8-cINN.ipynb but with modified
+      toy data, modeling time-dependent changing condition (= label)
+
+    * `toy8.py`, `train_cINN_distributed_toy8.py`: tooling used in Toy8-cINN-ContinualLearning.ipynb
+
+* `data_vis.py`: visualiation script for toy data
+* `simple_train.py` time-dependent toy data training with Experience Replay method
