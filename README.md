@@ -219,3 +219,79 @@ Contains utility functions for plotting data:
 
 `generator.py` generates the toy data for the experience replay implemented in `memory.py`. Both files only have external dependencies. Steve also created `examples/streaming_toy_data/simple_train.py` which imports and uses `memory.py` and `generate.py` to test the experience replay (id: 32536b7). 
 Summary of the experience replay results: https://github.com/Photon-AI-Research/InSituML/issues/28
+
+## main/StreamDataReader
+
+### 1. stream_reader.py, stream_config.json
+
+This module implements two classes:
+
+```py
+
+class StreamData
+class StreamReader
+
+```
+
+Data read by the `StreamReader` from openPMD based storage is stored in 3-tuple such that its contents are:
+- `stream_cfg` node under which to look for keys.
+- `data_dict` node under which to store results for each key. `data_dict` is the where the data stored.
+- The associated record that is supposed to contain the keys. The last value is simply associated iteration.
+
+`stream_cfg` reads its configuration from file `main/StreamDataReader/stream_config.json`. The `stream_config.json`
+contains the following dictionary. And the keys mentioned above refer to keys in this dictionary.
+
+```py
+
+{
+   "meshes":[
+      "E",
+      "J"
+   ],
+   "particles":{
+      "e":[
+         "position",
+          "id",
+          "momentum",
+          "weighting"
+      ]
+   }
+}
+
+```
+
+The `streamData` has 3 slots, which defines three types.
+
+```py
+__slots__ = ['data', 'np_shape', 'pic_shape']
+```
+First value is the raw data itself. The data from read from PIConGPU with `pic_shape` (which stays the same).
+The data is ultimately appended into a np type for which we are likely to be aware `np_shape`. The data is likely changed
+into nptypes to be pytorch model trainers.
+
+### 2. StreamBuffer.py
+
+This implements a thread based class
+
+```py
+
+class StreamBuffer
+
+```
+uses the `StreamReader` defined to read the data either saved locally or being streamed. Allows setting up two characterstics:
+- the size of maximum number elements inserted into the buffer.
+- Whether read data locally/offline or stream in.
+
+### 3. async_stream_buffer.py
+
+This implements a thread based class
+
+```py
+
+class AsyncStreamBuffer
+
+```
+
+This class is similar to `StreamBuffer.py` the data from a streamed output from PIConGPU. The difference that the filling and reading of buffer is handled inside this class instead of default handlers implemented in run method of Thread class in the case of `StreamBuffer.py`
+
+The async part of the implementation is not exactly clear. The new versions of this buffer have been implemented in the `ModelHelpers/cINN`.
