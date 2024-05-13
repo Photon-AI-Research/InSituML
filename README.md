@@ -172,3 +172,45 @@ within this class.
 Contains one method to create figures for wandb logging: groundtruth and prediction in each figure,
 in "jet" and in "grey" scaling. The method takes min/max values for normalization of images, but normalization is
 commented in the code.
+
+### /main/utils
+
+#### cifar_coarse.py
+Dependencies on other files within the repository: none
+
+Has one class:
+
+- class CIFAR100Coarse:  Groups the original CFAR100 fine-grained classes into 20 coarse-grained classes. Inherits from CIFAR100 class.
+
+#### dataset_utils.py
+Dependencies on other files within the repository:
+    - from StreamDataReader.StreamBuffer import StreamBuffer
+    - from utils.cifar100_coarse import CIFAR100Coarse
+    
+Has two classes:
+- class SubDataset: Sub-samples a dataset, taking only those samples with label in [sub_labels]. After this selection of samples has been made, it is possible to transform the target-labels, which can be useful when doing continual learning with fixed number of output units.
+- class EFieldDataset: Handles dataset class for electric field data.
+
+
+####  dist_utils.py
+Dependencies on other files within the repository: None
+
+A series of fucntions that provide essential functionality for setting up and managing distributed training processes in PyTorch, including process synchronization, distributed data parallelism, and distributed data sampling.
+
+#### EpisodicMemory.py
+Dependencies on other files within the repository: None
+
+Has one class:
+- class EpisodicMemory: Represents an episodic memory buffer for continual learning. It allows storing and retrieving data for different tasks, with options for handling memory overflow and providing reference data for gradient-based methods.
+
+#### plot_helper.py
+Dependencies on other files within the repository: None
+
+Contains utility functions for plotting data: 
+- "plot_reconstructed_data" plots original and reconstructed images side by side
+- "plot_reconstructed_data_taskwise" plots original images and reconstructed images task-wise
+- "plot_heatmap_df" plots a heatmap from DataFrame data
+
+
+ 
+
