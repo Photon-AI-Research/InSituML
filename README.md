@@ -173,7 +173,7 @@ Contains one method to create figures for wandb logging: groundtruth and predict
 in "jet" and in "grey" scaling. The method takes min/max values for normalization of images, but normalization is
 commented in the code.
 
-## /main/utils
+### /main/utils
 
 -- cifar_coarse.py
 Dependencies on other files within the repository: none
