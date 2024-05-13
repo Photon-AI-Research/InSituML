@@ -175,7 +175,7 @@ commented in the code.
 
 ### /main/utils
 
--- cifar_coarse.py
+#### cifar_coarse.py
 Dependencies on other files within the repository: none
 
 Has one class:
