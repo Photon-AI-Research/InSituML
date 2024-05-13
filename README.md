@@ -105,13 +105,24 @@ $ pytest --examples
 
 #### main/ModelHelpers/ContinualLearner.py
 
-Class for realization of a neural network to be trained using CL (further Continual Learning).
+1. ContinualLearner(nn.Module): Class for realization of a neural network to be trained using CL (further Continual Learning).
 There is saved some information on method to use (EWC by default), implementation of EWC related
 methods:
 <li> Fisher Value estimate </li>
 <li> EWC Loss </li> 
+<li> Calculates refrence gradients based on sampled memory from previous episodes </li>
+<li> Overwrite gradients for parameter update based on dot products as mentioned in A-GEM method </li>
+<li> Layerswise gradient calculation and overwriting </li>
 
 
+2. EpisodicMemoryDataset(Dataset): Class to interface torch-dataset for episodic memory approach to train the model,
+contains regular dataset methods: init, length and indexing
+
+#### main/ModelHelpers/DeviceHelper.py
+
+The module contains functions:
+<li> Get type of the default device: cpu or cuda </li>
+<li> Get type of the default device: cpu or cude </li>
 
 #### main/ModelHelpers/Autoencoder2D.py
 
