@@ -4,8 +4,8 @@ from geomloss import SamplesLoss
 import traceback
 
 try:
-    import ChamferDistancePytorch.chamfer6D.dist_chamfer_6D as dist_chamfer_6D
-    import ChamferDistancePytorch.chamfer3D.dist_chamfer_3D as dist_chamfer_3D
+    from .ChamferDistancePytorch.chamfer6D import dist_chamfer_6D as dist_chamfer_6D
+    from .ChamferDistancePytorch.chamfer3D import dist_chamfer_3D as dist_chamfer_3D
 
     class ChamfersLossOptimized(nn.Module):
         def __init__(self, property_="momentum_force"):
