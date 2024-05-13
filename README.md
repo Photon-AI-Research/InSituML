@@ -103,6 +103,15 @@ $ pytest --examples
 
 ### Anna Willmann
 
+#### main/ModelHelpers/DeviceHelper.py
+
+The module contains functions:
+<li> Get type of the default device: cpu or cuda </li>
+<li> Move tensor(s) to chosen device </li>
+
+DeviceDataLoader(): wrap a dataloader such that each batch is not only indexed but also instantly transfered to
+the correct device
+
 #### main/ModelHelpers/ContinualLearner.py
 
 1. ContinualLearner(nn.Module): Class for realization of a neural network to be trained using CL (further Continual Learning).
@@ -118,13 +127,17 @@ methods:
 2. EpisodicMemoryDataset(Dataset): Class to interface torch-dataset for episodic memory approach to train the model,
 contains regular dataset methods: init, length and indexing
 
-#### main/ModelHelpers/DeviceHelper.py
-
-The module contains functions:
-<li> Get type of the default device: cpu or cuda </li>
-<li> Get type of the default device: cpu or cude </li>
-
 #### main/ModelHelpers/Autoencoder2D.py
 
-Autoencoder for 2D tensors (processing of images), inherited from ContinualLearning class
+AutoEncoder2D(ContinualLearner): Autoencoder for 2D tensors (processing of images), inherited from ContinualLearning class
+Contains methods:
+<li> xaviar weigth initialization for conv2d, transposedConv2D, linear layers </li>
+<li> create layers of conv2d, transposedConv2D, linear architectures </li>
+<li> find an "n-th" half: value/2^n </li>
+<li> find flatten size of a linear layer </li>
+<li> Encoder Initialization: sequence of {Conv2D, activation, MaxPool of 2} blocks,
+ nn.Flatten, linear layer, activation </li>
+<li> Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks </li>
+<li> Inverse from AE: first decode then encode </li>
+<li> Save Checkpoint with all meta data (model's hyperparameters, CL training method) </li>
 
