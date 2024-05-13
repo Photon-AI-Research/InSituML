@@ -156,3 +156,14 @@ Contains methods:
 <li> Inverse from AE: first decode then encode, uses Upsample instead of Unpool </li>
 <li> Save Checkpoint with all meta data (model's hyperparameters, CL training method) </li>
 <li> Split model between 2 GPUs: encoder is transfered to cuda:0, decoder to cuda:1 </li>
+
+#### main/ModelHelpers/MeshDimensionDataset.py
+MeshDimensionDataset(Dataset): a wrap for dataset, used in main/ModelEvaluator.py, main/ModelTrainerTaskWise.py
+There is additional method to save some chunks of data with some meta information, data is returned in a flatten form
+within this class.
+
+#### main/ModelHelpers/PlotHelper.py
+
+Contains one method to create figures for wandb logging: groundtruth and prediction in each figure,
+in "jet" and in "grey" scaling. The method takes min/max values for normalization of images, but normalization is
+commented in the code.
