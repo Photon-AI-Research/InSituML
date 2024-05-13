@@ -1,4 +1,6 @@
 from math import sqrt
+from os import environ
+import pathlib
 
 #########################
 ## Model configuration ##
@@ -15,8 +17,8 @@ num_coupling_layers = 4,
 hidden_size = 256,
 num_blocks_mat = 6,
 activation = 'gelu',
-lr = 0.0001,
-lrAEmult = 5,
+lr = float(environ["LEARNING_RATE"]) if ("LEARNING_RATE" in environ) else 0.0001,
+lrAEmult = float(environ["LEARNING_RATE_AE"]) if ("LEARNING_RATE_AE" in environ) else 20,
 y_noise_scale = 1e-1,
 zeros_noise_scale = 5e-2,
 lambd_predict = 3.,
@@ -30,12 +32,12 @@ ndim_x = 544,
 ndim_y = 512,
 ndim_z = 32,
 load_model = None, #'inn_vae_latent_544_sim007_24k0zbm4/best_model_',
-load_model_checkpoint = 'inn_vae_latent_544_sim014_859eopan/model_150', #'inn_vae_latent_544_sim014_859eopan/model_950',
+load_model_checkpoint = 'inn_vae_latent_544_CD_sim014_slurm-6923925/model_24000',
     
 #   "earthmovers"
 #   "chamfersloss"
 #   "chamfersloss_d"
-#   "chamfersloss_0"
+#   "chamfersloss_o"
 ## for optimized chamfer distance
 loss_function = 'chamfersloss',
 loss_kwargs = {},

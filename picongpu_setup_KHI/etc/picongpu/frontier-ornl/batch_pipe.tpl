@@ -98,6 +98,7 @@ export OMP_NUM_THREADS=!TBG_coresPerGPU
 
 ## end calculations ##
 
+echo "BEGIN DATE: $(date '+%F%t%T')"
 echo 'Start job with !TBG_nodes_adjusted nodes. Required are !TBG_nodes nodes.'
 
 if (( !TBG_nodes < 2 )); then
@@ -135,6 +136,9 @@ if [ $? -ne 0 ] ; then
 fi
 unset MODULES_NO_OUTPUT
 
+#########################################################
+## Move environment and binaries to node local storage ##
+##
 compressed_env="${PREFIX}.tar.gz"
 
 # Create a folder for putting our binaries inside the NVMe on every node.
@@ -175,7 +179,7 @@ verify_synced() {
     ldd `which picongpu`
     srun python -c 'import openpmd_api; print("OPENPMD PATH:", openpmd_api)'
 }
-verify_synced | sed 's|^|>\t|'
+#DEBUG verify_synced | sed 's|^|>\t|'
 
 # Remove duplicates from the LD_LIBRARY_PATH to speed up application launches
 # at large scale.
@@ -205,9 +209,7 @@ clean_duplicates_stable()
 # remove parallel filesystems from PYTHONPATH
 export PYTHONPATH="$(echo "$PYTHONPATH" | sed -E 's_:(/lustre/orion|/ccs/home)[^:]*__g')"
 export LD_LIBRARY_PATH="$(echo "$LD_LIBRARY_PATH" | tr : '\n' | clean_duplicates_stable | tr '\n' :)"
-echo -e "LD_LIBRARY_PATH after cleaning duplicate entries:\n>\t$(echo "$LD_LIBRARY_PATH" | sed -E 's|:|\n>\t|g')"
-
-echo "BEGIN DATE: $(date +%F)"
+#DEBUG echo -e "LD_LIBRARY_PATH after cleaning duplicate entries:\n>\t$(echo "$LD_LIBRARY_PATH" | sed -E 's|:|\n>\t|g')"
 
 # set user rights to u=rwx;g=r-x;o=---
 umask 0027
@@ -229,6 +231,8 @@ else
 fi
 
 .TBG_numHostedDevicesPerNode=8
+
+begin_memtest=$(date +%s.%N)
 
 # test if cuda_memtest binary is available and we have the node exclusive
 if [ $run_cuda_memtest -eq 1 ] ; then
@@ -267,6 +271,10 @@ if [ $run_cuda_memtest -eq 1 ] ; then
 else
     echo "Note: GPU memory test was skipped as no binary 'cuda_memtest' available or compute node is not exclusively allocated. This does not affect PIConGPU, starting it now" >&2
 fi
+
+end_memtest=$(date +%s.%N)
+memtest_time=$(echo "scale=3; ${end_memtest} - ${begin_memtest}" | bc)
+echo "MEMTEST TIME [seconds]: ${memtest_time}"
 
 # Note: chunk distribution strategies are not yet mainlined in openPMD
 # This env variable is hence currently a no-op, except if you use
@@ -323,6 +331,17 @@ popd
 sbcast insituml.tar.gz "/mnt/bb/$USER/insituml.tar.gz"
 srun -N !TBG_nodes_adjusted --ntasks-per-node=1 tar -xzf "/mnt/bb/$USER/insituml.tar.gz" --directory "/mnt/bb/$USER/"
 
+## Copy ML input files to input directory
+##
+mkdir -p ../input/training
+
+cp -t ../input/training/ \
+  ${insituml}/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py \
+  ${insituml}/main/ModelHelpers/cINN/io_config_frontier_streaming.py \
+  ${insituml}/main/ModelHelpers/cINN/model_config.py
+
+
+
 if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     ##################
     ## Run InSituML ##
@@ -333,6 +352,28 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     export MASTER_PORT=12340
     export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
     export WORLD_SIZE=!TBG_tasks
+    .TBG_learnR=${LEARN_R:-"0.0001"}
+    export LEARNING_RATE=!TBG_learnR
+    .TBG_learnRAE=${LEARN_R_AE:-"20"}
+    export LEARNING_RATE_AE=!TBG_learnRAE
+    .TBG_minTB=${MIN_TB:-"4"}
+    export MIN_TB_FROM_UNCHANGED_NOW_BF=!TBG_minTB
+
+    # NCCL and torch.distributed (logging) settings
+    # see (https://pytorch.org/docs/stable/distributed.html#logging)
+    # and (https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/env.html)
+    export NCCL_SOCKET_FAMILY="AF_INET4" # address family setting for communication
+    export NCCL_DEBUG=WARN # possible choices: VERSION, WARN, INFO,TRACE
+    export TORCH_CPP_LOG_LEVEL=WARNING # possible choices: ERROR, WARNING, INFO
+    export TORCH_DISTRIBUTED_DEBUG=INFO # possible choices: INFO, DETAIL (only active if TORCH_CPP_LOG_LEVEL=INFO)
+
+    # Settings for torch DDP to use libfabric, couldn't find out how to make it use libfabric
+    # ATS = Address Translation Service, could not find documentation on this,
+    #   but has been used in (https://github.com/ROCm/aws-ofi-rccl?tab=readme-ov-file#running-rccl-perf-tests),
+    #   also see (https://h5bench.readthedocs.io/en/latest/running.html#sunspot-alcf)
+    #export FI_CXI_ATS=0
+    #export FI_LOG_LEVEL=TRACE
+    #export NCCL_NET_GDR_LEVEL=3
 
     test $n_broken_nodes -ne 0 && exclude_nodes="-x./bad_nodes.txt"
 
@@ -352,6 +393,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
 
     begin_run=$(date +%s.%N)
     echo "BEGIN RUN [seconds since 1970-01-01 00:00:00 UTC]: ${begin_run}"
+    echo "BEGIN RUN: $(date '+%F%t%T')"
 
     srun -l                                       \
       --ntasks !TBG_tasks                         \
@@ -366,6 +408,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       /mnt/bb/$USER/sync_bins/python              \
         "/mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
         --io_config /mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/io_config_frontier_streaming.py --runner srun \
+        --model_config /mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/model_config.py \
         > ../training.out 2> ../training.err              &
 
     sleep 1

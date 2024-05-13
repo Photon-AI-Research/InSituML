@@ -34,9 +34,8 @@ from dummy_openpmd_producer import DummyOpenPMDProducer
 
 import pathlib
 import importlib.util
-import sys
 
-print("Done importing modules.")
+print("Done importing modules.", flush=True)
 
 
 def main():
@@ -272,18 +271,18 @@ def main():
             original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=map_location)
             # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
             model.load_state_dict(original_state_dict)
-            print('Loaded pre-trained model successfully')
+            print('Loaded pre-trained model successfully', flush=True)
         
         elif config["load_model_checkpoint"] is not None:
             model, _, _, _, _, _ = load_checkpoint(filepath.format(config["load_model_checkpoint"]), model,map_location=map_location)
-            print('Loaded model checkpoint successfully')
+            print('Loaded model checkpoint successfully', flush=True)
         else:
             pass # run with random init
 
         lr = config["lr"]
         bs_factor = io_config.trainBatchBuffer_config["training_bs"] / 2 * world_size
         lr = lr * config["lr_scaling"](bs_factor)
-        print("Skaling learning rate from {} to {} due to bs factor {}".format(config["lr"], lr, bs_factor))
+        print("Scaling learning rate from {} to {} due to bs factor {}".format(config["lr"], lr, bs_factor), flush=True)
         optimizer = optim.Adam(
                 [
                     {'params':model.base_network.parameters(), 'lr':lr*config["lrAEmult"]},
@@ -308,7 +307,7 @@ def main():
         if runner=="torchrun":
             dist.init_process_group("nccl")
             rank = dist.get_rank()
-            print(f"Start running basic DDP example on rank {rank}.")
+            print(f"Start running basic DDP example on rank {rank}.", flush=True)
             # create model and move it to GPU with id rank
             rank = rank % torch.cuda.device_count()
 
@@ -317,7 +316,7 @@ def main():
             rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
             
             global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
-            print("ranks", global_rank, rank)
+            print("ranks", global_rank, rank, flush=True)
 
             dist.init_process_group(backend='nccl',world_size=world_size, rank=global_rank)
             print(f'Initiated DDP GPU {rank}', flush=True)
@@ -405,17 +404,14 @@ def main():
 
 
         modelTrainer.join()
-        print("Join model trainer")
-        #stdout.flush()
+        print("Join model trainer", flush=True)
 
-        #stdout.flush()
         timeBatchLoader.join()
-        print("Join openPMD data loader")
-        #stdout.flush()
+        print("Join openPMD data loader", flush=True)
 
         end_time = time.time()
         elapsed_time = end_time - start_time
-        print(f"Total elapsed time: {elapsed_time:.6f} seconds")
+        print(f"Total elapsed time: {elapsed_time:.6f} seconds", flush=True)
 
     def run_demo(demo_fn, world_size):
         mp.spawn(demo_fn,
