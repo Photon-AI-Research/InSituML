@@ -100,7 +100,7 @@ $ pytest --examples
 ```
 
 ---
-## examples/
+### examples/
 
 We have two kinds of offline test data:
 
