@@ -98,3 +98,22 @@ Also run examples. The "examples" marker is defined in `conftest.py`.
 ```sh
 $ pytest --examples
 ```
+
+## Description of old code
+
+### Anna Willmann
+
+#### main/ModelHelpers/ContinualLearner.py
+
+Class for realization of a neural network to be trained using CL (further Continual Learning).
+There is saved some information on method to use (EWC by default), implementation of EWC related
+methods:
+<li> Fisher Value estimate </li>
+<li> EWC Loss </li> 
+
+
+
+#### main/ModelHelpers/Autoencoder2D.py
+
+Autoencoder for 2D tensors (processing of images), inherited from ContinualLearning class
+
