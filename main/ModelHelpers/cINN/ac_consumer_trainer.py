@@ -11,7 +11,6 @@ from utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpo
 from mpi4py import MPI
 import os, time
 import pickle
-from sys import stdout
 
 """
 This class prints losses and optionally calls another logger to log losses in another way.
@@ -153,8 +152,7 @@ class ModelTrainer(Thread):
                     # something went wrong when reading the first data, abort
                     break
                 print(f"Trainer will wait for {self.sleep_before_retry} seconds, for data to be "
-                        f"streamed before reattempting batch extraction." )
-                stdout.flush()
+                        f"streamed before reattempting batch extraction.", flush=True)
                 time.sleep(self.sleep_before_retry)
                 continue   
             
@@ -198,8 +196,7 @@ class ModelTrainer(Thread):
                 print(f"Note: The streaming has stopped, the trainer will run for "
                         f"{self.ts_after_stopped_production} training steps (batch passes) "
                         f"before stopping.\n"
-                        f"Training step:{rest_training_left_counter} after the streaming has stopped.")
-                stdout.flush()
+                        f"Training step:{rest_training_left_counter} after the streaming has stopped.", flush=True)
                 rest_training_left_counter+=1
                 if rest_training_left_counter>self.ts_after_stopped_production:
                     if self.batch_passes > 0:
@@ -208,5 +205,4 @@ class ModelTrainer(Thread):
                             save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     break
 
-        print("Training ended after {} samples in {} batches.".format(self.training_samples, self.batch_passes))
-        stdout.flush()
+        print("Training ended after {} samples in {} batches.".format(self.training_samples, self.batch_passes), flush=True)

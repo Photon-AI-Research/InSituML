@@ -240,8 +240,7 @@ class StreamLoader(Thread):
             self.streamingConfig)
 
         if self.comm.rank == 0 or self.verbose:
-            print(">>>>> StreamLoader: Series defined.")
-            stdout.flush()
+            print(">>>>> StreamLoader: Series defined.", flush=True)
 
         # The streams wait until a reader connects.
         # To avoid deadlocks, we need to open both concurrently
@@ -254,8 +253,7 @@ class StreamLoader(Thread):
         t2.join()
 
         if self.comm.rank == 0 or self.verbose:
-            print(">>>>> StreamLoader: Series parsed.")
-            stdout.flush()
+            print(">>>>> StreamLoader: Series parsed.", flush=True)
 
         inranks = series.get_rank_table(collective=True)
         if not inranks:
@@ -307,8 +305,7 @@ class StreamLoader(Thread):
                 continue
 
             if self.comm.rank == 0 or self.verbose:
-                print("Start processing iteration %i"%(iteration.time))
-                stdout.flush()
+                print("Start processing iteration %i"%(iteration.time), flush=True)
             ## obtain particle distribution over GPUs ##
             #
             ps = iteration.particles["e_all"] #particle species
@@ -561,14 +558,12 @@ class StreamLoader(Thread):
                         continue
 
             if self.comm.rank == 0 or self.verbose:
-                print("Done loading iteration %i"%(iteration.time))
-                stdout.flush()
+                print("Done loading iteration %i"%(iteration.time), flush=True)
 
 
         # signal that there are no further items
         if self.comm.rank == 0 or self.verbose:
-            print("Processed all iterations")
-            stdout.flush()
+            print("Processed all iterations", flush=True)
         self.data.put(None)
 
         # close series
