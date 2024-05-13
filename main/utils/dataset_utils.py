@@ -17,11 +17,21 @@ class UnknownDatasetError(ValueError):
 
 
 class SubDataset(Dataset):
-    '''To sub-sample a dataset, taking only those samples with label in [sub_labels].
+    '''
+    Sub-samples a dataset, taking only those samples with label in [sub_labels].
     After this selection of samples has been made, it is possible to transform the target-labels,
-    which can be useful when doing continual learning with fixed number of output units.'''
+    which can be useful when doing continual learning with fixed number of output units.
+    '''
 
     def __init__(self, original_dataset, sub_labels, target_transform=None):
+        '''
+        Initializes the SubDataset.
+
+        Parameters:
+            original_dataset (Dataset): The original dataset to be sub-sampled.
+            sub_labels (list): The list of labels to include in the sub-sample.
+            target_transform (callable, optional): A function/transform to apply to the target label (default: None).
+        '''
         super().__init__()
         self.dataset = original_dataset
         self.sub_indeces = []
@@ -38,9 +48,24 @@ class SubDataset(Dataset):
         self.target_transform = target_transform
 
     def __len__(self):
+        '''
+        Returns the length of the sub-dataset.
+
+        Returns:
+            int: The length of the sub-dataset.
+        '''
         return len(self.sub_indeces)
 
     def __getitem__(self, index):
+        '''
+        Retrieves an item from the sub-dataset.
+
+        Parameters:
+            index (int): Index of the item to retrieve.
+
+        Returns:
+            tuple: A tuple containing the sample and its transformed target label.
+        '''
         sample = self.dataset[self.sub_indeces[index]]
         if self.target_transform:
             target = self.target_transform(sample[1])
@@ -48,15 +73,47 @@ class SubDataset(Dataset):
         return sample
 
 class EfieldDataset(Dataset):
+    '''
+    Dataset class for electric field data.
+
+    Attributes:
+        data_dir (str): The directory containing the data files.
+        iterations (list): List of iteration IDs for tasks.
+        train_dim (str, optional): The dimension for training data (default: None).
+    '''
+
     def __init__(self, data_dir, num_tasks, dim=None):
+        '''
+        Initializes the EfieldDataset.
+
+        Parameters:
+            data_dir (str): The directory containing the data files.
+            num_tasks (int): Number of tasks.
+            dim (str, optional): The dimension for training data (default: None).
+        '''
         self.data_dir = data_dir
         self.iterations = num_tasks
         self.train_dim = dim
     
     def __len__(self):
+        '''
+        Returns the length of the dataset.
+
+        Returns:
+            int: The number of tasks.
+        '''
         return len(self.iterations)
     
     def __getitem__(self, idx):
+        '''
+        Retrieves an item from the dataset.
+
+        Parameters:
+            idx (int): Index of the item to retrieve.
+
+        Returns:
+            tuple: A tuple containing the normalized tensor data and the iteration ID.
+        '''
         iteration_id = self.iterations[idx]
         data = np.load(os.path.join(
             self.data_dir, "data_{}.npy".format(iteration_id * 100)))
@@ -81,6 +138,16 @@ class EfieldDataset(Dataset):
         return norm_tensor.view(-1,dim[1],dim[2],dim[3]) , iteration_id
 
 def _permutate_image_pixels(image, permutation):
+    '''
+    Permutes the pixels of an image tensor.
+
+    Parameters:
+        image (torch.Tensor): The input image tensor.
+        permutation (torch.Tensor): The permutation tensor.
+
+    Returns:
+        torch.Tensor: Permuted image tensor.
+    '''
     if permutation is None:
         return image
 
@@ -119,6 +186,19 @@ def _get_dataset(
         download=True,
         permutation=None,
 ):
+    '''
+    Retrieves a dataset based on its name.
+
+    Parameters:
+        name (str): Name of the dataset.
+        datasets_dir (str): Directory containing the datasets.
+        train (bool): Whether to retrieve the training set (default: True).
+        download (bool): Whether to download the dataset if not found (default: True).
+        permutation (torch.Tensor): Permutation tensor (default: None).
+
+    Returns:
+        Dataset: The requested dataset.
+    '''
     if 'mnist' in name:
         dataset_class = datasets.MNIST
         dataset_name = 'mnist'
@@ -169,6 +249,20 @@ def get_tasks_datasets(
         num_tasks,
         train=True,
         permutations=None):
+    '''
+    Retrieves datasets for multiple tasks.
+
+    Parameters:
+        name (str): Name of the dataset.
+        datasets_dir (str): Directory containing the datasets.
+        classes (int): Number of classes.
+        num_tasks (int): Number of tasks.
+        train (bool): Whether to retrieve the training set (default: True).
+        permutations (list): List of permutation tensors (default: None).
+
+    Returns:
+        list: List of datasets for each task.
+    '''
     out_datasets = []
     if permutations:
         for perm in permutations:

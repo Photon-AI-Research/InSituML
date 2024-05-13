@@ -100,6 +100,203 @@ $ pytest --examples
 ```
 
 ---
+## Description of old code
+
+### main/ModelHelpers
+
+#### main/ModelHelpers/DeviceHelper.py
+
+The module contains functions:
+    -  Get type of the default device: cpu or cuda 
+    -  Move tensor(s) to chosen device 
+
+DeviceDataLoader(): wrap a dataloader such that each batch is not only indexed but also instantly transfered to
+the correct device
+
+#### main/ModelHelpers/ContinualLearner.py
+
+1. ContinualLearner(nn.Module): Class for realization of a neural network to be trained using CL (further Continual Learning).
+There is saved some information on method to use (EWC by default), implementation of EWC related
+methods:
+    -  Fisher Value estimate 
+    -  EWC Loss  
+    -  Calculates refrence gradients based on sampled memory from previous episodes 
+    -  Overwrite gradients for parameter update based on dot products as mentioned in A-GEM method 
+    -  Layerswise gradient calculation and overwriting
+2. EpisodicMemoryDataset(Dataset): Class to interface torch-dataset for episodic memory approach to train the model,
+contains regular dataset methods: init, length and indexing
+
+#### main/ModelHelpers/mlp.py
+
+MLP(ContinualLearner): MLP architecture for an autoencoder to be trained in CL approach, contain methods:
+-  xavier weigth initialization for conv2d, transposedConv2D, linear layers
+-  create linear layers 
+-  Encoder and Decoder Initialization: sequence of {nn.Linear, activation} blocks 
+-  Inverse from AE: first decode then encode 
+-  Save Checkpoint with all meta data (model's hyperparameters, CL training method)
+
+#### main/ModelHelpers/Autoencoder2D.py
+
+AutoEncoder2D(ContinualLearner): Autoencoder for 2D tensors (processing of images), inherited from ContinualLearning class
+Contains methods:
+-  xavier weigth initialization for conv2d, transposedConv2D, linear layers 
+-  create layers of conv2d, transposedConv2D, linear architectures 
+-  find an "n-th" half: value/2^n 
+-  find flatten size of a linear layer 
+-  Encoder Initialization: sequence of {Conv2D, activation, MaxPool of 2} blocks, nn.Flatten, linear layer, activation 
+-  Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks 
+-  Inverse from AE: first decode then encode, uses Upsample instead of Unpool 
+-  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
+
+
+#### main/ModelHelpers/Autoencoder3D.py
+
+AutoEncoder3D(ContinualLearner): Autoencoder for 3D tensors (processing of 3D volumes, e.g. distribution of a field in 3D space), inherited from ContinualLearning class
+Contains methods:
+-  xavier weigth initialization for conv3d, transposedConv3D, linear layers 
+-  create layers of conv3d, transposedConv3D, linear architectures 
+-  find an "n-th" half: value/2^n 
+-  find flatten size of a linear layer 
+-  Encoder Initialization: sequence of {Conv3D, activation, MaxPool of 2} blocks, nn.Flatten, linear layer, activation 
+-  Decoder Initialization: linear layer, sequence of {TransposedConv2D, activation, nn.MaxUnpool2d(2)} blocks 
+-  Inverse from AE: first decode then encode, uses Upsample instead of Unpool 
+-  Save Checkpoint with all meta data (model's hyperparameters, CL training method) 
+-  Split model between 2 GPUs: encoder is transfered to cuda:0, decoder to cuda:1 
+
+#### main/ModelHelpers/MeshDimensionDataset.py
+MeshDimensionDataset(Dataset): a wrap for dataset, used in main/ModelEvaluator.py, main/ModelTrainerTaskWise.py
+There is additional method to save some chunks of data with some meta information, data is returned in a flatten form
+within this class.
+
+#### main/ModelHelpers/PlotHelper.py
+
+Contains one method to create figures for wandb logging: groundtruth and prediction in each figure,
+in "jet" and in "grey" scaling. The method takes min/max values for normalization of images, but normalization is
+commented in the code.
+
+### /main/utils
+
+#### cifar_coarse.py
+Dependencies on other files within the repository: none
+
+Has one class:
+
+- class CIFAR100Coarse:  Groups the original CFAR100 fine-grained classes into 20 coarse-grained classes. Inherits from CIFAR100 class.
+
+#### dataset_utils.py
+Dependencies on other files within the repository:
+    - from StreamDataReader.StreamBuffer import StreamBuffer
+    - from utils.cifar100_coarse import CIFAR100Coarse
+    
+Has two classes:
+- class SubDataset: Sub-samples a dataset, taking only those samples with label in [sub_labels]. After this selection of samples has been made, it is possible to transform the target-labels, which can be useful when doing continual learning with fixed number of output units.
+- class EFieldDataset: Handles dataset class for electric field data.
+
+
+####  dist_utils.py
+Dependencies on other files within the repository: None
+
+A series of fucntions that provide essential functionality for setting up and managing distributed training processes in PyTorch, including process synchronization, distributed data parallelism, and distributed data sampling.
+
+#### EpisodicMemory.py
+Dependencies on other files within the repository: None
+
+Has one class:
+- class EpisodicMemory: Represents an episodic memory buffer for continual learning. It allows storing and retrieving data for different tasks, with options for handling memory overflow and providing reference data for gradient-based methods.
+
+#### plot_helper.py
+Dependencies on other files within the repository: None
+
+Contains utility functions for plotting data: 
+- "plot_reconstructed_data" plots original and reconstructed images side by side
+- "plot_reconstructed_data_taskwise" plots original images and reconstructed images task-wise
+- "plot_heatmap_df" plots a heatmap from DataFrame data
+
+### src/insituml
+
+@elcorto copied the `main/` folder in the beginning of 2023 to `src/insituml/` (id: 70afbe2). The only change is the addition of `src/insituml/toy_data/memory.py` (id: fe9d47b) to test out experience replay. But since `main/` has been developed further, `src/insituml/` is obsolete (apart from the contents of `toy_data`).
+
+#### src/insituml/toy_data/memory.py + generate.py
+
+`generator.py` generates the toy data for the experience replay implemented in `memory.py`. Both files only have external dependencies. Steve also created `examples/streaming_toy_data/simple_train.py` which imports and uses `memory.py` and `generate.py` to test the experience replay (id: 32536b7). 
+Summary of the experience replay results: https://github.com/Photon-AI-Research/InSituML/issues/28
+
+### main/StreamDataReader
+
+#### 1. stream_reader.py, stream_config.json#
+
+This module implements two classes:
+
+```py
+
+class StreamData
+class StreamReader
+
+```
+
+Data read by the `StreamReader` from openPMD based storage is stored in 3-tuple such that its contents are:
+- `stream_cfg` node under which to look for keys.
+- `data_dict` node under which to store results for each key. `data_dict` is the where the data stored.
+- The associated record that is supposed to contain the keys. The last value is simply associated iteration.
+
+`stream_cfg` reads its configuration from file `main/StreamDataReader/stream_config.json`. The `stream_config.json`
+contains the following dictionary. And the keys mentioned above refer to keys in this dictionary.
+
+```py
+
+{
+   "meshes":[
+      "E",
+      "J"
+   ],
+   "particles":{
+      "e":[
+         "position",
+          "id",
+          "momentum",
+          "weighting"
+      ]
+   }
+}
+
+```
+
+The `streamData` has 3 slots, which defines three types.
+
+```py
+__slots__ = ['data', 'np_shape', 'pic_shape']
+```
+First value is the raw data itself. The data from read from PIConGPU with `pic_shape` (which stays the same).
+The data is ultimately appended into a np type for which we are likely to be aware `np_shape`. The data is likely changed
+into nptypes to be pytorch model trainers.
+
+#### 2. StreamBuffer.py
+
+This implements a thread based class
+
+```py
+
+class StreamBuffer
+
+```
+uses the `StreamReader` defined to read the data either saved locally or being streamed. Allows setting up two characterstics:
+- the size of maximum number elements inserted into the buffer.
+- Whether read data locally/offline or stream in.
+
+#### 3. async_stream_buffer.py
+
+This implements a thread based class
+
+```py
+
+class AsyncStreamBuffer
+
+```
+
+This class is similar to `StreamBuffer.py` the data from a streamed output from PIConGPU. The difference that the filling and reading of buffer is handled inside this class instead of default handlers implemented in run method of Thread class in the case of `StreamBuffer.py`
+
+The async part of the implementation is not exactly clear. The new versions of this buffer have been implemented in the `ModelHelpers/cINN`.
+
 ### examples/
 
 We have two kinds of offline test data:
@@ -143,4 +340,3 @@ Files using new data:
 
 * `data_vis.py`: visualiation script for toy data
 * `simple_train.py` time-dependent toy data training with Experience Replay method
----
