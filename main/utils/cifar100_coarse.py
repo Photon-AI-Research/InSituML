@@ -2,10 +2,23 @@ import numpy as np
 from torchvision.datasets import CIFAR100
 
 class CIFAR100Coarse(CIFAR100):
+    """
+    Groups the original 100 fine-grained classes into 20 coarse-grained classes.
+
+    Inherits from CIFAR100 class.
+
+    Parameters:
+        root (str): Root directory of dataset where the dataset exists or will be downloaded.
+        train (bool, optional): If True, creates dataset from training set, otherwise from test set.
+        transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version.
+        target_transform (callable, optional): A function/transform that takes in the target and transforms it.
+        download (bool, optional): If True, downloads the dataset from the internet and puts it in root directory.
+    """
+    
     def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
         super(CIFAR100Coarse, self).__init__(root, train, transform, target_transform, download)
 
-        # update labels
+        # Update labels to coarse-grained labels
         coarse_labels = np.array([ 4,  1, 14,  8,  0,  6,  7,  7, 18,  3,
                                    3, 14,  9, 18,  7, 11,  3,  9,  7, 11,
                                    6, 11,  5, 10,  7,  6, 13, 15,  3, 15, 
@@ -18,7 +31,7 @@ class CIFAR100Coarse(CIFAR100):
                                   18,  1,  2, 15,  6,  0, 17,  8, 14, 13])
         self.targets = coarse_labels[self.targets]
 
-        # update classes
+        # Update classes to coarse-grained classes
         self.classes = [['beaver', 'dolphin', 'otter', 'seal', 'whale'],
                         ['aquarium_fish', 'flatfish', 'ray', 'shark', 'trout'],
                         ['orchid', 'poppy', 'rose', 'sunflower', 'tulip'],
