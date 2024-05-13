@@ -182,7 +182,7 @@ Has one class:
 
 - class CIFAR100Coarse:  Groups the original CFAR100 fine-grained classes into 20 coarse-grained classes. Inherits from CIFAR100 class.
 
--- dataset_utils.py
+#### dataset_utils.py
 Dependencies on other files within the repository:
     - from StreamDataReader.StreamBuffer import StreamBuffer
     - from utils.cifar100_coarse import CIFAR100Coarse
@@ -192,18 +192,18 @@ Has two classes:
 - class EFieldDataset: Handles dataset class for electric field data.
 
 
---  dist_utils.py
+####  dist_utils.py
 Dependencies on other files within the repository: None
 
 A series of fucntions that provide essential functionality for setting up and managing distributed training processes in PyTorch, including process synchronization, distributed data parallelism, and distributed data sampling.
 
--- EpisodicMemory.py
+#### EpisodicMemory.py
 Dependencies on other files within the repository: None
 
 Has one class:
 - class EpisodicMemory: Represents an episodic memory buffer for continual learning. It allows storing and retrieving data for different tasks, with options for handling memory overflow and providing reference data for gradient-based methods.
 
--- plot_helper.py
+#### plot_helper.py
 Dependencies on other files within the repository: None
 
 Contains utility functions for plotting data: 
