@@ -18,19 +18,19 @@ from torch import optim
 import torch.nn as nn
 
 from inSituML.utilities import MMD_multiscale, fit, load_checkpoint
-from ks_models import PC_MAF, INNModel
+from inSituML.ks_models import PC_MAF, INNModel
 
-from train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
-from train_khi_AE_refactored.encoder_decoder import Encoder
-from train_khi_AE_refactored.encoder_decoder import Encoder
-from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
-from train_khi_AE_refactored.loss_functions import EarthMoversLoss
-from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
-from wandb_logger import WandbLogger
+from inSituML.train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
+from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
+from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
+from inSituML.train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
+from inSituML.train_khi_AE_refactored.loss_functions import EarthMoversLoss
+from inSituML.train_khi_AE_refactored.networks import VAE, ConvAutoencoder
+from inSituML.wandb_logger import WandbLogger
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import argparse
-from dummy_openpmd_producer import DummyOpenPMDProducer
+from inSituML.dummy_openpmd_producer import DummyOpenPMDProducer
 
 import pathlib
 import importlib.util
