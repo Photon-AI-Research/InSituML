@@ -32,7 +32,7 @@ ndim_x = 544,
 ndim_y = 512,
 ndim_z = 32,
 load_model = None, #'inn_vae_latent_544_sim007_24k0zbm4/best_model_',
-load_model_checkpoint = 'inn_vae_latent_1024_sim002_2vsik2of',
+load_model_checkpoint = 'inn_vae_latent_544_sim007_24k0zbm4/model_1650',
     
 #   "earthmovers"
 #   "chamfersloss"
