@@ -1,6 +1,6 @@
 from threading import Thread
 import torch
-from cl_memory import ExperienceReplay
+from .cl_memory import ExperienceReplay
 from random import sample
 import os, time
 from collections import defaultdict

@@ -3,8 +3,8 @@ Main file/module to train ML model from PIConGPU openPMD data using streaming an
 """
 import time
 
-from ac_train_batch_buffer import TrainBatchBuffer
-from ac_consumer_trainer import ModelTrainer
+from inSituML.ac_train_batch_buffer import TrainBatchBuffer
+from inSituML.ac_consumer_trainer import ModelTrainer
 from threading import Thread
 import torch
 import numpy as np
@@ -17,20 +17,20 @@ import os
 from torch import optim
 import torch.nn as nn
 
-from utilities import MMD_multiscale, fit, load_checkpoint
-from ks_models import PC_MAF, INNModel
+from inSituML.utilities import MMD_multiscale, fit, load_checkpoint
+from inSituML.ks_models import PC_MAF, INNModel
 
-from train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
-from train_khi_AE_refactored.encoder_decoder import Encoder
-from train_khi_AE_refactored.encoder_decoder import Encoder
-from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
-from train_khi_AE_refactored.loss_functions import EarthMoversLoss
-from train_khi_AE_refactored.networks import VAE, ConvAutoencoder
-from wandb_logger import WandbLogger
+from inSituML.train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
+from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
+from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
+from inSituML.train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
+from inSituML.train_khi_AE_refactored.loss_functions import EarthMoversLoss
+from inSituML.train_khi_AE_refactored.networks import VAE, ConvAutoencoder
+from inSituML.wandb_logger import WandbLogger
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import argparse
-from dummy_openpmd_producer import DummyOpenPMDProducer
+from inSituML.dummy_openpmd_producer import DummyOpenPMDProducer
 
 import pathlib
 import importlib.util

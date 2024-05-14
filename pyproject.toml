@@ -1,6 +1,6 @@
 [project]
 
-name = "insituml"
+name = "inSituML"
 version = "0.0.0"
 
 # Until we have a CI, it makes no sense to restrict versions here.
