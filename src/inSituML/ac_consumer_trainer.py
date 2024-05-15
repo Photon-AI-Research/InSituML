@@ -133,7 +133,8 @@ class ModelTrainer(Thread):
 
     def run(self):
 
-        rest_training_left_counter=0
+        rest_training_left_counter = 0
+        losses = None
 
         while True:
 
@@ -157,6 +158,13 @@ class ModelTrainer(Thread):
             
             phase_space = phase_space.to(self.gpu_id)
             radiation = radiation.to(self.gpu_id)
+
+            # only logging from of the master process
+            if self.batch_passes > 0:
+                self.logger(losses, self.batch_passes-1)
+
+                if self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0:
+                    save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     
             self.batch_passes += 1
 
@@ -166,13 +174,6 @@ class ModelTrainer(Thread):
             
             losses = self.model(phase_space, radiation)
             loss = losses['total_loss']
-
-            # only logging from of the master process
-            if self.batch_passes > 0:
-                self.logger(losses, self.batch_passes-1)
-
-                if self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0:
-                    save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
             
             #reconstruction if needed
             # y, lat_z_pred = self.model.reconstruct(phase_space,radiation)
