@@ -17,13 +17,13 @@ In order to train the model do:
 	  pip install -r requirements_hemera.txt
 	  ```
 
-3. Adjust path to offline PIConGPU data in `/tools/io_config.py` (`pathpattern1` and `pathpattern2` (already there, but commented-out)) to
+3. Adjust path to offline PIConGPU data in `/share/configs/io_config.py` (`pathpattern1` and `pathpattern2` (already there, but commented-out)) to
       - frontier path to data with 08GPUs: `/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput`
       - frontier path to data with 16GPUs: `/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput`
       - frontier path to data with 32GPUs: `/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset`
    * `streaming_config` to `None` (to train from file),
-   * path to pre-trained model in `/tools/io_config.py` should not need to be adjusted.
-   * **There is also `/tools/io_config_frontier_offline.py`** which has these settings,
+   * path to pre-trained model in `/share/configs/io_config.py` should not need to be adjusted.
+   * **There is also `/share/configs/io_config_frontier_offline.py`** which has these settings,
      see below.
 
 4. Run training in an interactive job by continual, distributed learning with stream loader.
@@ -49,12 +49,12 @@ In order to train the model do:
    export MASTER_PORT=12340
    master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
    export MASTER_ADDR=$master_addr
-   mpirun -n <torch ranks per node> python tools/openpmd-streaming-continual-learning.py --io_config=tools/io_config_hemera.py --type_streamer=offline`
+   mpirun -n <torch ranks per node> python /share/configs/openpmd-streaming-continual-learning.py --io_config=/share/configs/io_config_hemera.py --type_streamer=offline`
    ```
    `--type_streamer` may be `streaming` or `offline`.
 
 ## Parameters for `openpmd-streaming-continual-learning.py`
 |arg | description | values |
 | --- | --- | --- |
-|`--tools/io_config`| IO-related config (producer/training buffer/model paths) | e.g. `tools/io_config.py` (default), `io_config_frontier_offline.py`, `tools/io_config_hemera.py` |
-|`--model_config` | model hyper parameters | `tools/model_config.py` |
+|`--/share/configs/io_config`| IO-related config (producer/training buffer/model paths) | e.g. `/share/configs/io_config.py` (default), `io_config_frontier_offline.py`, `/share/configs/io_config_hemera.py` |
+|`--model_config` | model hyper parameters | `/share/configs/model_config.py` |
