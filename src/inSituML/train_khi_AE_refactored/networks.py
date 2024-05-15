@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-from .encoder_decoder import Encoder
-from .encoder_decoder import MLPDecoder, Conv3DDecoder
 from .utilities import sample_gaussian, kl_normal, inspect_and_select
 
 # property_ to input_dim
@@ -110,7 +108,7 @@ class VAE(nn.Module):
         #ret = {'nelbo':nelbo, 'kl_loss':kl_loss, 'x_reconst':x_reconst}
         return nelbo,x_reconst,kl_loss, y, z
 
-    def sample_point(self, batch):
+    def sample_point(self, batch, device="cpu"):
         p_m = self.z_prior[0].expand(batch,self.z_dim).to(device)
         p_v = self.z_prior[1].expand(batch,self.z_dim).to(device)
         z =  sample_gaussian(p_m,p_v)
