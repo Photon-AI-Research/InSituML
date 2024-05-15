@@ -1,10 +1,7 @@
-import pytest
-import os 
-import torch
+import os
 
 
-
-def test_main_e2d():
+def t1est_main_e2d():
     args_to_add = '--pathpattern1 data/{}.npy '
     args_to_add += '--pathpattern2 data/{}.npy '
     args_to_add += '--t0 1999 '

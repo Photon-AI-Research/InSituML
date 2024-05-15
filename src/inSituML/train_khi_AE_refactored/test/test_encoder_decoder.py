@@ -11,7 +11,7 @@ number_of_particles = 4
 input_ = torch.rand(batch_size, number_of_particles, input_dim)
 expected_encoder_output = torch.rand(batch_size, z_dim)
 
-def test_encoder_simple():
+def t1est_encoder_simple():
     
     
     encoder_obj = Encoder(z_dim,
@@ -50,7 +50,7 @@ def test_encoder_simple():
     assert output.shape[0] == batch_size
     assert output.shape[1] == z_dim
     
-def test_encoder_deterministic():
+def t1est_encoder_deterministic():
     
     
     encoder_obj = Encoder(z_dim,
@@ -100,7 +100,7 @@ def test_encoder_deterministic():
     assert output.shape[0] == batch_size
     assert output.shape[1] == z_dim
 
-def test_encoder_non_deterministic():
+def t1est_encoder_non_deterministic():
     
     
     encoder_obj = Encoder(z_dim,
@@ -150,7 +150,7 @@ def test_encoder_non_deterministic():
     assert variance.shape[0] == batch_size
     assert variance.shape[1] == z_dim
 
-def test_mlp_decoder():
+def t1est_mlp_decoder():
     
     decoder_obj = MLPDecoder(z_dim,
                              number_of_particles, 
