@@ -12,7 +12,6 @@ Babel==2.10.1
 backcall==0.2.0
 beautifulsoup4==4.11.1
 bleach==5.0.0
-BoltzTraP2==22.12.1
 cachetools==5.3.3
 certifi==2022.5.18.1
 cffi==1.15.0
