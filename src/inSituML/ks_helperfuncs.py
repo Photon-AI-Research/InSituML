@@ -270,7 +270,7 @@ def create_force_density_plots(fx, fy, fz,
         plt.savefig(path + '/force_density_plots_{}.png'.format(t))
     
 
-def inference(gpu_index,t_index):
+def inference(gpu_index, t_index, hyperparameter_defaults, model):
 
     p_gt = load(hyperparameter_defaults["pathpattern1"].format(t_index),allow_pickle = True)
 
@@ -278,10 +278,6 @@ def inference(gpu_index,t_index):
     p_gt = array(p_gt, dtype = float32)
 
     p_rad = from_numpy(load(hyperparameter_defaults["pathpattern2"].format(t_index)).astype(cfloat))
-
-    p_rad_x = p_rad[gpu_index,0,:]
-    p_rad_y = p_rad[gpu_index,1,:]
-    p_rad_z = p_rad[gpu_index,2,:]
 
     p_rad = p_rad[:, 1:, :]
     p_rad = p_rad.view(p_rad.shape[0], -1)

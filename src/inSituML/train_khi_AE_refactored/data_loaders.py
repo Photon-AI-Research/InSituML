@@ -135,7 +135,7 @@ class TrainLoader:
                         bi = self_tb.perm[i:i+self_tb.batchsize]
                         
                         if self.loader.load_radiation:
-                            return self_tb.particles[bi], self_local.radiation[bi]
+                            return self_tb.particles[bi], self_tb.radiation[bi]
                         else:
                             return self_tb.particles[bi], None
                 

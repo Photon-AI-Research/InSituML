@@ -1,21 +1,17 @@
-"""
-
-
-"""
 import time
 from threading import Thread
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
-from .utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
+from .utilities import save_checkpoint_conditionally
 from mpi4py import MPI
 import os, time
-import pickle
 
-"""
-This class prints losses and optionally calls another logger to log losses in another way.
-"""
+
 class LossLogger:
+    """
+    This class prints losses and optionally calls another
+    logger to log losses in another way.
+    """
     def __init__(self, otherLogger=None, max_logs=20, out_prefix=""):
         self.printedHeader = False
         self.logger = otherLogger
@@ -138,7 +134,8 @@ class ModelTrainer(Thread):
 
     def run(self):
 
-        rest_training_left_counter=0
+        rest_training_left_counter = 0
+        losses = None
 
         while True:
 

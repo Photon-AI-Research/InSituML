@@ -3,7 +3,7 @@ Definitions of transformation policies for particle or radiation data.
 Implement policies as functors!
 To be used in the openPMD data producers which load PIConGPU data from disk or via streaming.
 """
-
+import numpy as np
 from torch import stack as torch_stack
 from torch import transpose as torch_transpose
 from torch import sum as torch_sum

@@ -4,8 +4,6 @@ import wandb
 
 import matplotlib.pyplot as plt
 import matplotlib.colors
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.ticker as tick
 from matplotlib import cm
 
 from . import data_preprocessing
@@ -337,7 +335,17 @@ def print_min_max(test_pointcloud, test_radiation, model):
         print('min:\t', mins_gt[ind], '\t',mins[ind])
         print('max:\t', maxs_gt[ind], '\t',maxs[ind])
 
-def log_each_plot(test_pointcloud, test_radiation, model):
+def log_each_plot(test_pointcloud,
+                  test_radiation,
+                  model,
+                  x_pos_offset,
+                  xnum,
+                  y_pos_offset,
+                  ynum,
+                  z_pos_offset,
+                  znum,
+                  supercell_num,
+                  num_supercells_to_merge):
     supercell = [int(k) for k in test_pointcloud.split('/')[-1].split('.')[0].split('_')[1:]]
     iteration = test_pointcloud.split('/')[-1].split('.')[0].split('_')[0]
     #pointcloud_tensor = data_preprocessing.get_particles_for_plot(test_pointcloud, num_particles)
