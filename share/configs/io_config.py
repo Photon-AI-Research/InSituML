@@ -1,7 +1,6 @@
 import pathlib
 
-modelPathPattern = str(pathlib.Path(__file__).parent.resolve()) + '/trained_models/{}'
-
+modelPathPattern = str(pathlib.Path(__file__).parent.parent.resolve()) + '/trained_models/{}'
 #######################################
 ## openPMD data loader configuration ##
 #######################################
