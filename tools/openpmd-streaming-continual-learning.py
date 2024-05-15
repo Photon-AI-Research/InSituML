@@ -403,9 +403,7 @@ def main():
             from inSituML.LoaderExceptionHandler import wrapLoaderWithExceptionHandler
             Loader = wrapLoaderWithExceptionHandler(StreamLoader)
 
-            particleDataTransformationPolicy = (
-                BoxesAttributesParticles()
-            )
+            particleDataTransformationPolicy = BoxesAttributesParticles()
             # returns particle data of shape
             # (local ranks, number_of_particles, ps_dims)
 
@@ -415,9 +413,7 @@ def main():
             # radiationDataTransformationPolicy =
             #                           PerpendicularAbsoluteAndPhase()
             # returns radiation data of shape (local ranks, frequencies)
-            radiationDataTransformationPolicy = (
-                AbsoluteSquare()
-            )
+            radiationDataTransformationPolicy = AbsoluteSquare()
             # returns radiation data of shape (local ranks, frequencies)
             # radiationDataTransformationPolicy = AbsoluteSquareSumRanks()
             # returns radiation data of shape (frequencies)

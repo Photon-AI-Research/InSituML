@@ -330,10 +330,10 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
             expected_fc_output_size = (
                 torch.tensor(initial_conv3d_size).prod().item()
             )
-            assert (
-                fc_layer_config[-1] == expected_fc_output_size
-            ), (f"Last FC layer output size {fc_layer_config[-1]} does not " +
-                f"match the expected size {expected_fc_output_size}")
+            assert fc_layer_config[-1] == expected_fc_output_size, (
+                f"Last FC layer output size {fc_layer_config[-1]} does not "
+                + f"match the expected size {expected_fc_output_size}"
+            )
 
             fc_layers = self.add_layers_seq(
                 "Linear",
@@ -348,10 +348,10 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
             expected_unflatten_size = (
                 torch.tensor(initial_conv3d_size).prod().item()
             )
-            assert (
-                z_dim == expected_unflatten_size
-            ), (f"z_dim {z_dim} does not match the expected size " +
-                f"{expected_unflatten_size}")
+            assert z_dim == expected_unflatten_size, (
+                f"z_dim {z_dim} does not match the expected size "
+                + f"{expected_unflatten_size}"
+            )
 
         # Unflatten layer to reshape the latent vector
         layers.append(nn.Unflatten(1, initial_conv3d_size))

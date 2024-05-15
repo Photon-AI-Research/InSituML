@@ -22,8 +22,8 @@ try:
                 self.chm_obj = dist_chamfer_3D.chamfer_6DDist()
             else:
                 raise ValueError(
-                    f"""Either wrong property_ name or property_ 'all' can't
-                                be used with ChamfersLossOptimized"""
+                    ("Either wrong property_ name or property_ 'all' can't" +
+                                " be used with ChamfersLossOptimized")
                 )
 
         def forward(self, x, y):
@@ -127,7 +127,7 @@ class EarthMoversLoss(SamplesLoss):
     """
     Simple class for earthmovers loss and compatibility in training code
      of autoencoders.
-    Reference: https: // www.kernel - operations.io / geomloss / 
+    Reference: https: // www.kernel - operations.io / geomloss /
                     _auto_examples / comparisons / plot_gradient_flows_2D.html
     """
 

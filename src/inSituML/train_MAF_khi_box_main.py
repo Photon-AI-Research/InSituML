@@ -324,8 +324,8 @@ if __name__ == "__main__":
             loss_timebatch_avg = sum(loss_avg) / len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
             print(
-                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, " +
-                "time: {}".format(
+                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, "
+                + "time: {}".format(
                     i_epoch,
                     tb,
                     loss.item(),
@@ -338,8 +338,8 @@ if __name__ == "__main__":
 
         if min_valid_loss > loss_overall_avg:
             print(
-                f"Validation Loss Decreased({min_valid_loss:.6f}--->" +
-                f"{loss_overall_avg:.6f}) \t Saving The Model"
+                f"Validation Loss Decreased({min_valid_loss:.6f}--->"
+                + f"{loss_overall_avg:.6f}) \t Saving The Model"
             )
             min_valid_loss = loss_overall_avg
             # Saving State Dict

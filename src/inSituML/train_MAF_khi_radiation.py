@@ -50,10 +50,13 @@ def save_checkpoint(
 class Loader:
     def __init__(
         self,
-        pathpattern1=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
-                      "particle_box/40_80_80_160_0_2/{}.npy"),
-        pathpattern2=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
-                      "part_rad/radiation_ex/{}.npy"),
+        pathpattern1=(
+            "/bigdata/hplsim/aipp/Jeyhun/khi/"
+            + "particle_box/40_80_80_160_0_2/{}.npy"
+        ),
+        pathpattern2=(
+            "/bigdata/hplsim/aipp/Jeyhun/khi/" + "part_rad/radiation_ex/{}.npy"
+        ),
         t0=0,
         t1=100,
         timebatchsize=20,
@@ -113,15 +116,15 @@ class Loader:
 
             def __getitem__(self, timebatch):
                 i = self.timebatchsize * timebatch
-                bi = self.perm[i : i + self.timebatchsize]
+                bi = self.perm[i:i + self.timebatchsize]
                 radiation = []
                 particles = []
                 print("=" * 60)
                 print("Timebatch: %i" % (i))
-                for time in bi:
-                    index = time + self.t0
+                for time_ in bi:
+                    index = loss_timebatch_avg + self.t0
 
-                    print("    time: %i" % (time))
+                    print("    time: %i" % (time_))
                     p_path = self.loader.pathpattern1.format(index)
                     print("        path: %s" % (p_path))
                     p = np.load(p_path, allow_pickle=True)
@@ -168,7 +171,7 @@ class Loader:
 
                     def __getitem__(self, batch):
                         i = self.batchsize * batch
-                        bi = self.perm[i : i + self.batchsize]
+                        bi = self.perm[i:i + self.batchsize]
 
                         return self.particles[bi], self.radiation[bi]
 
@@ -193,10 +196,13 @@ if __name__ == "__main__":
         num_epochs=200,
         num_blocks_mat=2,
         activation="gelu",
-        pathpattern1=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
-                      "part_rad/particle_002/{}.npy"),
-        pathpattern2=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
-                      "part_rad/radiation_ex_002/{}.npy"),
+        pathpattern1=(
+            "/bigdata/hplsim/aipp/Jeyhun/khi/" + "part_rad/particle_002/{}.npy"
+        ),
+        pathpattern2=(
+            "/bigdata/hplsim/aipp/Jeyhun/khi/"
+            + "part_rad/radiation_ex_002/{}.npy"
+        ),
     )
 
     enable_wandb = False
@@ -291,8 +297,10 @@ if __name__ == "__main__":
             loss_timebatch_avg = sum(loss_avg) / len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
             print(
-                ("i_epoch:{}, tb: {}, last timebatch loss: {}, " +
-                 "avg_loss: {}, time: {}").format(
+                (
+                    "i_epoch:{}, tb: {}, last timebatch loss: {}, "
+                    + "avg_loss: {}, time: {}"
+                ).format(
                     i_epoch,
                     tb,
                     loss.item(),
@@ -305,8 +313,8 @@ if __name__ == "__main__":
 
         if min_valid_loss > loss_overall_avg:
             print(
-                f"Validation Loss Decreased({min_valid_loss:.6f}--->" +
-                f"{loss_overall_avg:.6f}) \t Saving The Model"
+                f"Validation Loss Decreased({min_valid_loss:.6f}--->"
+                + f"{loss_overall_avg:.6f}) \t Saving The Model"
             )
             min_valid_loss = loss_overall_avg
             no_improvement_count = 0
