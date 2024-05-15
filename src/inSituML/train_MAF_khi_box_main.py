@@ -6,8 +6,6 @@ from model import model_MAF as model_MAF
 import torch.optim as optim
 import time
 import wandb
-import sys
-import matplotlib.pyplot as plt
 
 
 def sample_pointcloud(model, num_samples, cond, vmin, vmax):
@@ -15,7 +13,8 @@ def sample_pointcloud(model, num_samples, cond, vmin, vmax):
     with torch.no_grad():
         # pc_pr = (model.model.sample(10, cond)).squeeze(1)
         pc_pr = model.model.sample(num_samples, cond)
-        # pc_pr = data_preprocessing.denormalize_point(pc_pr.to('cpu'), self.vmin_ps, self.vmax_ps, self.a, self.b)
+        # pc_pr = data_preprocessing.denormalize_point(pc_pr.to('cpu'),
+        #                            self.vmin_ps, self.vmax_ps, self.a, self.b)
 
         print(pc_pr.shape)
 
@@ -71,7 +70,8 @@ def normalize_point(point, vmin, vmax, a=0.0, b=1.0):
 
 def denormalize_point(point_normalized, vmin, vmax, a=0.0, b=1.0):
     """
-    Denormalize point back to the original range using vmin(minimum) and vmax(maximum).
+    Denormalize point back to the original range using vmin(minimum)
+        and vmax(maximum).
     """
 
     # Convert the input to PyTorch tensors
@@ -324,7 +324,8 @@ if __name__ == "__main__":
             loss_timebatch_avg = sum(loss_avg) / len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
             print(
-                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}".format(
+                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, " +
+                "time: {}".format(
                     i_epoch,
                     tb,
                     loss.item(),
@@ -337,7 +338,8 @@ if __name__ == "__main__":
 
         if min_valid_loss > loss_overall_avg:
             print(
-                f"Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model"
+                f"Validation Loss Decreased({min_valid_loss:.6f}--->" +
+                f"{loss_overall_avg:.6f}) \t Saving The Model"
             )
             min_valid_loss = loss_overall_avg
             # Saving State Dict

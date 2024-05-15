@@ -11,6 +11,7 @@ from queue import Queue
 
 import sys
 import os
+import torch
 from torch import optim
 import torch.nn as nn
 
@@ -18,7 +19,6 @@ from inSituML.utilities import MMD_multiscale, fit, load_checkpoint
 from inSituML.ks_models import INNModel
 
 from inSituML.train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
-from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
 from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
 from inSituML.train_khi_AE_refactored.encoder_decoder import Conv3DDecoder
 from inSituML.train_khi_AE_refactored.loss_functions import EarthMoversLoss
@@ -74,8 +74,8 @@ def main():
 
     args = parser.parse_args()
 
-    ##TODO: if this file is to be used via import, the config paths or configs
-    ## must be allowed to com from somewhere else than CLI args
+    # TODO: if this file is to be used via import, the config paths or configs
+    # must be allowed to com from somewhere else than CLI args
     spec = importlib.util.spec_from_file_location("io_config", args.io_config)
     # global io_config
     io_config = importlib.util.module_from_spec(spec)
@@ -96,10 +96,10 @@ def main():
     if args.type_streamer is None:
         args.type_streamer = io_config.type_streamer
 
-    if not "training_bs" in io_config.trainBatchBuffer_config:
+    if "training_bs" not in io_config.trainBatchBuffer_config:
         io_config.trainBatchBuffer_config["training_bs"] = 4
 
-    ## Buffer shared between openPMD data loader and model
+    # Buffer shared between openPMD data loader and model
     openPMDBuffer = Queue(io_config.openPMD_queue_size)
 
     # nomraliztion values loaded from model_config,
@@ -258,14 +258,15 @@ def main():
         #                             )
 
         # MAF inner model (not used in final runs)
-        # inner_model = PC_MAF(dim_condition=config["dim_condition"],
-        #                         dim_input=config["dim_input"],
-        #                         num_coupling_layers=config["num_coupling_layers"],
-        #                         hidden_size=config["hidden_size"],
-        #                         device=rank,
-        #                         num_blocks_mat = config["num_blocks_mat"],
-        #                         activation = config["activation"]
-        #                         )
+        # inner_model = PC_MAF(
+        #           dim_condition=config["dim_condition"],
+        #           dim_input=config["dim_input"],
+        #           num_coupling_layers=config["num_coupling_layers"],
+        #           hidden_size=config["hidden_size"],
+        #           device=rank,
+        #           num_blocks_mat = config["num_blocks_mat"],
+        #           activation = config["activation"]
+        #           )
 
         # INN
         inner_model = INNModel(
@@ -404,21 +405,29 @@ def main():
 
             particleDataTransformationPolicy = (
                 BoxesAttributesParticles()
-            )  # returns particle data of shape (local ranks, number_of_particles, ps_dims)
-            # particleDataTransformationPolicy = ParticlesAttributes() #returns particle data of shape (number_of_particles, ps_dims)
+            )
+            # returns particle data of shape
+            # (local ranks, number_of_particles, ps_dims)
 
-            # radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase() #returns radiation data of shape (local ranks, frequencies)
+            # particleDataTransformationPolicy = ParticlesAttributes()
+            # returns particle data of shape (number_of_particles, ps_dims)
+
+            # radiationDataTransformationPolicy =
+            #                           PerpendicularAbsoluteAndPhase()
+            # returns radiation data of shape (local ranks, frequencies)
             radiationDataTransformationPolicy = (
                 AbsoluteSquare()
-            )  # returns radiation data of shape (local ranks, frequencies)
-            # radiationDataTransformationPolicy = AbsoluteSquareSumRanks() # returns radiation data of shape (frequencies)
+            )
+            # returns radiation data of shape (local ranks, frequencies)
+            # radiationDataTransformationPolicy = AbsoluteSquareSumRanks()
+            # returns radiation data of shape (frequencies)
 
             timeBatchLoader = Loader(
                 openPMDBuffer,
                 streamLoader_config,
                 particleDataTransformationPolicy,
                 radiationDataTransformationPolicy,
-            )  ## Streaming ready
+            )  # Streaming ready
         elif args.type_streamer == "offline":
 
             from inSituML.ks_transform_policies import (
@@ -443,7 +452,7 @@ def main():
                 streamLoader_config,
                 particleDataTransformationPolicy,
                 radiationDataTransformationPolicy,
-            )  ## Streaming ready
+            )  # Streaming ready
         else:
             timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
 
@@ -509,7 +518,9 @@ def main():
                 flush=True,
             )
 
-        # wandb_logger = WandbLogger(project="khi_public",args=config, entity='jeyhun')
+        # wandb_logger = WandbLogger(project="khi_public",
+        #                            args=config,
+        #                            entity='jeyhun')
         trainBF = TrainBatchBuffer(
             openPMDBuffer, **io_config.trainBatchBuffer_config
         )
@@ -524,13 +535,14 @@ def main():
         )
 
         ####################
-        ## Start training ##
+        #  Start training  #
         ####################
         start_time = time.time()
 
         modelTrainer.start()
         timeBatchLoader.start()
-        # tell the producer who is consuming, so it can check if the consumer died and terminate in this case
+        # tell the producer who is consuming, so it can check if the consumer
+        # died and terminate in this case
         timeBatchLoader.consumer_thread = modelTrainer
 
         modelTrainer.join()

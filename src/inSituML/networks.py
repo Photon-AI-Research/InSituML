@@ -99,7 +99,8 @@ class VAE(nn.Module):
 
             elif network_val != kwargs[val]:
                 raise ValueError(
-                    f"The {val} for {type_} does not match with network:{network_val} not equal {kwargs[val]}"
+                    f"The {val} for {type_} does not match with network:" +
+                    f"{network_val} not equal {kwargs[val]}"
                 )
 
     def forward(self, inputs):
@@ -140,7 +141,7 @@ class VAE(nn.Module):
             z
             if not self.use_encoding_in_decoder
             else torch.cat((z, p_m), dim=-1)
-        )  # BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
+        )
         y = self.decoder(decoder_input)
         return y
 
@@ -154,6 +155,6 @@ class VAE(nn.Module):
                 z
                 if not self.use_encoding_in_decoder
                 else torch.cat((z, m), dim=-1)
-            )  # BUGBUG: Ideally the encodings before passing to mu and sigma should be here.
+            )
             y = self.decoder(decoder_input)
         return y

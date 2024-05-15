@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 from torch import nn
 import numpy as np
 from .utilities import inspect_and_select
@@ -22,9 +21,9 @@ def adjust_args(arg1, arg2, kernel_size):
 
 class AddLayersMixin:
     """
-    Class for the common method used by both Encoder and MLPDecoder,
-    for adding sequential layers with common properties like batch normalisation
-    and activation after convolutional layers and linear, fully connected layers.
+    Class for the common method used by both Encoder and MLPDecoder, for adding
+    sequential layers with common properties like batch normalisation and
+    activation after convolutional layers and linear, fully connected layers.
     """
 
     def add_layers_seq(
@@ -37,7 +36,10 @@ class AddLayersMixin:
         kernel_size=None,
     ):
         """
-        This methods creates a python array to be later added to nn.Sequential with similar layer block like convolution, activation, batchnorm. Allows the turning of batch normalisation, activation for different functions.
+        This methods creates a python array to be later added to nn.Sequential
+        with similar layer block like convolution, activation, batchnorm.
+        Allows the turning of batch normalisation, activation for
+        different functions.
 
         Args:
 
@@ -49,16 +51,14 @@ class AddLayersMixin:
         add_activation (Bool): Whether to add activation, after every
         layer_kind layer.
 
-        add_batch_normalisation (Bool): Whether to add batch normalisation, after every
-        layer_kind layer.
+        add_batch_normalisation (Bool): Whether to add batch normalisation,
+        after every layer_kind layer.
 
         kernel_size (int): Kernel size in case of Conv1d.
         """
         layers = []
 
         for idx, channel_size in enumerate(config):
-
-            input_args = []
 
             if idx == 0:
                 layers.append(
@@ -86,7 +86,8 @@ class AddLayersMixin:
 
 class Encoder(AddLayersMixin, nn.Module):
     """
-    Encoder for adding a mixture of convolution layers and fully connected layers.
+    Encoder for adding a mixture of convolution layers and fully
+    connected layers.
     Like the one used here:
     https://arxiv.org/abs/1906.12320
 
@@ -94,21 +95,26 @@ class Encoder(AddLayersMixin, nn.Module):
 
     zdim (int): Dimensions of latent space.
 
-    ae_config (str): Configuration of Encoder required. Could deterministic, non_deterministic, or simple.
+    ae_config (str): Configuration of Encoder required. Could deterministic,
+    non_deterministic, or simple.
 
     conv_layer_config (List): List of sizes of convolutional layers.
 
-    conv_add_bn (Bool): Whether to add batch normalisation after the convolutional layers.
+    conv_add_bn (Bool): Whether to add batch normalisation after the
+    convolutional layers.
 
-    conv_add_activation (Bool): Whether to add activation function after the convolutional layers.
+    conv_add_activation (Bool): Whether to add activation function after
+    the convolutional layers.
 
     kernel_size (int): Kernel size for convolutional layers.
 
     fc_layer_config (List): List of sizes of fully connected layers.
 
-    fc_add_bn (Bool): Whether to add batch normalisation after the fully connected layers.
+    fc_add_bn (Bool): Whether to add batch normalisation after the fully
+    connected layers.
 
-    fc_add_activation (Bool): Whether to add activation function after the fully connected layers.
+    fc_add_activation (Bool): Whether to add activation function after
+    the fully connected layers.
 
     """
 
@@ -116,7 +122,6 @@ class Encoder(AddLayersMixin, nn.Module):
         self,
         z_dim,
         input_dim=3,
-        particles_to_sample=None,
         ae_config="deterministic",
         conv_layer_config=[128, 128, 256, 512],
         conv_add_bn=True,
@@ -240,7 +245,6 @@ class MLPDecoder(AddLayersMixin, nn.Module):
         z_dim,
         particles_to_sample,
         input_dim,
-        ae_config=None,
         layer_config=[256],
         add_batch_normalisation=False,
     ):
@@ -278,13 +282,16 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
     Args:
         z_dim (int): Dimension of the latent space.
         input_dim (int): Dimension of the input.
-        initial_conv3d_size (list): Initial size for unflattening the latent vector.
+        initial_conv3d_size (list): Initial size for unflattening the
+         latent vector.
         conv3d_layer_config (list): Configuration of convolutional layers.
-        fc_layer_config (list, optional): Configuration of fully connected layers.
+        fc_layer_config (list, optional): Configuration of fully connected
+         layers.
         kernel_size (int, optional): Size of the convolutional kernel.
         stride (int, optional): Stride of the convolution operation.
         padding (int, optional): Padding of the convolution operation.
-        add_batch_normalisation (bool): Whether to add batch normalization layers.
+        add_batch_normalisation (bool): Whether to add batch normalization
+         layers.
         add_activation (bool): Whether to add activation functions.
         output_points (int): Specify exact number of output points
         **kwargs: Additional keyword arguments.
@@ -325,7 +332,8 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
             )
             assert (
                 fc_layer_config[-1] == expected_fc_output_size
-            ), f"Last FC layer output size {fc_layer_config[-1]} does not match the expected size {expected_fc_output_size}"
+            ), (f"Last FC layer output size {fc_layer_config[-1]} does not " +
+                f"match the expected size {expected_fc_output_size}")
 
             fc_layers = self.add_layers_seq(
                 "Linear",
@@ -342,7 +350,8 @@ class Conv3DDecoder(AddLayersMixin, nn.Module):
             )
             assert (
                 z_dim == expected_unflatten_size
-            ), f"z_dim {z_dim} does not match the expected size {expected_unflatten_size}"
+            ), (f"z_dim {z_dim} does not match the expected size " +
+                f"{expected_unflatten_size}")
 
         # Unflatten layer to reshape the latent vector
         layers.append(nn.Unflatten(1, initial_conv3d_size))

@@ -37,8 +37,10 @@ except Exception:
 
 class ChamfersLossDiagonal(nn.Module):
     """
-    Custom loss class for Chamfers Distance taken with diagonal things to metrics.
-    Taken from https://github.com/lingjiekong/CS236Project/blob/eval_metric/metrics/evaluation_metrics.py
+    Custom loss class for Chamfers Distance taken with diagonal
+    things to metrics.
+    Taken from https://github.com/lingjiekong/CS236Project/blob/
+                                    eval_metric/metrics/evaluation_metrics.py
     Args:
         reduction(str): How to reduce loss from each batch element.
         p(float): value for the p - norm distance to calculate between
@@ -64,7 +66,7 @@ class ChamfersLossDiagonal(nn.Module):
 
     def chamfers_distance(self, a, b):
         x, y = a, b
-        bs, num_points, points_dim = x.size()
+        _, num_points, _ = x.size()
         xx = torch.bmm(x, x.transpose(2, 1))
         yy = torch.bmm(y, y.transpose(2, 1))
         zz = torch.bmm(x, y.transpose(2, 1))
@@ -123,8 +125,10 @@ class ChamfersLoss(nn.Module):
 
 class EarthMoversLoss(SamplesLoss):
     """
-    Simple class for earthmovers loss and compatibility in training code of autoencoders.
-    Reference: https: // www.kernel - operations.io / geomloss / _auto_examples / comparisons / plot_gradient_flows_2D.html
+    Simple class for earthmovers loss and compatibility in training code
+     of autoencoders.
+    Reference: https: // www.kernel - operations.io / geomloss / 
+                    _auto_examples / comparisons / plot_gradient_flows_2D.html
     """
 
     def __init__(self, p=1, blur=0.01, backend="auto", reduction="mean"):
