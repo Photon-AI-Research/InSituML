@@ -336,11 +336,11 @@ def main():
         
         if args.type_streamer == 'streaming':
             
-            from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
+            from inSituML.ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
             #from ks_producer_openPMD_streaming import StreamLoaderExceptionCatcher as StreamLoader
-            from ks_producer_openPMD_streaming import StreamLoader
+            from inSituML.ks_producer_openPMD_streaming import StreamLoader
 
-            from LoaderExceptionHandler import wrapLoaderWithExceptionHandler
+            from inSituML.LoaderExceptionHandler import wrapLoaderWithExceptionHandler
             Loader = wrapLoaderWithExceptionHandler(StreamLoader)
 
 

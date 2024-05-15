@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import numpy as np
-from utilities import inspect_and_select
+from .utilities import inspect_and_select
 import math
 
 def adjust_args(arg1, arg2, kernel_size):
