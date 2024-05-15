@@ -6,10 +6,8 @@ name: Python application
 
 #docker pull ornladios/adios2
 on:
-  push:
-    branches: [ "24-add-simple-ci" ]
   pull_request:
-    branches: [ "24-add-simple-ci" ]
+    branches: [ "khi" ]
 
 permissions:
   contents: read
