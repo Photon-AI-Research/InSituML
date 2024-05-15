@@ -83,7 +83,8 @@ class VAE(nn.Module):
         self.encoder = encoder(**encoder_kwargs)
         self.decoder = decoder(**decoder_kwargs)
 
-        # set prior parameters of the vae model p(z) with 0 mean and 1 variance.
+        # set prior parameters of the vae model p(z)
+        #       with 0 mean and 1 variance.
         self.z_prior_m = torch.nn.Parameter(
             torch.zeros(1), requires_grad=False
         )
@@ -99,8 +100,8 @@ class VAE(nn.Module):
 
             elif network_val != kwargs[val]:
                 raise ValueError(
-                    f"The {val} for {type_} does not match with network:" +
-                    f"{network_val} not equal {kwargs[val]}"
+                    f"The {val} for {type_} does not match with network:"
+                    + f"{network_val} not equal {kwargs[val]}"
                 )
 
     def forward(self, inputs):
