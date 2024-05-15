@@ -6,20 +6,18 @@ name: Python application
 
 #docker pull ornladios/adios2
 on:
-  push:
-    branches: [ "24-add-simple-ci" ]
   pull_request:
-    branches: [ "24-add-simple-ci" ]
+    branches: [ "khi" ]
 
 permissions:
   contents: read
 
 jobs:
   build:
-    container: ornladios/adios2
+    container: ornladios/adios2:ci-spack-ubuntu20.04-gcc11
     
-    #runs-on: ubuntu-18.04
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
+    #runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
