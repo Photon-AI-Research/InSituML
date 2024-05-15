@@ -1,9 +1,7 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from math import log, pi
 import torch
-import random
 from collections import deque
 import inspect
 
@@ -98,7 +96,7 @@ def kl_normal(qm,qv,pm,pv):
 def create_position_density_plots(x, y, z,
                                   x_pr, y_pr, z_pr,
                                   bins=100, t=1000, path='',
-                                  wandb = None):
+                                  wandb=None):
     
     # Specify the number of bins for each axis
     bins_x = np.linspace(min(x), max(x), bins)
@@ -173,7 +171,7 @@ def create_position_density_plots(x, y, z,
 def create_momentum_density_plots(px, py, pz,
                                   px_pr, py_pr, pz_pr,
                                   bins=100, t=1000, path='',
-                                  wandb = None):
+                                  wandb=None):
     
     # Specify the number of bins for each axis
     bins_px = np.linspace(min(px), max(px), bins)
