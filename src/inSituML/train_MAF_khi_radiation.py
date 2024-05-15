@@ -6,8 +6,6 @@ from model import model_MAF as model_MAF
 import torch.optim as optim
 import time
 import wandb
-import sys
-import matplotlib.pyplot as plt
 
 
 def sample_pointcloud(model, num_samples, cond):
@@ -52,8 +50,10 @@ def save_checkpoint(
 class Loader:
     def __init__(
         self,
-        pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/40_80_80_160_0_2/{}.npy",
-        pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex/{}.npy",
+        pathpattern1=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
+                      "particle_box/40_80_80_160_0_2/{}.npy"),
+        pathpattern2=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
+                      "part_rad/radiation_ex/{}.npy"),
         t0=0,
         t1=100,
         timebatchsize=20,
@@ -193,8 +193,10 @@ if __name__ == "__main__":
         num_epochs=200,
         num_blocks_mat=2,
         activation="gelu",
-        pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
-        pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
+        pathpattern1=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
+                      "part_rad/particle_002/{}.npy"),
+        pathpattern2=("/bigdata/hplsim/aipp/Jeyhun/khi/" +
+                      "part_rad/radiation_ex_002/{}.npy"),
     )
 
     enable_wandb = False
@@ -289,7 +291,8 @@ if __name__ == "__main__":
             loss_timebatch_avg = sum(loss_avg) / len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
             print(
-                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}".format(
+                ("i_epoch:{}, tb: {}, last timebatch loss: {}, " +
+                 "avg_loss: {}, time: {}").format(
                     i_epoch,
                     tb,
                     loss.item(),
@@ -302,13 +305,15 @@ if __name__ == "__main__":
 
         if min_valid_loss > loss_overall_avg:
             print(
-                f"Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model"
+                f"Validation Loss Decreased({min_valid_loss:.6f}--->" +
+                f"{loss_overall_avg:.6f}) \t Saving The Model"
             )
             min_valid_loss = loss_overall_avg
             no_improvement_count = 0
             slow_improvement_count = 0
             # Saving State Dict
-            # torch.save(model.state_dict(), directory + '/best_model_', _use_new_zipfile_serialization=False)
+            # torch.save(model.state_dict(), directory +
+            # '/best_model_', _use_new_zipfile_serialization=False)
         else:
             no_improvement_count += 1
             if (
@@ -340,7 +345,8 @@ if __name__ == "__main__":
                 }
             )
 
-        # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
+        # if no_improvement_count >= patience or
+        #              slow_improvement_count >= slow_improvement_patience:
         #     break  # Stop training
 
     # Code or process to be measured goes here
