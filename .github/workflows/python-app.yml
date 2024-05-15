@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   build:
+    docker:
+      - image: ornladios/adios2
 
     runs-on: ubuntu-latest
 
