@@ -1,8 +1,6 @@
 from os import environ
 import pathlib
 
-modelPathPattern = str(pathlib.Path(__file__).parent.parent.resolve()) + '/trained_models/{}'
-
 #######################################
 ## openPMD data loader configuration ##
 #######################################
@@ -42,7 +40,7 @@ trainBatchBuffer_config = dict(
     stall_loader=True,
     consume_size=1,
     min_tb_from_unchanged_now_bf = 4,
-    radiation_data_folder = "streamedRadiation",
+    radiation_data_folder = out_prefix,
     #Train buffer.
     buffersize = 10,
     #long buffer

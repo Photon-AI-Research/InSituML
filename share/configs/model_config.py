@@ -1,6 +1,8 @@
 from math import sqrt
-from os import environ
+from os import environ, path
 import pathlib
+
+INSITUML_model_path = str(pathlib.Path(__file__).parent.parent.resolve()) + '/trained_models/'
 
 #########################
 ## Model configuration ##
@@ -31,8 +33,8 @@ ndim_tot = 544,
 ndim_x = 544,
 ndim_y = 512,
 ndim_z = 32,
-load_model = None, #'inn_vae_latent_544_sim007_24k0zbm4/best_model_',
-load_model_checkpoint = 'inn_vae_latent_544_CD_sim014_slurm-6923925/model_24000',
+load_model = None, #path.join(INSITUML_model_path, 'inn_vae_latent_544_sim007_24k0zbm4/best_model_'),
+load_model_checkpoint = path.join(INSITUML_model_path, 'inn_vae_latent_544_CD_sim014_slurm-6923925/model_24000'),
     
 #   "earthmovers"
 #   "chamfersloss"

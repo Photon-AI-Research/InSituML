@@ -262,19 +262,15 @@ def main():
 
 
         #Load a pre-trained model
-        # filepath = '/autofs/nccs-svm1_home1/ksteinig/src/InSituML/main/ModelHelpers/cINN/trained_models/{}/best_model_'
-        # filepath = 'trained_models/{}/best_model_'
-        filepath = io_config.modelPathPattern
-
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
         if config["load_model"] is not None:
-            original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=map_location)
+            original_state_dict = torch.load(config["load_model"], map_location=map_location)
             # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
             model.load_state_dict(original_state_dict)
             print('Loaded pre-trained model successfully', flush=True)
         
         elif config["load_model_checkpoint"] is not None:
-            model, _, _, _, _, _ = load_checkpoint(filepath.format(config["load_model_checkpoint"]), model,map_location=map_location)
+            model, _, _, _, _, _ = load_checkpoint(config["load_model_checkpoint"], model,map_location=map_location)
             print('Loaded model checkpoint successfully', flush=True)
         else:
             pass # run with random init
