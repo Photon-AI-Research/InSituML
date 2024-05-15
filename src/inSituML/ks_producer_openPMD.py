@@ -23,7 +23,7 @@ from torch import stack as torch_stack
 from mpi4py import MPI
 import openpmd_api as opmd
 
-from ks_helperfuncs import *
+from .ks_helperfuncs import *
 
 class RandomLoader(Thread):
     """ Thread providing PIConGPU particle and radiation data for the ML model training.

@@ -356,10 +356,10 @@ def main():
                                         particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
         elif args.type_streamer == 'offline':
             
-            from ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
-            from ks_producer_openPMD import RandomLoader
+            from inSituML.ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
+            from inSituML.ks_producer_openPMD import RandomLoader
 
-            from LoaderExceptionHandler import wrapLoaderWithExceptionHandler
+            from inSituML.LoaderExceptionHandler import wrapLoaderWithExceptionHandler
             Loader = wrapLoaderWithExceptionHandler(RandomLoader)
 
             particleDataTransformationPolicy = BoxesAttributesParticles()
