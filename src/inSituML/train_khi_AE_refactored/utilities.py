@@ -52,7 +52,7 @@ def save_visual_multi(*args, property_):
     deque(save_visual(*args, property_, running_all=True) \
              for property_ in property_run)
     
-def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, running_all=False):
+def save_visual(model, timebatch, wandb, timeInfo, info_image_path, property_, running_all=False, device="cpu"):
     
     #avoiding turning on model.eval
     random_input, _ = timebatch[torch.randint(len(timebatch),(1,))[0]]
