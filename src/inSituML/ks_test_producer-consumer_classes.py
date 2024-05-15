@@ -5,14 +5,16 @@ from random import random
 from threading import Thread
 from queue import Queue
 
+
 class ProduceRandomNumbers(Thread):
     """Producer task"""
+
     def __init__(self, queue):
         Thread.__init__(self)
         self.queue = queue
 
     def run(self):
-        print('Producer: Running')
+        print("Producer: Running")
         # generate items
         for i in range(10):
             # generate a value
@@ -24,19 +26,21 @@ class ProduceRandomNumbers(Thread):
             # add to the queue
             self.queue.put(item)
             # report progress
-            print(f'>producer added {item}')
+            print(f">producer added {item}")
         # signal that there are no further items
         self.queue.put(None)
-        print('Producer: Done')
- 
+        print("Producer: Done")
+
+
 class ConsumeRandomNumbers(Thread):
     """Consumer task"""
+
     def __init__(self, queue):
         Thread.__init__(self)
         self.queue = queue
 
     def run(self):
-        print('Consumer: Running')
+        print("Consumer: Running")
         # consume items
         while True:
             # get a unit of work
@@ -47,10 +51,11 @@ class ConsumeRandomNumbers(Thread):
             # block, to simulate effort
             sleep(item[1])
             # report
-            print(f'>consumer got {item}')
+            print(f">consumer got {item}")
         # all done
-        print('Consumer: Done')
- 
+        print("Consumer: Done")
+
+
 # create the shared queue
 queue = Queue()
 # start the consumer
@@ -62,4 +67,3 @@ producer.start()
 # wait for all threads to finish
 producer.join()
 consumer.join()
-

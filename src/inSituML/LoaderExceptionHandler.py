@@ -1,5 +1,6 @@
 import traceback
 
+
 def wrapLoaderWithExceptionHandler(LoaderType):
     class StreamLoaderExceptionCatcher(LoaderType):
         def run(self):

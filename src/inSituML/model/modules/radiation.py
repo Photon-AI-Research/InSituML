@@ -38,8 +38,9 @@ class RadiationData:
         self.timestep = self.get_timestep()
 
         # Amplitude
-        detectorAmplitude = self.h5_file[("/data/{}/DetectorMesh/" +
-                                          "Amplitude").format(self.timestep)]
+        detectorAmplitude = self.h5_file[
+            ("/data/{}/DetectorMesh/" + "Amplitude").format(self.timestep)
+        ]
         # A_x
         self.h5_Ax_Re = detectorAmplitude["x_Re"]
         self.h5_Ax_Im = detectorAmplitude["x_Im"]
@@ -51,7 +52,7 @@ class RadiationData:
         self.h5_Az_Im = detectorAmplitude["z_Im"]
 
         # conversion factor for spectra from PIC units to SI units
-        self.convert_to_SI = detectorAmplitude["x_Re"].attrs['unitSI']
+        self.convert_to_SI = detectorAmplitude["x_Re"].attrs["unitSI"]
 
     def get_timestep(self):
         """Returns simulation timestep of the hdf5 data."""
@@ -60,56 +61,67 @@ class RadiationData:
         if str_timestep.isdigit():
             return int(str_timestep)
         else:
-            raise Exception("Could not extract timestep from " +
-                            "filename (\"{}\") - ".format(self.filename) +
-                            "Extracted: {}".format(str_timestep))
+            raise Exception(
+                "Could not extract timestep from "
+                + 'filename ("{}") - '.format(self.filename)
+                + "Extracted: {}".format(str_timestep)
+            )
 
     def get_Amplitude_x(self):
         """Returns the complex amplitudes in x-axis."""
-        return ((self.h5_Ax_Re[...] + 1j * self.h5_Ax_Im[...])[:, :, 0] *
-                np.sqrt(self.convert_to_SI))
+        return (self.h5_Ax_Re[...] + 1j * self.h5_Ax_Im[...])[
+            :, :, 0
+        ] * np.sqrt(self.convert_to_SI)
 
     def get_Amplitude_y(self):
         """Returns the complex amplitudes in y-axis."""
-        return ((self.h5_Ay_Re[...] + 1j * self.h5_Ay_Im[...])[:, :, 0] *
-                np.sqrt(self.convert_to_SI))
+        return (self.h5_Ay_Re[...] + 1j * self.h5_Ay_Im[...])[
+            :, :, 0
+        ] * np.sqrt(self.convert_to_SI)
 
     def get_Amplitude_z(self):
         """Returns the complex amplitudes in z-axis."""
-        return ((self.h5_Az_Re[...] + 1j * self.h5_Az_Im[...])[:, :, 0] *
-                np.sqrt(self.convert_to_SI))
+        return (self.h5_Az_Re[...] + 1j * self.h5_Az_Im[...])[
+            :, :, 0
+        ] * np.sqrt(self.convert_to_SI)
 
     def get_Spectra(self):
         """Returns real spectra in [Js]."""
-        return (np.abs(self.get_Amplitude_x())**2 +
-                np.abs(self.get_Amplitude_y())**2 +
-                np.abs(self.get_Amplitude_z())**2)
+        return (
+            np.abs(self.get_Amplitude_x()) ** 2
+            + np.abs(self.get_Amplitude_y()) ** 2
+            + np.abs(self.get_Amplitude_z()) ** 2
+        )
 
     def get_Polarization_X(self):
         """Returns real spectra for x-polarization in [Js]."""
-        return np.abs(self.get_Amplitude_x())**2
+        return np.abs(self.get_Amplitude_x()) ** 2
 
     def get_Polarization_Y(self):
         """Returns real spectra for y-polarization in [Js]."""
-        return np.abs(self.get_Amplitude_y())**2
+        return np.abs(self.get_Amplitude_y()) ** 2
 
     def get_Polarization_Z(self):
         """Returns real spectra for z-polarization in [Js]."""
-        return np.abs(self.get_Amplitude_z())**2
+        return np.abs(self.get_Amplitude_z()) ** 2
 
     def get_omega(self):
         """Returns frequency 'omega' of spectrum in [s^-1]."""
-        omega_h = self.h5_file["/data/{}/".format(self.timestep) +
-                               "DetectorMesh/DetectorFrequency/omega"]
-        return omega_h[0, :, 0] * omega_h.attrs['unitSI']
+        omega_h = self.h5_file[
+            "/data/{}/".format(self.timestep)
+            + "DetectorMesh/DetectorFrequency/omega"
+        ]
+        return omega_h[0, :, 0] * omega_h.attrs["unitSI"]
 
     def get_vector_n(self):
         """Returns the unit vector 'n' of the observation directions."""
-        n_h = self.h5_file["/data/{}/".format(self.timestep) +
-                           "DetectorMesh/DetectorDirection/"]
-        n_x = n_h['x'][:, 0, 0] * n_h['x'].attrs['unitSI']
-        n_y = n_h['y'][:, 0, 0] * n_h['y'].attrs['unitSI']
-        n_z = n_h['z'][:, 0, 0] * n_h['z'].attrs['unitSI']
+        n_h = self.h5_file[
+            "/data/{}/".format(self.timestep)
+            + "DetectorMesh/DetectorDirection/"
+        ]
+        n_x = n_h["x"][:, 0, 0] * n_h["x"].attrs["unitSI"]
+        n_y = n_h["y"][:, 0, 0] * n_h["y"].attrs["unitSI"]
+        n_z = n_h["z"][:, 0, 0] * n_h["z"].attrs["unitSI"]
         n_vec = np.empty((len(n_x), 3))
         n_vec[:, 0] = n_x
         n_vec[:, 1] = n_y

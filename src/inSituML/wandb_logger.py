@@ -14,7 +14,9 @@ class WandbLogger:
             entity: account or group id used for that run
         """
         wandb.init(project=project, entity=entity, group=group)
-        wandb.config.update(args)  # adds all of the arguments as config variable
+        wandb.config.update(
+            args
+        )  # adds all of the arguments as config variable
 
     def log_scalar(self, scalar, name, epoch):
         """
@@ -51,7 +53,7 @@ class WandbLogger:
         """
         wandb.log({name: plot}, step=epoch)
 
-    def log_histogram(self, histogram,name, epoch):
+    def log_histogram(self, histogram, name, epoch):
         """
         Logs a histogram to wandb
 
@@ -62,7 +64,3 @@ class WandbLogger:
 
         """
         wandb.log({name: wandb.Histogram(histogram)}, step=epoch)
-
-
-
-
