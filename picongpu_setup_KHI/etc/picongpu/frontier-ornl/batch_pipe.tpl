@@ -336,9 +336,9 @@ srun -N !TBG_nodes_adjusted --ntasks-per-node=1 tar -xzf "/mnt/bb/$USER/insituml
 mkdir -p ../input/training
 
 cp -t ../input/training/ \
-  ${insituml}/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py \
-  ${insituml}/main/ModelHelpers/cINN/io_config_frontier_streaming.py \
-  ${insituml}/main/ModelHelpers/cINN/model_config.py
+  ${insituml}/tools/openpmd-streaming-continual-learning.py \
+  ${insituml}/share/configs/io_config_frontier_streaming.py \
+  ${insituml}/share/configs/model_config.py
 
 
 
@@ -406,9 +406,9 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       --network=single_node_vni,job_vni           \
       /mnt/bb/$USER/sync_bins/launch.sh           \
       /mnt/bb/$USER/sync_bins/python              \
-        "/mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py" \
-        --io_config /mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/io_config_frontier_streaming.py --runner srun \
-        --model_config /mnt/bb/$USER/InSituML/main/ModelHelpers/cINN/model_config.py \
+        "/mnt/bb/$USER/InSituML/tools/openpmd-streaming-continual-learning.py" \
+        --io_config /mnt/bb/$USER/InSituML/share/configs/io_config_frontier_streaming.py --runner srun \
+        --model_config /mnt/bb/$USER/InSituML/share/configs/model_config.py \
         > ../training.out 2> ../training.err              &
 
     sleep 1
