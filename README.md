@@ -49,7 +49,7 @@ In order to train the model do:
    export MASTER_PORT=12340
    master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
    export MASTER_ADDR=$master_addr
-   mpirun -n <torch ranks per node> python /share/configs/openpmd-streaming-continual-learning.py --io_config=/share/configs/io_config_hemera.py --type_streamer=offline`
+   mpirun -n <torch ranks per node> python /tools/openpmd-streaming-continual-learning.py --io_config=/share/configs/io_config_hemera.py --type_streamer=offline
    ```
    `--type_streamer` may be `streaming` or `offline`.
 
