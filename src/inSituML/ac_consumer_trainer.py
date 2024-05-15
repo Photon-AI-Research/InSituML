@@ -1,20 +1,15 @@
 """
-
-
+This class prints losses and optionally calls another logger to log losses in another way.
 """
 import time
 from threading import Thread
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
-from .utilities import save_checkpoint_conditionally,save_checkpoint,load_checkpoint
+from .utilities import save_checkpoint_conditionally
 from mpi4py import MPI
 import os, time
-import pickle
 
-"""
-This class prints losses and optionally calls another logger to log losses in another way.
-"""
+
 class LossLogger:
     def __init__(self, otherLogger=None, max_logs=20, out_prefix=""):
         self.printedHeader = False
@@ -162,13 +157,6 @@ class ModelTrainer(Thread):
             
             phase_space = phase_space.to(self.gpu_id)
             radiation = radiation.to(self.gpu_id)
-
-            # only logging from of the master process
-            if self.batch_passes > 0:
-                self.logger(losses, self.batch_passes-1)
-
-                if self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0:
-                    save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
                     
             self.batch_passes += 1
 
@@ -178,6 +166,13 @@ class ModelTrainer(Thread):
             
             losses = self.model(phase_space, radiation)
             loss = losses['total_loss']
+
+            # only logging from of the master process
+            if self.batch_passes > 0:
+                self.logger(losses, self.batch_passes-1)
+
+                if self.checkpoint_interval and self.batch_passes % self.checkpoint_interval == 0:
+                    save_checkpoint_conditionally(self.model, self.optimizer, self.out_prefix, self.batch_passes, losses)
             
             #reconstruction if needed
             # y, lat_z_pred = self.model.reconstruct(phase_space,radiation)
