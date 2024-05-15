@@ -4,39 +4,18 @@ sys.path.append('./modules')
 import torch
 import torch.nn as nn
 import torch.optim
-import numpy as np
 import os
-import random
 
 import FrEIA.framework as Ff
-from FrEIA.framework import InputNode, OutputNode, Node, ReversibleGraphNet
+from FrEIA.framework import InputNode, Node
 from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
-
-import matplotlib.pyplot as plt
-import matplotlib.colors
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
 
 from .modules import data_preprocessing
 from .modules import loader
 
 import wandb
 
-import line_profiler
-
-# Module for deterministic profiling of Python scripts/programs
-import cProfile
-import pstats
-# Module for timing
-import time
-# Module for dealing with various types of I/O
-import io
-# Module Python codes profiling
-import snakeviz
-
 torch.autograd.set_detect_anomaly(True)
-#plt.rcParams['image.cmap'] = 'bwr'
-#plt.set_cmap('bwr')
 
 class PC_NF(nn.Module):
     def __init__(self, 
@@ -125,10 +104,9 @@ class PC_NF(nn.Module):
     def forward(self, x, p):
         z, jac = self.model(x, c=p)
         return z, jac
-    @profile
+
     def train_(self, 
                dataset_tr,
-               dataset_val,
                optimizer,
                epochs=100,
                batch_size=2,
