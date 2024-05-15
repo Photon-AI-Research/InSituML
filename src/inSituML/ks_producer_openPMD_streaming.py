@@ -30,7 +30,7 @@ from mpi4py import MPI
 
 import openpmd_api as opmd
 
-from ks_helperfuncs import *
+from .ks_helperfuncs import *
 from sys import stdout
 
 class EveryoneGetsData(opmd.Strategy):
