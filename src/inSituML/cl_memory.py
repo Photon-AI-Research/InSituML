@@ -2,13 +2,15 @@
 ## https://github.com/Photon-AI-Research/InSituML/tree/feature-fix-plotting-toy-cl
 ## required was seen based on example script in the same branch here:
 ## https://github.com/Photon-AI-Research/InSituML/blob/feature-fix-plotting-toy-cl/examples/streaming_toy_data/toy_cl.py
-## also mentioned in this issue. 
+## also mentioned in this issue.
 ## https://github.com/Photon-AI-Research/InSituML/issues/28
 
 from collections import Counter
 import random
 
 import torch as T
+
+
 # XXX seeds for shuffle not fixed
 # XXX lots of copies and list ops, must be optimized obviously
 class ExperienceReplay:

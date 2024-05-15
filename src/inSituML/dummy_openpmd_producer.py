@@ -8,18 +8,21 @@ ps_dims = 6
 
 rad_dims = 512
 
+
 class DummyOpenPMDProducer(Thread):
     def __init__(self, openPMDBuffer):
-        Thread.__init__(self)        
+        Thread.__init__(self)
         self.openPMDBuffer = openPMDBuffer
-    
+
     def run(self):
-        print('Producer: Running')
+        print("Producer: Running")
 
         # generate openpmd stuff.
         for i in range(10):
             # generate a value
-            loaded_particles = torch.rand(gpu_boxes, ps_dims, number_of_particles)
+            loaded_particles = torch.rand(
+                gpu_boxes, ps_dims, number_of_particles
+            )
             radiation = torch.rand(gpu_boxes, rad_dims)
             # block, to simulate effort
             sleep(2)
@@ -28,7 +31,7 @@ class DummyOpenPMDProducer(Thread):
             # add to the queue
             self.openPMDBuffer.put(item)
             # report progress
-            print(f'>producer added {i}')
+            print(f">producer added {i}")
         # signal that there are no further items
         self.openPMDBuffer.put(None)
-        print('Producer: Done')
+        print("Producer: Done")

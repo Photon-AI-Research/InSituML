@@ -8,7 +8,7 @@ INSITUML_model_path = str(pathlib.Path(__file__).parent.parent.resolve()) + '/tr
 ## Model configuration ##
 #########################
 
-rad_dims = 512 # Number of frequencies in radiation data
+rad_dims = 512  # Number of frequencies in radiation data
 
 latent_space_dims = 544
 
@@ -55,13 +55,11 @@ lr_annealingRate = None,
 lr_scaling = ( lambda x : sqrt(x) )
 )
 
-config_inn = dict(
-
-)
+config_inn = dict()
 
 normalization_values = dict(
-    momentum_mean = 1.2091940752668797e-08,
-    momentum_std = 0.11923234769525472,
-    force_mean = -2.7682006649827533e-09,
-    force_std = 7.705477610810592e-05
+    momentum_mean=1.2091940752668797e-08,
+    momentum_std=0.11923234769525472,
+    force_mean=-2.7682006649827533e-09,
+    force_std=7.705477610810592e-05,
 )

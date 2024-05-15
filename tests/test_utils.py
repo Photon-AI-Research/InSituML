@@ -5,4 +5,4 @@ class TestUtils:
         assert x == 8
 
 
-#sys.path.insert(0, '/'.join(os.path.abspath(__file__).split('/')[:-2] + ['src', 'inSituML']))
+# sys.path.insert(0, '/'.join(os.path.abspath(__file__).split('/')[:-2] + ['src', 'inSituML']))

@@ -6,7 +6,7 @@ import os
 from radiation import RadiationData
 
 
-filename2= "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/openPMD/simData_000000.bp"
+filename2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/openPMD/simData_000000.bp"
 series2 = io.Series(filename2, io.Access_Type.read_only)
 
 ii = series2.iterations[0]
@@ -35,7 +35,7 @@ r_offset[:, 2] = offset_z * ii.get_attribute("cell_depth")
 filename = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp"
 series = io.Series(filename, io.Access_Type.read_only)
 
-for iteration in range(2,2001):
+for iteration in range(2, 2001):
     print(iteration)
     i = series.iterations[iteration]
 
@@ -53,29 +53,39 @@ for iteration in range(2,2001):
 
     DetectorFrequency = DetectorFrequency["omega"][0, :, 0]
     series.flush()
-    
+
     n_vec = np.empty((len(DetectorDirection_x), 3))
     n_vec[:, 0] = DetectorDirection_x
     n_vec[:, 1] = DetectorDirection_y
     n_vec[:, 2] = DetectorDirection_z
 
     # time retardation correction
-    phase_offset = np.exp(-1.j * DetectorFrequency[np.newaxis, np.newaxis, :]*  (iteration + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0))
-    
-    Dist_Amplitude_offset_x = (Dist_Amplitude_x / phase_offset)
-    Dist_Amplitude_offset_y = (Dist_Amplitude_y / phase_offset)
-    Dist_Amplitude_offset_z = (Dist_Amplitude_z / phase_offset)
-    
-    #index = 0 to get ex vector = [1,0,0]
+    phase_offset = np.exp(
+        -1.0j
+        * DetectorFrequency[np.newaxis, np.newaxis, :]
+        * (iteration + np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0)
+    )
+
+    Dist_Amplitude_offset_x = Dist_Amplitude_x / phase_offset
+    Dist_Amplitude_offset_y = Dist_Amplitude_y / phase_offset
+    Dist_Amplitude_offset_z = Dist_Amplitude_z / phase_offset
+
+    # index = 0 to get ex vector = [1,0,0]
     index = 0
     amplitude_x = Dist_Amplitude_offset_x[:, index, :]
     amplitude_y = Dist_Amplitude_offset_y[:, index, :]
     amplitude_z = Dist_Amplitude_offset_z[:, index, :]
 
     # Concatenate along the second axis
-    amplitude_concat = np.stack((amplitude_x, amplitude_y, amplitude_z), axis=1)
-        
-    file_rad_new = '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_002_ex/' + str(iteration)+'.npy'
+    amplitude_concat = np.stack(
+        (amplitude_x, amplitude_y, amplitude_z), axis=1
+    )
+
+    file_rad_new = (
+        "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_002_ex/"
+        + str(iteration)
+        + ".npy"
+    )
 
     if os.path.exists(file_rad_new):
         # File exists, do nothing

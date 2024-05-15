@@ -6,60 +6,64 @@ import torch.nn as nn
 import traceback
 
 MAPPING_TO_LOSS = {
-    "earthmovers":EarthMoversLoss,
-    "chamfersloss":ChamfersLoss,
-    "chamfersloss_d":ChamfersLossDiagonal,
-    "mse":nn.MSELoss
-    }
+    "earthmovers": EarthMoversLoss,
+    "chamfersloss": ChamfersLoss,
+    "chamfersloss_d": ChamfersLossDiagonal,
+    "mse": nn.MSELoss,
+}
 
 
 try:
     from .loss_functions import ChamfersLossOptimized
+
     MAPPING_TO_LOSS["chamfersloss_o"] = ChamfersLossOptimized
 except Exception:
     traceback.print_exc()
 
 MAPPING_TO_ED = {
-    "encoder_simple":Encoder,
-    "mlp_decoder":MLPDecoder,
-    "conv3d_decoder":Conv3DDecoder
-    }
+    "encoder_simple": Encoder,
+    "mlp_decoder": MLPDecoder,
+    "conv3d_decoder": Conv3DDecoder,
+}
 
-MAPPING_TO_NETWORK = {
-    "convAE":ConvAutoencoder,
-    "VAE":VAE
-    }
+MAPPING_TO_NETWORK = {"convAE": ConvAutoencoder, "VAE": VAE}
 
 
 def list_transform(kwargs):
-    
+
     for k in kwargs:
         if "layer_config" in k:
             kwargs[k] = ast.literal_eval(kwargs[k])
-    
+
     return kwargs
-    
+
 
 def main_args_transform(hd):
-    
-    criterion = MAPPING_TO_LOSS[hd["loss_function"]](**hd["loss_function_params"])
+
+    criterion = MAPPING_TO_LOSS[hd["loss_function"]](
+        **hd["loss_function_params"]
+    )
     hd.update({"loss_function": criterion})
-    
-    #security checks    
+
+    # security checks
     decoder_kwargs = list_transform(ast.literal_eval(hd["decoder_kwargs"]))
-    #security checks
+    # security checks
     encoder_kwargs = list_transform(ast.literal_eval(hd["encoder_kwargs"]))
-    
+
     encoder = MAPPING_TO_ED[hd["encoder_type"]]
     decoder = MAPPING_TO_ED[hd["decoder_type"]]
-    hd.update({"encoder":encoder,
-               "decoder":decoder,
-               "encoder_kwargs":encoder_kwargs, 
-               "decoder_kwargs":decoder_kwargs})
-    
+    hd.update(
+        {
+            "encoder": encoder,
+            "decoder": decoder,
+            "encoder_kwargs": encoder_kwargs,
+            "decoder_kwargs": decoder_kwargs,
+        }
+    )
+
     model = MAPPING_TO_NETWORK[hd["network"]](**hd)
     hd.update({"model": model})
 
     hd["val_boxes"] = ast.literal_eval(hd["val_boxes"])
-    
+
     return hd
