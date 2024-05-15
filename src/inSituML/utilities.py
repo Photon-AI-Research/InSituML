@@ -34,7 +34,8 @@ def fit(input, target):
 def create_position_density_plots(x, y, z,
                                   x_pr, y_pr, z_pr,
                                   bins=100, t=1000, path='',
-                                  enable_wandb = False):
+                                  enable_wandb=False,
+                                  wandb=None):
     
     # Specify the number of bins for each axis
     bins_x = np.linspace(min(x), max(x), bins)
@@ -109,7 +110,8 @@ def create_position_density_plots(x, y, z,
 def create_momentum_density_plots(px, py, pz,
                                   px_pr, py_pr, pz_pr,
                                   bins=100, t=1000, path='',
-                                  enable_wandb = False):
+                                  enable_wandb=False,
+                                  wandb=None):
     
     # Specify the number of bins for each axis
     bins_px = np.linspace(min(px), max(px), bins)
@@ -185,7 +187,8 @@ def create_momentum_density_plots(px, py, pz,
 def create_force_density_plots(fx, fy, fz,
                                fx_pr, fy_pr, fz_pr,
                                bins=100, t=1000, path='',
-                               enable_wandb = False):
+                               enable_wandb=False,
+                               wandb=None):
     
     # Specify the number of bins for each axis
     bins_fx = np.linspace(min(fx), max(fx), bins)
@@ -292,7 +295,7 @@ def smooth_data(data, window_size=5):
     return uniform_filter1d(data, size=window_size, mode='nearest')
 
 def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_range=512, t=1000, gpu_box=0, path='',
-                   enable_wandb=False):
+                   enable_wandb=False, wandb=None):
     """
     Plot radiation intensity against frequency and compute MSE and relative MSE
     between ground truth and prediction. Compatible with both NumPy arrays and PyTorch tensors.
@@ -305,9 +308,6 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_r
     - path: Path to save the plot (optional).
     - enable_wandb: Enable logging to Weights & Biases (default=False).
     """
-    
-    import numpy as np
-    import matplotlib.pyplot as plt
 
     def to_numpy(data):
         """Convert PyTorch tensor to NumPy array if necessary."""
@@ -320,7 +320,6 @@ def plot_radiation(ground_truth_intensity, predicted_intensity=None, frequency_r
     
     # Ensure ground_truth_intensity and predicted_intensity are NumPy arrays
     ground_truth_intensity = to_numpy(ground_truth_intensity)[:frequency_range]
-    ground_truth_smoothed = smooth_data(ground_truth_intensity)
     
     plt.figure(figsize=(10, 6))
     plt.plot(frequency, ground_truth_intensity, label='GT Radiation Intensity (Raw)', color='blue', linewidth=2)
