@@ -563,7 +563,49 @@ def save_checkpoint_conditionally(
         )
         print(f"Checkpoint for iteration {iteration} saved.")
     else:
+<<<<<<< HEAD
         print(
             f"Checkpoint for iteration {iteration} already exists." +
             " Skipping save."
         )
+=======
+        print(f"Checkpoint for iteration {iteration} already exists. Skipping save.")
+
+def normalize_point(point, vmin, vmax, a=0., b=1.):
+    '''
+    Normalize point from a set of points with vmin(minimum) and vmax(maximum)
+    to be in a range [a, b]
+    '''
+
+    # Extract the first three columns
+    first_three_col = point[:, :3]
+
+    # Perform operations on the first three columns
+    modified_first_three_col = a + (first_three_col - vmin) * (b - a) / (vmax - vmin)
+
+    # Combine the modified columns with the unchanged columns
+    result_array = torch.cat((modified_first_three_col, point[:, 3:]), dim=1).to(point.dtype)
+
+    return result_array
+
+def denormalize_point(point_normalized, vmin, vmax, a=0., b=1.):
+    '''
+    Denormalize point back to the original range using vmin(minimum) and vmax(maximum).
+    '''
+    
+    # Convert the input to PyTorch tensors
+    #point_normalized = torch.tensor(point_normalized)
+    vmin = torch.tensor(vmin)
+    vmax = torch.tensor(vmax)
+
+    # Extract the first three columns
+    first_three_col_normalized = point_normalized[:, :3]
+
+    # Perform operations on the first three columns to denormalize them
+    denormalized_first_three_col = vmin + (first_three_col_normalized - a) * (vmax - vmin) / (b - a)
+
+    # Combine the denormalized columns with the unchanged columns
+    result_array = torch.cat((denormalized_first_three_col, point_normalized[:, 3:]), dim=1).to(point_normalized.dtype)
+
+    return result_array
+>>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)

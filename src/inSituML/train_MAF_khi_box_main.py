@@ -6,6 +6,13 @@ from ks_models import PC_MAF as model_MAF
 import torch.optim as optim
 import time
 import wandb
+<<<<<<< HEAD
+=======
+import sys
+import matplotlib.pyplot as plt
+from utilities import normalize_point, denormalize_point
+   
+>>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
 
 def sample_pointcloud(model, num_samples, cond, vmin, vmax):
@@ -45,6 +52,7 @@ def generate_one_hot_tensors(num_categories, num_samples):
 
     return one_hot_tensors_sequence
 
+<<<<<<< HEAD
 
 def normalize_point(point, vmin, vmax, a=0.0, b=1.0):
     """
@@ -93,6 +101,9 @@ def denormalize_point(point_normalized, vmin, vmax, a=0.0, b=1.0):
     ).to(point_normalized.dtype)
 
     return result_array
+=======
+
+>>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
 
 def save_checkpoint(

@@ -7,6 +7,7 @@ import torch.optim as optim
 import time
 import wandb
 import sys
+<<<<<<< HEAD
 
 
 def normalize_point(point, vmin, vmax, a=0.0, b=1.0):
@@ -56,6 +57,9 @@ def denormalize_point(point_normalized, vmin, vmax, a=0.0, b=1.0):
     ).to(point_normalized.dtype)
 
     return result_array
+=======
+from utilities import normalize_point, denormalize_point
+>>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
 
 def save_checkpoint(
