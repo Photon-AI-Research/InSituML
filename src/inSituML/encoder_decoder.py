@@ -4,6 +4,7 @@ from torch import nn
 import numpy as np
 from .utilities import inspect_and_select
 import math
+# some part of this module is taken from  https://github.com/lingjiekong/CS236Project
 
 def adjust_args(arg1, arg2, kernel_size):
     """
