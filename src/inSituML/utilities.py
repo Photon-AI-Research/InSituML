@@ -6,27 +6,34 @@ from scipy.ndimage import uniform_filter1d
 import os
 import inspect
 
+
 def inspect_and_select(base):
 
     def decorator(**all_input_pars):
 
-        input_vals = {k:all_input_pars[k] for k, v in inspect.signature(base).parameters.items()
+        input_vals = {k: all_input_pars[k]
+                      for k, _ in inspect.signature(base).parameters.items()
                       if k in all_input_pars}
 
         return base(**input_vals)
 
     return decorator
 
+
 def sample_gaussian(m, v, device):
-    epsilon = torch.normal(torch.zeros(m.size()),torch.ones(m.size())).to(device)
+    epsilon = torch.normal(torch.zeros(m.size()),
+                           torch.ones(m.size())).to(device)
     z = m + torch.sqrt(v) * epsilon
     return z
 
-def kl_normal(qm,qv,pm,pv):
-    #checking how different is it from guassian distribution with
-    # zero mean and 1 standard deviation. 
+
+def kl_normal(qm, qv, pm, pv):
+    # checking how different is it from guassian distribution with
+    # zero mean and 1 standard deviation.
     # tensor shape (Batch,dim)
-    element_wise = 0.5 * (torch.log(pv) - torch.log(qv) + qv / pv + (qm - pm).pow(2) / pv - 1)
+    element_wise = 0.5 * (torch.log(pv) -
+                          torch.log(qv) +
+                          qv / pv + (qm - pm).pow(2) / pv - 1)
     kl = element_wise.sum(-1)
     return kl
 
@@ -393,9 +400,8 @@ def plot_radiation(
         return data
 
     # Load frequency data
-    frequency = np.load("/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/omega.npy")[
-        :frequency_range
-    ]
+    frequency = np.load(
+        "/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/omega.npy")[:frequency_range]
 
     # Ensure ground_truth_intensity and predicted_intensity are NumPy arrays
     ground_truth_intensity = to_numpy(ground_truth_intensity)[:frequency_range]

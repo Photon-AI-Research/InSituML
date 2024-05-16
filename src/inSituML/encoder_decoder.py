@@ -1,7 +1,8 @@
 import torch
 from torch import nn
 import math
-# some part of this module is taken from  https://github.com/lingjiekong/CS236Project
+# some part of this module is taken from
+# https://github.com/lingjiekong/CS236Project
 
 
 def adjust_args(arg1, arg2, kernel_size):
