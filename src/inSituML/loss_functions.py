@@ -22,8 +22,10 @@ try:
                 self.chm_obj = dist_chamfer_3D.chamfer_6DDist()
             else:
                 raise ValueError(
-                    ("Either wrong property_ name or property_ 'all' can't" +
-                                " be used with ChamfersLossOptimized")
+                    (
+                        "Either wrong property_ name or property_ 'all' can't"
+                        + " be used with ChamfersLossOptimized"
+                    )
                 )
 
         def forward(self, x, y):

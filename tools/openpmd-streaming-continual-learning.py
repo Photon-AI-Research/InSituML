@@ -298,18 +298,23 @@ def main():
             weight_IM=config["lambd_IM"],
         )
 
-
-        #Load a pre-trained model
-        map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+        # Load a pre-trained model
+        map_location = {"cuda:%d" % 0: "cuda:%d" % rank}
         if config["load_model"] is not None:
-            original_state_dict = torch.load(config["load_model"], map_location=map_location)
+            original_state_dict = torch.load(
+                config["load_model"], map_location=map_location
+            )
             # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
             model.load_state_dict(original_state_dict)
             print("Loaded pre-trained model successfully", flush=True)
 
         elif config["load_model_checkpoint"] is not None:
-            model, _, _, _, _, _ = load_checkpoint(config["load_model_checkpoint"], model,map_location=map_location)
-            print('Loaded model checkpoint successfully', flush=True)
+            model, _, _, _, _, _ = load_checkpoint(
+                config["load_model_checkpoint"],
+                model,
+                map_location=map_location,
+            )
+            print("Loaded model checkpoint successfully", flush=True)
         else:
             pass  # run with random init
 
@@ -393,14 +398,21 @@ def main():
             setup(rank, world_size)
 
         optimizer, scheduler, model = load_objects(rank)
-        
-        if args.type_streamer == 'streaming':
-            
-            from inSituML.ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
-            #from ks_producer_openPMD_streaming import StreamLoaderExceptionCatcher as StreamLoader
+
+        if args.type_streamer == "streaming":
+
+            from inSituML.ks_transform_policies import (
+                AbsoluteSquare,
+                BoxesAttributesParticles,
+            )
+
+            # from ks_producer_openPMD_streaming import StreamLoaderExceptionCatcher as StreamLoader
             from inSituML.ks_producer_openPMD_streaming import StreamLoader
 
-            from inSituML.LoaderExceptionHandler import wrapLoaderWithExceptionHandler
+            from inSituML.LoaderExceptionHandler import (
+                wrapLoaderWithExceptionHandler,
+            )
+
             Loader = wrapLoaderWithExceptionHandler(StreamLoader)
 
             particleDataTransformationPolicy = BoxesAttributesParticles()

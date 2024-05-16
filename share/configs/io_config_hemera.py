@@ -47,12 +47,14 @@ trainBatchBuffer_config = dict(
     - 1,  # 7 is the max we can fit on P100 with our stupid chamfer's impl
     stall_loader=True,
     consume_size=1,
-    min_tb_from_unchanged_now_bf = 4,
-    radiation_data_folder = out_prefix,
-    #Train buffer.
-    buffersize = 10,
-    #long buffer
-    cl_mem_size = 20*32*3 # 20% of data, but all:1, so 32 blocks go to one rank
+    min_tb_from_unchanged_now_bf=4,
+    radiation_data_folder=out_prefix,
+    # Train buffer.
+    buffersize=10,
+    # long buffer
+    cl_mem_size=20
+    * 32
+    * 3,  # 20% of data, but all:1, so 32 blocks go to one rank
 )
 modelTrainer_config = dict(
     checkpoint_interval=800, checkpoint_final=True, out_prefix=out_prefix
