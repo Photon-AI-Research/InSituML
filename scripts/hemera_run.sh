@@ -1,11 +1,12 @@
 #!/bin/bash
-
+# set visible devices to the local rank so torch doesn't get confused
+bash scripts/hemera_CUDA_VISIBLE_DEVICES_wrapper.sh
 # Default values for arguments
 WORLD_SIZE=1
-TORCH_RANKS_PER_NODE=1
+TORCH_RANKS_PER_NODE=2
 NTASKS_PER_NODE=1
 CPUS_PER_TASK=2
-GPUS=1
+GPUS=2
 MEM="128G"
 
 # Parse command line arguments
