@@ -8,6 +8,7 @@ import wandb
 import sys
 from utilities import normalize_point
 
+
 def save_checkpoint(
     model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id
 ):
