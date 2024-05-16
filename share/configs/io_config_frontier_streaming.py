@@ -6,7 +6,7 @@ modelPathPattern = (
 )
 
 #######################################
-## openPMD data loader configuration ##
+# openPMD data loader configuration #
 #######################################
 ps_dims = 6  # Actually used in the model configuration by now
 # ToDo: Use in StreamingLoader
@@ -17,13 +17,17 @@ streamLoader_config = dict(
     t0=900,
     t1=1001,  # endpoint=false, t1 is not used in training
     pathpattern1="openPMD/simData.sst",  # streaming on frontier
-    pathpattern2="radiationOpenPMD/e_radAmplitudes.sst",  # streaming on frontier
-    streaming_config="@inconfig.json",  # None, # set to None when reading from file
-    amplitude_direction=0,  # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
+    pathpattern2="radiationOpenPMD/e_radAmplitudes.sst",
+    # streaming on frontier
+    streaming_config="@inconfig.json",  # set to None when reading from file
+    amplitude_direction=0,  # choose single direction along which the radiation
+    #  signal is observed, max: N_observer-1, where N_observer is defined
+    #  in PIConGPU's radiation plugin
     phase_space_variables=[
         "momentum",
         "force",
-    ],  # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+    ],  # allowed are "position", "momentum", and "force". If "force" is set,
+    #     "momentum" needs to be set too.
     number_particles_per_gpu=30000,
     verbose=False,
 )

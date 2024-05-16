@@ -6,7 +6,7 @@ modelPathPattern = (
 )
 
 #######################################
-## openPMD data loader configuration ##
+# openPMD data loader configuration #
 #######################################
 ps_dims = 6  # Actually used in the model configuration by now
 # ToDo: Use in StreamingLoader
@@ -17,19 +17,36 @@ streamLoader_config = dict(
     t0=890,
     t1=895,  # endpoint=false, t1 is not used in training
     # pathpattern1 = "openPMD/simData.sst", # streaming on frontier
-    # pathpattern2 = "radiationOpenPMD/e_radAmplitudes.sst", # streaming on frontier
-    streaming_config=None,  # "@inconfig.json", # set to None when reading from file
-    pathpattern1="/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput/openPMD/simData_%T.bp5",  # files for 16GPUs on frontier
-    pathpattern2="/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5",  # files for 16GPUs on frontier
-    # pathpattern1 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/007_KHI_rad4dir_smallY/simOutput/openPMD/simData_%T.bp", # files on hemera
-    # pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/007_KHI_rad4dir_smallY/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp", # files on hemera
-    amplitude_direction=0,  # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
+    # pathpattern2 = "radiationOpenPMD/e_radAmplitudes.sst",
+    # streaming on frontier
+    streaming_config=None,  # "@inconfig.json",
+    # set to None when reading from file
+    pathpattern1=(
+        "/lustre/orion/csc380/world-shared/ksteinig/"
+        + "016_KHI_withRad_randomInit_16gpus/simOutput/"
+        + "openPMD/simData_%T.bp5"
+    ),  # files for 16GPUs on frontier
+    pathpattern2=(
+        "/lustre/orion/csc380/world-shared/ksteinig/"
+        + "016_KHI_withRad_randomInit_16gpus/simOutput/"
+        + "radiationOpenPMD/e_radAmplitudes_%T.bp5"
+    ),
+    # files for 16GPUs on frontier
+    # pathpattern1 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/
+    # 007_KHI_rad4dir_smallY/simOutput/openPMD/simData_%T.bp", # files on hemera
+    # pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/
+    # 007_KHI_rad4dir_smallY/simOutput/radiationOpenPMD/
+    # e_radAmplitudes%T.bp", # files on hemera
+    amplitude_direction=0,  # choose single direction along which the radiation
+    # signal is observed, max: N_observer-1, where N_observer is defined in
+    # PIConGPU's radiation plugin
     phase_space_variables=[
         "momentum",
         "force",
-    ],  # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+    ],  # allowed are "position", "momentum", and "force". If "force" is set,
+    #     "momentum" needs to be set too.
     number_particles_per_gpu=int(environ["NUM_PART_GPU"]),
-    ## offline training params
+    # offline training params
     num_epochs=1,
 )
 

@@ -1,19 +1,19 @@
 import os
 import openpmd_api as io
 import numpy as np
-import matplotlib.pyplot as plt
 
 import sys
 
 sys.path.append("model")
 
-from modules.visualizations import plot_3D, plot_2D, plot_per_slice
-
 
 print("openPMD-api: {}".format(io.__version__))
 print("openPMD-api backend variants: {}".format(io.variants))
 
-path_to_all_simulations = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/001_KHI_withRad/simOutput/openPMD/"
+path_to_all_simulations = (
+    "/bigdata/hplsim/production/KHI_for_GB_MR/runs/"
+    + "001_KHI_withRad/simOutput/openPMD/"
+)
 paths_to_simulation_files = [
     path_to_all_simulations + directory
     for directory in os.listdir(path_to_all_simulations)

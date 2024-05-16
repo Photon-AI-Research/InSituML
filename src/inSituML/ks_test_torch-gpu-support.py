@@ -4,7 +4,10 @@ By github user damico.
 Source: (https://gist.github.com/damico/484f7b0a148a0c5f707054cf9c0a0533)
 """
 
-import torch, grp, pwd, os, subprocess
+import torch
+import grp
+import pwd
+import subprocess
 
 devices = []
 try:
@@ -60,7 +63,10 @@ try:
         print(
             "BAD: The user",
             user,
-            "is NOT in RENDER and VIDEO groups. This is necessary in order to PyTorch use HIP resources",
+            (
+                "is NOT in RENDER and VIDEO groups. This is necessary "
+                + "in order to PyTorch use HIP resources"
+            ),
         )
 
     if torch.cuda.is_available():
@@ -75,5 +81,6 @@ try:
         print("BAD: PyTorch ROCM support NOT found.")
 except:
     print(
-        "Cannot find rocminfo command information. Unable to determine if AMDGPU drivers with ROCM support were installed."
+        "Cannot find rocminfo command information. Unable to determine if "
+        + "AMDGPU drivers with ROCM support were installed."
     )

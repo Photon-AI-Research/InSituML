@@ -1,9 +1,12 @@
 """
-Loader for *streamed* PIConGPU openPMD particle and radiation data to be used for insitu machine learning model training.
+Loader for *streamed* PIConGPU openPMD particle and radiation
+data to be used for insitu machine learning model training.
 The data is put in a buffer provided during construction of the producer class.
 The buffer is expected to be fillable by a `put()` method.
-A policy taken as an input parameter actually performs the required transformation on the data, if required.
-For example, it performs data normalization and layouts the data as requested for the training.
+A policy taken as an input parameter actually performs the required
+transformation on the data, if required.
+For example, it performs data normalization and layouts the data as
+requested for the training.
 
 !!!!!!!
 This file only works with the openPMD-api version installed from this branch:
@@ -15,12 +18,10 @@ Authors: Klaus Steiniger, Franz Poeschel
 
 from threading import Thread
 from queue import Full
-import sys
 from time import sleep
 
 import numpy as np
 from torch import from_numpy as torch_from_numpy
-from torch import cat as torch_cat
 from torch import stack as torch_stack
 from torch import float32 as torch_float32
 from torch import complex64 as torch_complex64
@@ -32,7 +33,6 @@ from mpi4py import MPI
 import openpmd_api as opmd
 
 from .ks_helperfuncs import *
-from sys import stdout
 
 
 class EveryoneGetsData(opmd.Strategy):
@@ -66,7 +66,9 @@ def distribution_strategy(
                 "OPENPMD_CHUNK_DISTRIBUTION"
             ].lower()
         else:
-            strategy_identifier = "hostname_roundrobinofsourceranks_roundrobinofsourceranks"  # default
+            strategy_identifier = (
+                "hostname_roundrobinofsourceranks" + "_roundrobinofsourceranks"
+            )  # default
     match = re.search("hostname_(.*)_(.*)", strategy_identifier)
     if match is not None:
         inside_node = distribution_strategy(
@@ -132,7 +134,8 @@ def determine_local_region(
             record_component.shape, comm.rank, comm.size, strategy_identifier
         )
     all_chunks = record_component.available_chunks()
-    # Little hack, the source_id might not be equivalent to the writing MPI rank due to
+    # Little hack, the source_id might not be equivalent to the
+    # writing MPI rank due to
     # data aggregation in ADIOS2.
     # Since we know that each rank writes one chunk in PIConGPU,
     # we just assign the ranks explicitly here.
@@ -151,11 +154,12 @@ def determine_local_region(
         for source_rank, chunks_from_source_rank in chunks.items():
             if len(chunks_from_source_rank) != 1:
                 raise RuntimeError(
-                    "Need one contiguous slice of particles to load per source rank, got {} regions from rank {} instead.".format(
-                        len(chunks_from_source_rank), source_rank
-                    )
+                    (
+                        "Need one contiguous slice of particles to load per "
+                        + "source rank, got {} regions from rank {} instead."
+                    ).format(len(chunks_from_source_rank), source_rank)
                 )
-        source_ranks = [source_rank for source_rank in chunks]
+        # source_ranks = [source_rank for source_rank in chunks]
         all_chunks = opmd.ChunkTable(
             [
                 opmd.WrittenChunkInfo(chunk.offset, chunk.extent, source_rank)
@@ -211,9 +215,13 @@ class SelectAccordingToChunkDistribution(opmd.Strategy):
 
 
 class StreamLoader(Thread):
-    """Thread providing PIConGPU particle and radiation data from an openPMD stream for the ML model training.
+    """
+    Thread providing PIConGPU particle and radiation data from
+    an openPMD stream for the ML model training.
 
-    There is not much happening here, except loading data from the stream, transforming in a layout as used in streaming, normalizing, and filling the shared buffer with the data.
+    There is not much happening here, except loading data from
+    the stream, transforming in a layout as used in streaming,
+    normalizing, and filling the shared buffer with the data.
 
     This is orchestrated in the run() method.
     """
@@ -229,9 +237,12 @@ class StreamLoader(Thread):
         """Set parameters of the loader
 
         Arguments:
-            batchDataBuffer (e.g. queue.Queue) : buffer to put the data into (where the consumer reads it)
-            hyperParameterDefaults (dict) : Defines timesteps, paths to data, etc.
-            dataReadPolicy (functor) : Provides particle and radiation data per time step
+            batchDataBuffer (e.g. queue.Queue) :
+            buffer to put the data into (where the consumer reads it)
+            hyperParameterDefaults (dict) :
+            Defines timesteps, paths to data, etc.
+            dataReadPolicy (functor) :
+            Provides particle and radiation data per time step
             dataTransformationPolicy (functor) :
         """
         Thread.__init__(self)
@@ -257,7 +268,7 @@ class StreamLoader(Thread):
         self.reqPhaseSpaceVars = hyperParameterDefaults[
             "phase_space_variables"
         ]
-        ## check input validity
+        # check input validity
         allowedVars = ["position", "momentum", "force"]
         variablesAllowed = True
         for var in self.reqPhaseSpaceVars:
@@ -268,13 +279,15 @@ class StreamLoader(Thread):
             and "momentum" not in self.reqPhaseSpaceVars
         ):
             variablesAllowed = False
-            assert (
-                variablesAllowed
-            ), "Phase space variable 'force' can only be used in combination with 'momentum'"
+            assert variablesAllowed, (
+                "Phase space variable 'force' can only be used "
+                + "in combination with 'momentum'"
+            )
 
-        assert (
-            variablesAllowed
-        ), f"Requested phase space variables are not in allowed range {allowedVars}"
+        assert variablesAllowed, (
+            "Requested phase space variables are not in "
+            + f"allowed range {allowedVars}"
+        )
 
         self.verbose = (
             hyperParameterDefaults["verbose"]
@@ -319,7 +332,12 @@ class StreamLoader(Thread):
             import sys
 
             print(
-                "[WARNING] No chunk table found in data. Will map source to sink ranks somehow, but this might scale terribly in streaming setups.",
+                (
+                    "[WARNING] No chunk table found in data." +
+                    " Will map source to " +
+                    "sink ranks somehow, but this might scale terribly in " +
+                    "streaming setups."
+                ),
                 file=sys.stderr,
             )
         outranks = opmd.HostInfo.MPI_PROCESSOR_NAME.get_collective(self.comm)
@@ -345,14 +363,18 @@ class StreamLoader(Thread):
                     radIter = radiation_iterations.__next__()
                 except StopIteration:
                     raise RuntimeError(
-                        "Streams getting out of sync? Particles at {}, but no further Radiation data available.".format(
-                            iteration.iteration_index
-                        )
+                        (
+                            "Streams getting out of sync? Particles at {}, "
+                            + "but no further Radiation data available."
+                        ).format(iteration.iteration_index)
                     )
 
                 if iteration.iteration_index != radIter.iteration_index:
                     raise RuntimeError(
-                        "Iterations getting out of sync? Particles at {}, but Radiation at {}.".format(
+                        (
+                            "Iterations getting out of sync? Particles at {}, "
+                            + "but Radiation at {}."
+                        ).format(
                             iteration.iteration_index, radIter.iteration_index
                         )
                     )
@@ -365,7 +387,10 @@ class StreamLoader(Thread):
             ):
                 if self.comm.rank == 0 or self.verbose:
                     print(
-                        "Skipping iteration {} as it is not in the specified range [t0,t1)=[{},{})".format(
+                        (
+                            "Skipping iteration {} as it is not in "
+                            + "the specified range [t0,t1)=[{},{})"
+                        ).format(
                             iteration.iteration_index,
                             self.hyperParameterDefaults["t0"],
                             self.hyperParameterDefaults["t1"],
@@ -379,7 +404,7 @@ class StreamLoader(Thread):
                     "Start processing iteration %i" % (iteration.time),
                     flush=True,
                 )
-            ## obtain particle distribution over GPUs ##
+            # obtain particle distribution over GPUs ##
             #
             ps = iteration.particles["e_all"]  # particle species
 
@@ -392,7 +417,8 @@ class StreamLoader(Thread):
             num_processed_chunks_per_rank = len(local_particles_chunks)
 
             # Every GPU will hold a different number of particles.
-            # But we need to keep the number of particles per GPU constant in order to construct the dataset.
+            # But we need to keep the number of particles per GPU constant
+            # in order to construct the dataset.
             numParticles = np.array(
                 [chunk.extent[0] for chunk in local_particles_chunks]
             )
@@ -435,7 +461,8 @@ class StreamLoader(Thread):
             # memory in exchange for loading data once only.
             loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
-                """Read particle data component-wise to reduce host memory usage.
+                """
+                Read particle data component-wise to reduce host memory usage.
                 And immediately reshape by subdividing in particles per GPU.
                 Also, reduce to requested number of particles per GPU.
                 """
@@ -470,12 +497,17 @@ class StreamLoader(Thread):
 
                 loaded_buffers[component] = component_buffers
 
-            # Particle patches are needed further below for determining the GPU bounding box.
-            # This only loads the patch information for the locally processed GPUs.
-            # Do NOT load all of them as this will be a NxN communication pattern,
-            # e.g. it will not scale (I'll talk to the ADIOS2 devs on how we can avoid this
+            # Particle patches are needed further below for determining
+            # the GPU bounding box.
+            # This only loads the patch information for the locally
+            # processed GPUs.
+            # Do NOT load all of them as this will be a NxN
+            # communication pattern,
+            # e.g. it will not scale (I'll talk to the ADIOS2 devs on
+            # how we can avoid this
             # situation in the future).
-            # IF the entire patches info is needed after all, then use MPI to distribute this
+            # IF the entire patches info is needed after all,
+            # then use MPI to distribute this
             # local information to all ranks.
             gpuBoxExtent = dict()
             gpuBoxOffset = dict()
@@ -493,7 +525,10 @@ class StreamLoader(Thread):
             local_patch_chunk.merge_chunks()
             if len(local_patch_chunk) != 1:
                 raise RuntimeError(
-                    "Patches: Need to load contiguous regions. Supported configurations are: 1:1 or all:1."
+                    (
+                        "Patches: Need to load contiguous regions. "
+                        + "Supported configurations are: 1:1 or all:1."
+                    )
                 )
             else:
                 local_patch_chunk = local_patch_chunk[0]
@@ -512,13 +547,14 @@ class StreamLoader(Thread):
             numParticles = ps.particle_patches["numParticles"].load_chunk(
                 local_patch_chunk.offset, local_patch_chunk.extent
             )
-            numParticlesOffsets = ps.particle_patches[
+            _ = ps.particle_patches[
                 "numParticlesOffset"
             ].load_chunk(local_patch_chunk.offset, local_patch_chunk.extent)
 
             iteration.close()  # trigger enqueued data loads
 
-            # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
+            # prepare torch tensor to hold particle data in shape
+            # (phaseSpaceComponents, GPUs, particlesPerGPU)
             loaded_particles = torch_empty(
                 (
                     len(self.reqPhaseSpaceVars) * 3,
@@ -546,10 +582,13 @@ class StreamLoader(Thread):
                     )
                     del position
 
-                    ## Normalize Positions
-                    ## TODO: The local box min and max values used for normalization,
-                    ## need to be stored somewhere, in order to be able to be able to
-                    ## denormalize during inference if position is used in training.
+                    # Normalize Positions
+                    # TODO: The local box min and max values
+                    # used for normalization,
+                    # need to be stored somewhere, in order to
+                    # be able to be able to
+                    # denormalize during inference if position
+                    # is used in training.
                     for particleBoxIndex in range(
                         len(loaded_particles[writing_index + i_c])
                     ):
@@ -583,7 +622,7 @@ class StreamLoader(Thread):
                         ]
                     )
                     del component_buffers.momentum
-                    ## Normalize momentum
+                    # Normalize momentum
                     writing_index += 3
 
                 if "force" in self.reqPhaseSpaceVars:
@@ -602,7 +641,7 @@ class StreamLoader(Thread):
                         - momPrev1_reduced
                     )  # force
                     del momPrev1_reduced
-                    ## Normalize force
+                    # Normalize force
 
                 writing_index = 0
                 if "position" in self.reqPhaseSpaceVars:
@@ -628,7 +667,7 @@ class StreamLoader(Thread):
 
                     writing_index += 3
                 if "force" in self.reqPhaseSpaceVars:
-                    ## Normalize force
+                    # Normalize force
                     for particleBoxIndex in range(
                         len(loaded_particles[writing_index + i_c])
                     ):
@@ -657,7 +696,7 @@ class StreamLoader(Thread):
                     loaded_particles
                 )
 
-            ## obtain radiation data per GPU ##
+            # obtain radiation data per GPU #
             #
             radIter = get_next_radiation()
 
@@ -703,7 +742,8 @@ class StreamLoader(Thread):
             loaded_buffers = dict()
             for i_c, component in enumerate(["x", "y", "z"]):
                 component_buffers = EnqueuedBuffers()
-                # See (https://picongpu.readthedocs.io/en/latest/usage/plugins/radiation.html#openpmd-output)
+                # See (https://picongpu.readthedocs.io/en/latest/usage/plugins/
+                #                               radiation.html#openpmd-output)
                 # for a description of the radiation plugin's output structure.
                 component_buffers.Dist_Amplitude = radIter.meshes[
                     "Amplitude_distributed"
@@ -737,7 +777,8 @@ class StreamLoader(Thread):
                 )  # shape of component i_c: (local GPUs, frequencies)
 
             # time retardation correction
-            # QUESTION: The `iteration.iteration_index`=int variable appears in here, not the actual time? (but r_offset is also in cells...)
+            # QUESTION: The `iteration.iteration_index`=int variable appears
+            # in here, not the actual time? (but r_offset is also in cells...)
             # ANSWER: Calculation is fully in PIConGPU coordinates. All fine.
             phase_offset = torch_from_numpy(
                 np.exp(

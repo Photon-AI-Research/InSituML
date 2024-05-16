@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import torch
-from model import model_MAF as model_MAF
+from ks_models import PC_MAF as model_MAF
 import torch.optim as optim
 import time
 import wandb
@@ -133,18 +133,18 @@ class Loader:
 
             def __getitem__(self, timebatch):
                 i = self.timebatchsize * timebatch
-                bi = self.perm[i : i + self.timebatchsize]
+                bi = self.perm[i:i + self.timebatchsize]
                 times = []
                 particles = []
-                for time in bi:
+                for time_ in bi:
                     p = torch.from_numpy(
-                        np.load(self.loader.pathpattern.format(time)).astype(
+                        np.load(self.loader.pathpattern.format(time_)).astype(
                             np.float32
                         )
                     )
                     particles.append(p)
                     t = torch.zeros((p.shape[0], len(self.loader)))
-                    t[:, time] = 1
+                    t[:, time_] = 1
                     times.append(t)
 
                 particles = torch.cat(particles)
@@ -163,7 +163,7 @@ class Loader:
 
                     def __getitem__(self, batch):
                         i = self.batchsize * batch
-                        bi = self.perm[i : i + self.batchsize]
+                        bi = self.perm[i:i + self.batchsize]
 
                         return self.particles[bi], self.times[bi]
 
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     # min/max of particle dataa for normalisation
     pos_minmax = np.load("/bigdata/hplsim/aipp/Jeyhun/khi/pos_minmax.npy")
 
-    l = Loader(
+    loader_ = Loader(
         t0=hyperparameter_defaults["t0"],
         t1=hyperparameter_defaults["t1"],
         timebatchsize=hyperparameter_defaults["timebatchsize"],
@@ -242,7 +242,8 @@ if __name__ == "__main__":
     # Access all hyperparameter values through wandb.config
     config = wandb.config
 
-    # path = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/khi_' + str(wandb.run.id) + model.num_coupling_layers + st
+    # path = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/khi_'
+    # + str(wandb.run.id) + model.num_coupling_layers + st
 
     directory = "/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/" + str(
         wandb.run.id
@@ -254,7 +255,7 @@ if __name__ == "__main__":
     else:
         print(f"Directory '{directory}' already exists.")
 
-    epoch = l[0]
+    epoch = loader_[0]
     start_time = time.time()
     # num_epochs = 1
     for i_epoch in range(start_epoch, hyperparameter_defaults["num_epochs"]):
@@ -295,7 +296,8 @@ if __name__ == "__main__":
             loss_timebatch_avg = sum(loss_avg) / len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
             print(
-                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}".format(
+                ("i_epoch:{}, tb: {}, last timebatch " +
+                 "loss: {}, avg_loss: {}, time: {}").format(
                     i_epoch,
                     tb,
                     loss.item(),
@@ -308,7 +310,8 @@ if __name__ == "__main__":
 
         if min_valid_loss > loss_overall_avg:
             print(
-                f"Validation Loss Decreased({min_valid_loss:.6f}--->{loss_overall_avg:.6f}) \t Saving The Model"
+                f"Validation Loss Decreased({min_valid_loss:.6f}--->" +
+                f"{loss_overall_avg:.6f}) \t Saving The Model"
             )
             min_valid_loss = loss_overall_avg
             # Saving State Dict

@@ -4,7 +4,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from .utilities import save_checkpoint_conditionally
 from mpi4py import MPI
-import os, time
+import os
 
 
 class LossLogger:
@@ -77,11 +77,13 @@ class LossLogger:
 
 class ModelTrainer(Thread):
     """
-    This class implements a trainer based on extracting random batches from the trainer buffer and training the model.
+    This class implements a trainer based on extracting random batches
+    from the trainer buffer and training the model.
 
     Args:
 
-    training_buffer (ac_train_batch_buffer.TrainBatchBuffer object): A TrainBatchBuffer class.
+    training_buffer (ac_train_batch_buffer.TrainBatchBuffer object):
+    A TrainBatchBuffer class.
 
     model: Model to be trained.
 
@@ -89,10 +91,15 @@ class ModelTrainer(Thread):
 
     scheduler: Scheduler object used for optimizer
 
-    sleep_before_retry(int): As the train buffer is being filled. The trainer waits till it has number of items which are equal to training batch size.
+    sleep_before_retry(int): As the train buffer is being filled.
+    The trainer waits till it has number of items which are equal
+    to training batch size.
 
 
-    ts_after_stopped_production (int): After the simulation has stopped, openpmdProducer stops producing for train buffer. The trainer will continue training for this many training steps extracting random batches from last state of the training buffer.
+    ts_after_stopped_production (int): After the simulation has stopped,
+    openpmdProducer stops producing for train buffer. The trainer will
+    continue training for this many training steps extracting random batches
+    from last state of the training buffer.
 
     enable_wandb: Whether to log training params to wandb.
 
@@ -167,8 +174,11 @@ class ModelTrainer(Thread):
                     # something went wrong when reading the first data, abort
                     break
                 print(
-                    f"Trainer will wait for {self.sleep_before_retry} seconds, for data to be "
-                    f"streamed before reattempting batch extraction.",
+                    (
+                        f"Trainer will wait for {self.sleep_before_retry} "
+                        + "seconds, for data to be "
+                        + "streamed before reattempting batch extraction."
+                    ),
                     flush=True,
                 )
                 time.sleep(self.sleep_before_retry)
@@ -199,7 +209,8 @@ class ModelTrainer(Thread):
 
             self.batch_passes += 1
 
-            # torch.cuda.memory._dump_snapshot("profile_{}.pickle".format(self.batch_passes))
+            # torch.cuda.memory._dump_snapshot("profile_{}
+            #    .pickle".format(self.batch_passes))
 
             self.optimizer.zero_grad()
 
@@ -219,12 +230,18 @@ class ModelTrainer(Thread):
             if self.scheduler:
                 self.scheduler.step()
 
-            if self.training_buffer.openpmdProduction == False:
+            if not self.training_buffer.openpmdProduction:
                 print(
-                    f"Note: The streaming has stopped, the trainer will run for "
-                    f"{self.ts_after_stopped_production} training steps (batch passes) "
-                    f"before stopping.\n"
-                    f"Training step:{rest_training_left_counter} after the streaming has stopped.",
+                    (
+                        "Note: The streaming has stopped," +
+                        " the trainer will run " +
+                        f"for {self.ts_after_stopped_production}" +
+                        " training steps " +
+                        "(batch passes) " +
+                        "before stopping.\n" +
+                        f"Training step:{rest_training_left_counter} " +
+                        "after the streaming has stopped."
+                    ),
                     flush=True,
                 )
                 rest_training_left_counter += 1

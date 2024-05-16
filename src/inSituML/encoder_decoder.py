@@ -1,7 +1,5 @@
 import torch
 from torch import nn
-import numpy as np
-from .utilities import inspect_and_select
 import math
 # some part of this module is taken from  https://github.com/lingjiekong/CS236Project
 

@@ -7,7 +7,7 @@ INSITUML_model_path = (
 )
 
 #########################
-## Model configuration ##
+# Model configuration #
 #########################
 
 rad_dims = 512  # Number of frequencies in radiation data
@@ -43,7 +43,8 @@ config = dict(
     ndim_x=544,
     ndim_y=512,
     ndim_z=32,
-    load_model=None,  # path.join(INSITUML_model_path, 'inn_vae_latent_544_sim007_24k0zbm4/best_model_'),
+    load_model=None,  # path.join(INSITUML_model_path,
+    # 'inn_vae_latent_544_sim007_24k0zbm4/best_model_'),
     load_model_checkpoint=path.join(
         INSITUML_model_path,
         "inn_vae_latent_544_CD_sim014_slurm-6923925/model_24000",
@@ -52,10 +53,10 @@ config = dict(
     #   "chamfersloss"
     #   "chamfersloss_d"
     #   "chamfersloss_o"
-    ## for optimized chamfer distance
+    # for optimized chamfer distance
     loss_function="chamfersloss",
     loss_kwargs={},
-    ## for emd without peops library.
+    # for emd without peops library.
     # loss_function = 'earthmovers',
     # loss_kwargs = {},
     betas=(0.8, 0.9),

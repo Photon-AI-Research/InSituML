@@ -1,5 +1,4 @@
 from os import environ
-import pathlib
 
 #######################################
 # openPMD data loader configuration #
@@ -16,18 +15,34 @@ streamLoader_config = dict(
     # t0 =  1800,
     # t1 = 1810,
     streaming_config=None,
-    # pathpattern1 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/014_KHI_007_noWindowFunction/simOutput/openPMD/simData_%T.bp", # files on hemera
-    # pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/014_KHI_007_noWindowFunction/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp", # files on hemera
-    pathpattern1="/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5",  # files for 96GCDs on hemera
-    pathpattern2="/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5",  # files for 96GCDs on hemera
-    amplitude_direction=0,  # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
+    # pathpattern1 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/
+    # 014_KHI_007_noWindowFunction/simOutput/openPMD/simData_%T.bp",
+    # files on hemera
+    # pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/
+    # 014_KHI_007_noWindowFunction/simOutput/radiationOpenPMD/
+    # e_radAmplitudes%T.bp", # files on hemera
+    pathpattern1=(
+        "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+        + "24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/"
+        + "simData_%T.bp5"
+    ),  # files for 96GCDs on hemera
+    pathpattern2=(
+        "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+        + "24-nodes_full-picongpu-data/04-01_1013/simOutput/"
+        + "radiationOpenPMD/e_radAmplitudes_%T.bp5"
+    ),
+    # files for 96GCDs on hemera
+    amplitude_direction=0,  # choose single direction along which the radiation
+    # signal is observed, max: N_observer-1, where N_observer is defined in
+    # PIConGPU's radiation plugin
     phase_space_variables=[
         "momentum",
         "force",
-    ],  # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+    ],  # allowed are "position", "momentum", and "force". If "force" is set,
+    #     "momentum" needs to be set too.
     number_particles_per_gpu=30000,
     verbose=False,
-    ## offline training params
+    # offline training params
     num_epochs=2,
 )
 

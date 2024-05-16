@@ -2,8 +2,7 @@ from threading import Thread
 import torch
 from .cl_memory import ExperienceReplay
 from random import sample
-import os, time
-from collections import defaultdict
+import os
 import numpy as np
 
 from mpi4py import MPI
@@ -58,26 +57,35 @@ class RadiationDataWriter:
 
 class TrainBatchBuffer(Thread):
     """
-    This class creates a ring buffer where oldest enteries produced openPMDProducer are either discarded or sent to Continual Learning based ExperienceReplay memory buffer.
+    This class creates a ring buffer where oldest enteries produced
+    openPMDProducer are either discarded or sent to Continual Learning
+    based ExperienceReplay memory buffer.
 
     Args:
 
-    openPMDBuffer (Queue): Queue shared between openPMD producer and train buffer.
+    openPMDBuffer (Queue): Queue shared between openPMD producer
+    and train buffer.
 
     training_bs (int): training batch size to send to the model to train on.
 
     buffersize (int): Size of train buffer.
 
-    max_tb_from_unchanged_now_bf (int): Maximum number of training batches that can be extracted from the unchanged
-    state of train(or now) buffer. After extracting these many batches trainer would wait for more data to read from
-    openPMDBuffer. State of train/now buffer only changes once there is more data to be read from the openPMDBuffer.
+    max_tb_from_unchanged_now_bf (int): Maximum number of training batches
+    that can be extracted from the unchanged
+    state of train(or now) buffer. After extracting these many batches
+    trainer would wait for more data to read from
+    openPMDBuffer. State of train/now buffer only changes once there is
+    more data to be read from the openPMDBuffer.
 
-    use_continual_learning (Bool): Whether to use use continual learning or not. If yes, will create memory buffer for the continual learning.
+    use_continual_learning (Bool): Whether to use use continual learning or not.
+      If yes, will create memory buffer for the continual learning.
 
     cl_mem_size (int): Continual learning memory buffer size.
 
-    do_tranpose (bool): Whether to do the transpose of particle data or not. It depends if the producer
-    produces (number_of_particles, particle_dims) or the transposed of this. And the model or trainer requires.
+    do_tranpose (bool): Whether to do the transpose of particle data or not.
+    It depends if the producer
+    produces (number_of_particles, particle_dims) or the transposed of this.
+    And the model or trainer requires.
 
     """
 
@@ -114,11 +122,12 @@ class TrainBatchBuffer(Thread):
 
         if consume_size is None:
             self.consume_size = training_bs
-        else:  # number of items consumed from the loaded is, in general, independent of batch size
+        else:  # number of items consumed from the loaded is, in general,
+            #    independent of batch size
             self.consume_size = consume_size
 
         self.use_continual_learning = self.continual_bs > 0
-        ## continual learning related required variables
+        # continual learning related required variables
         if self.use_continual_learning:
             self.er_mem = ExperienceReplay(mem_size=cl_mem_size)
             self.n_obs = 0
@@ -147,12 +156,16 @@ class TrainBatchBuffer(Thread):
         self.particles_radiation = []  # unpack buffer
 
     def get_data(self):
-        """This is an extra failsafe to avoid this thread being blocked because of empty
-        producer queue as batch creation can continue. Seconds to wait before openPMDBuffer.get() throws an empty
+        """
+        This is an extra failsafe to avoid this thread being blocked
+        because of empty
+        producer queue as batch creation can continue. Seconds to wait
+        before openPMDBuffer.get() throws an empty
         exception.
         Reference as Queue.qsize() documentation:
         https://docs.python.org/3/library/queue.html#queue.Queue.qsize
-        Return the approximate size of the queue. Note, qsize() > 0 doesn’t guarantee that a subsequent get()
+        Return the approximate size of the queue. Note, qsize() > 0 doesn’t
+        guarantee that a subsequent get()
         will not block..
         """
 
@@ -165,7 +178,7 @@ class TrainBatchBuffer(Thread):
 
     def run(self):
 
-        if self.run_thread == False or self.openpmdProduction == False:
+        if not self.run_thread or not self.openpmdProduction:
             return
 
         openPMDBufferReadCount = 0
@@ -190,7 +203,7 @@ class TrainBatchBuffer(Thread):
                 # get a particles, radiation from the queue
                 particles_radiation = self.get_data()
 
-                if particles_radiation == False:
+                if not particles_radiation:
                     break
                 elif particles_radiation is None:
                     self.openpmdProduction = False
@@ -199,7 +212,8 @@ class TrainBatchBuffer(Thread):
                 if self.radiation_data_writer is not None:
                     self.radiation_data_writer(particles_radiation[1].numpy())
 
-                # in case items are bunched-up by the producer, we keep superfluous ones for the next round
+                # in case items are bunched-up by the producer,
+                # we keep superfluous ones for the next round
                 self.particles_radiation = self.reshape(particles_radiation)
                 if self.verbose:
                     print(
@@ -253,7 +267,8 @@ class TrainBatchBuffer(Thread):
     def reshape(self, particles_radiation):
         # reshapes from gpu box indices to buffer
         # (gpu_box, number_of_particles, dims) ->
-        # (number_of_particles_box_1, dims_box_1, number_of_particles_box_2, dims_box_2..)
+        # (number_of_particles_box_1, dims_box_1,
+        #  number_of_particles_box_2, dims_box_2..)
         particles, radiation = particles_radiation
 
         if self.do_tranpose:
@@ -289,11 +304,15 @@ class TrainBatchBuffer(Thread):
         ):
             if self.verbose or self.rank == 0:
                 print(
-                    f"Batch extraction failed.. \n"
-                    f"Either train buffer has less element than training size \n"
-                    f"Train Buffer Size: {len(self.buffer_)}, training batch size: {self.training_bs} \n"
-                    f"Or maximum number batches have extracted from unmodified train buffer state. Maximum train batches "
-                    f"allowed from unchanged trainbuffer state: {self.max_tb_from_unchanged_now_bf}\n"
+                    "Batch extraction failed.. \n"
+                    + "Either train buffer has less element "
+                    + "than training size \n"
+                    f"Train Buffer Size: {len(self.buffer_)}, "
+                    + f"training batch size: {self.training_bs} \n"
+                    + "Or maximum number batches have extracted from "
+                    + "unmodified train buffer state. Maximum train batches "
+                    + "allowed from unchanged trainbuffer state: "
+                    + f"{self.max_tb_from_unchanged_now_bf}\n"
                 )
             return None
 

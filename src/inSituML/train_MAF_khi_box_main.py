@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import torch
-from model import model_MAF as model_MAF
+from ks_models import PC_MAF as model_MAF
 import torch.optim as optim
 import time
 import wandb
@@ -170,11 +170,11 @@ class Loader:
 
             def __getitem__(self, timebatch):
                 i = self.timebatchsize * timebatch
-                bi = self.perm[i : i + self.timebatchsize]
+                bi = self.perm[i:i + self.timebatchsize]
                 times = []
                 particles = []
-                for time in bi:
-                    index = time + self.t0
+                for time_ in bi:
+                    index = time_ + self.t0
                     p = torch.from_numpy(
                         np.load(self.loader.pathpattern.format(index)).astype(
                             np.float32
@@ -182,7 +182,7 @@ class Loader:
                     )
                     particles.append(p)
                     t = torch.zeros((p.shape[0], len(self.loader)))
-                    t[:, time] = 1
+                    t[:, time_] = 1
                     times.append(t)
 
                 particles = torch.cat(particles)
@@ -201,7 +201,7 @@ class Loader:
 
                     def __getitem__(self, batch):
                         i = self.batchsize * batch
-                        bi = self.perm[i : i + self.batchsize]
+                        bi = self.perm[i:i + self.batchsize]
 
                         return self.particles[bi], self.times[bi]
 
@@ -257,7 +257,7 @@ if __name__ == "__main__":
         file_path + config["pathpattern"].replace("-", "_") + "/{}.npy"
     )
 
-    l = Loader(
+    loader_ = Loader(
         pathpattern=pathpattern,
         t0=config["t0"],
         t1=config["t1"],
@@ -291,7 +291,7 @@ if __name__ == "__main__":
     else:
         print(f"Directory '{directory}' already exists.")
 
-    epoch = l[0]
+    epoch = loader_[0]
     start_time = time.time()
     for i_epoch in range(start_epoch, config["num_epochs"]):
         print("i_epoch:", i_epoch)
@@ -324,8 +324,8 @@ if __name__ == "__main__":
             loss_timebatch_avg = sum(loss_avg) / len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
             print(
-                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, "
-                + "time: {}".format(
+                ("i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, " +
+                 "time: {}").format(
                     i_epoch,
                     tb,
                     loss.item(),
