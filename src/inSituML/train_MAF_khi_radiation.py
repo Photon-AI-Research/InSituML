@@ -1,8 +1,7 @@
-# train_MAF_khi_box_v2-2-1-8-rad-ex-random
 import os
 import numpy as np
 import torch
-from model import model_MAF as model_MAF
+from ks_models import PC_MAF
 import torch.optim as optim
 import time
 import wandb
@@ -230,7 +229,7 @@ if __name__ == "__main__":
         particlebatchsize=hyperparameter_defaults["particlebatchsize"],
     )
 
-    model = model_MAF.PC_MAF(
+    model = PC_MAF(
         dim_condition=hyperparameter_defaults["dim_condition"],
         dim_input=90000,
         num_coupling_layers=hyperparameter_defaults["num_coupling_layers"],
