@@ -1,8 +1,15 @@
+<<<<<<< HEAD
 # train_MAF_khi_box_v2-2-1-3.py
 import os
 import numpy as np
 import torch
 from ks_models import PC_MAF as model_MAF
+=======
+import os
+import numpy as np
+import torch
+from ks_models import PC_MAF
+>>>>>>> dc15086 (fix import MAF)
 import torch.optim as optim
 import time
 import wandb
@@ -12,9 +19,12 @@ import sys
 import matplotlib.pyplot as plt
 from utilities import normalize_point, denormalize_point
    
+<<<<<<< HEAD
 >>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
 
+=======
+>>>>>>> dc15086 (fix import MAF)
 def sample_pointcloud(model, num_samples, cond, vmin, vmax):
     model.model.eval()
     with torch.no_grad():
@@ -287,6 +297,24 @@ if __name__ == "__main__":
         activation=config["activation"],
     )
 
+<<<<<<< HEAD
+=======
+    pathpattern = file_path + config["pathpattern"].replace("-", "_")+'/{}.npy'
+    
+    l = Loader(pathpattern=pathpattern, t0=config["t0"], t1=config["t1"], timebatchsize=config["timebatchsize"], particlebatchsize=config["particlebatchsize"])
+    
+    model = PC_MAF(dim_condition=config["dim_condition"],
+                               dim_input=9,
+                               num_coupling_layers=config["num_coupling_layers"],
+                               hidden_size=config["hidden_size"],
+                               device='cuda',
+                               weight_particles=False,
+                               num_blocks_mat = config["num_blocks_mat"],
+                               activation = config["activation"]
+                             )
+    
+    
+>>>>>>> dc15086 (fix import MAF)
     optimizer = optim.Adam(model.parameters(), lr=config["lr"])
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=500, gamma=0.8

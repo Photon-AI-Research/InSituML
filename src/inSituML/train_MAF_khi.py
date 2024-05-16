@@ -1,8 +1,15 @@
+<<<<<<< HEAD
 # _v1_5_1
 import os
 import numpy as np
 import torch
 from ks_models import PC_MAF as model_MAF
+=======
+import os
+import numpy as np
+import torch
+from ks_models import PC_MAF
+>>>>>>> dc15086 (fix import MAF)
 import torch.optim as optim
 import time
 import wandb
@@ -193,12 +200,26 @@ if __name__ == "__main__":
     # min/max of particle dataa for normalisation
     pos_minmax = np.load("/bigdata/hplsim/aipp/Jeyhun/khi/pos_minmax.npy")
 
+<<<<<<< HEAD
     loader_ = Loader(
         t0=hyperparameter_defaults["t0"],
         t1=hyperparameter_defaults["t1"],
         timebatchsize=hyperparameter_defaults["timebatchsize"],
         particlebatchsize=hyperparameter_defaults["particlebatchsize"],
     )
+=======
+    l = Loader(t0=hyperparameter_defaults["t0"], t1=hyperparameter_defaults["t1"], timebatchsize=hyperparameter_defaults["timebatchsize"], particlebatchsize=hyperparameter_defaults["particlebatchsize"])
+    
+    model = PC_MAF(dim_condition=hyperparameter_defaults["dim_condition"],
+                               dim_input=9,
+                               num_coupling_layers=hyperparameter_defaults["num_coupling_layers"],
+                               hidden_size=hyperparameter_defaults["hidden_size"],
+                               device='cuda',
+                               weight_particles=False)
+    
+    
+    optimizer = optim.Adam(model.parameters(), lr=hyperparameter_defaults["lr"])
+>>>>>>> dc15086 (fix import MAF)
 
     model = model_MAF.PC_MAF(
         dim_condition=hyperparameter_defaults["dim_condition"],
