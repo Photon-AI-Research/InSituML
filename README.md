@@ -12,18 +12,18 @@ In order to train the model do:
    - frontier: `source /lustre/orion/csc380/proj-shared/openpmd_environment/env.sh`
    - hemera: create a new environment
       ```bash
-	  . /share/env/ddp_tested_hemera_env.sh
+	  . $INSITUML/share/env/ddp_tested_hemera_env.sh
 	  export openPMD_USE_MPI=ON
 	  pip install -r requirements_hemera.txt
 	  ```
 
-3. Adjust path to offline PIConGPU data in `/share/configs/io_config.py` (`pathpattern1` and `pathpattern2` (already there, but commented-out)) to
+3. Adjust path to offline PIConGPU data in `$INSITUML/share/configs/io_config.py` (`pathpattern1` and `pathpattern2` (already there, but commented-out)) to
       - frontier path to data with 08GPUs: `/lustre/orion/csc380/world-shared/ksteinig/008_KHI_withRad_randomInit_8gpus/simOutput`
       - frontier path to data with 16GPUs: `/lustre/orion/csc380/world-shared/ksteinig/016_KHI_withRad_randomInit_16gpus/simOutput`
       - frontier path to data with 32GPUs: `/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset`
    * `streaming_config` to `None` (to train from file),
-   * path to pre-trained model in `/share/configs/io_config.py` should not need to be adjusted.
-   * **There is also `/share/configs/io_config_frontier_offline.py`** which has these settings,
+   * path to pre-trained model in `$INSITUML/share/configs/io_config.py` should not need to be adjusted.
+   * **There is also `$INSITUML/share/configs/io_config_frontier_offline.py`** which has these settings,
      see below.
 
 4. Run training in an interactive job by continual, distributed learning with stream loader.
@@ -35,7 +35,7 @@ In order to train the model do:
    $ cd /lustre/orion/csc380/proj-shared/ksteinig/2024-03_Training-from-Stream/job_temp # change directory to arbitrary temporary directory
    $ export MIOPEN_USER_DB_PATH="/mnt/bb/$USER"; export MIOPEN_DISABLE_CACHE=1
    $ export MASTER_PORT=12340; export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
-   $ srun python ~/src/InSituML/main/ModelHelpers/cINN/ac_jr_fp_ks_openpmd-streaming-continual-learning.py --io_config ~/src/InSituML/main/ModelHelpers/cINN/io_config_frontier_offline.py 2>err.txt | tee out.txt
+   $ srun python $INSITUML/tools/openpmd-streaming-continual-learning.py --io_config $INSITUML/share/configs/io_config_frontier_offline.py 2>err.txt | tee out.txt
    ```
    Add `--type_streamer 'streaming'` to work from file but using the `StreamingLoader` instead of `RandomLoader`.
    This will aid testing the streaming, continual, distributed learning workflow without requiring a PIConGPU simulation producing the data at the same time.
@@ -43,6 +43,7 @@ In order to train the model do:
    All data is send to all ranks, i.e. the number of epochs/work increase with number GPUs.
    Can be controlled in `io_config.py` with the `num_epochs` parameter in `streamLoader_config`, which may be fractional.
 
+   - hemera: use `$INSITUML/scripts/job_hemera.sh`, or
    - hemera:
    ```bash
    export WORLD_SIZE=<number of global torch ranks>
