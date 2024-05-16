@@ -49,12 +49,13 @@ In order to train the model do:
    export MASTER_PORT=12340
    master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
    export MASTER_ADDR=$master_addr
-   mpirun -n <torch ranks per node> python /tools/openpmd-streaming-continual-learning.py --io_config=/share/configs/io_config_hemera.py --type_streamer=offline
+   cd $INSITUML
+   mpirun -n <torch ranks per node> python tools/openpmd-streaming-continual-learning.py --io_config=share/configs/io_config_hemera.py --type_streamer=offline
    ```
    `--type_streamer` may be `streaming` or `offline`.
 
 ## Parameters for `openpmd-streaming-continual-learning.py`
 |arg | description | values |
 | --- | --- | --- |
-|`--/share/configs/io_config`| IO-related config (producer/training buffer/model paths) | e.g. `/share/configs/io_config.py` (default), `io_config_frontier_offline.py`, `/share/configs/io_config_hemera.py` |
-|`--model_config` | model hyper parameters | `/share/configs/model_config.py` |
+|`--io_config`| IO-related config (producer/training buffer/model paths) | e.g. `$INSITUML/share/configs/io_config.py` (default), `$INSITUML/share/configs/io_config_frontier_offline.py`, `$INSITUML/share/configs/io_config_hemera.py` |
+|`--model_config` | model hyper parameters | `$INSITUML/share/configs/model_config.py` |
