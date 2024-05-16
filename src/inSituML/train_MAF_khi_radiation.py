@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import torch
-from model import model_MAF as model_MAF
+from ks_models import PC_MAF as model_MAF
 import torch.optim as optim
 import time
 import wandb
