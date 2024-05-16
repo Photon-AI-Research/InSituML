@@ -229,7 +229,7 @@ if __name__ == "__main__":
         particlebatchsize=hyperparameter_defaults["particlebatchsize"],
     )
 
-    model = model_MAF.PC_MAF(
+    model = PC_MAF(
         dim_condition=hyperparameter_defaults["dim_condition"],
         dim_input=90000,
         num_coupling_layers=hyperparameter_defaults["num_coupling_layers"],
