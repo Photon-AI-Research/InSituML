@@ -24,8 +24,6 @@ from torch import stack as torch_stack
 # required by adios when importing openpmd_api (on hemera)
 import openpmd_api as opmd
 
-from .ks_helperfuncs import *
-
 
 class RandomLoader(Thread):
     """Thread providing PIConGPU particle and radiation data for
@@ -334,7 +332,7 @@ class RandomLoader(Thread):
                         loaded_particles
                     )
 
-                # obtain radiation data per GPU #
+                # obtain radiation data per GPU
                 #
                 radIter = radiationSeries.iterations[step]
 

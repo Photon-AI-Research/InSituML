@@ -165,7 +165,8 @@ class INNModel(nn.Module):
         self.activation = activation_functions.get(activation)
 
         # Define the subnet_constructor using a method
-        subnet_constructor = lambda c_in, c_out: self.subnet_fc(c_in, c_out)
+        def subnet_constructor(c_in, c_out):
+            return self.subnet_fc(c_in, c_out)
 
         self.model = self._build_model(subnet_constructor, num_coupling_layers)
 
