@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-# train_MAF_khi_box_v2-2-1-8-rad-ex-random
-=======
->>>>>>> dc15086 (fix import MAF)
 import os
 import numpy as np
 import torch
@@ -10,10 +6,7 @@ import torch.optim as optim
 import time
 import wandb
 
-<<<<<<< HEAD
 
-=======
->>>>>>> dc15086 (fix import MAF)
 def sample_pointcloud(model, num_samples, cond):
     model.model.eval()
     with torch.no_grad():
@@ -226,7 +219,6 @@ if __name__ == "__main__":
 
         # Access all hyperparameter values through wandb.config
         config = wandb.config
-<<<<<<< HEAD
 
     loader_ = Loader(
         pathpattern1=hyperparameter_defaults["pathpattern1"],
@@ -247,25 +239,6 @@ if __name__ == "__main__":
         activation=hyperparameter_defaults["activation"],
     )
 
-=======
-    
-    l = Loader(pathpattern1 = hyperparameter_defaults["pathpattern1"],
-               pathpattern2 = hyperparameter_defaults["pathpattern2"],
-               t0 = hyperparameter_defaults["t0"],
-               t1 = hyperparameter_defaults["t1"],
-               timebatchsize = hyperparameter_defaults["timebatchsize"],
-               particlebatchsize = hyperparameter_defaults["particlebatchsize"])
-    
-    model = PC_MAF(dim_condition = hyperparameter_defaults["dim_condition"],
-                               dim_input = 90000,
-                               num_coupling_layers = hyperparameter_defaults["num_coupling_layers"],
-                               hidden_size = hyperparameter_defaults["hidden_size"],
-                               device = 'cuda',
-                               num_blocks_mat = hyperparameter_defaults["num_blocks_mat"],
-                               activation = hyperparameter_defaults["activation"]
-                             )
-    
->>>>>>> dc15086 (fix import MAF)
     # Calculate the total number of parameters
     total_params = sum(p.numel() for p in model.parameters())
     print(f"Total number of parameters: {total_params}")
