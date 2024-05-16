@@ -45,7 +45,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    script_path = str(pathlib.Path(__file__).parent.resolve())
+    configs_path = os.path.join(str(pathlib.Path(__file__).parent.resolve()), "../share/configs/")
 
     parser.add_argument('--runner',
                     type=str,
@@ -59,12 +59,12 @@ def main():
 
     parser.add_argument('--io_config',
                     type=str,
-                    default=script_path + '/io_config.py',
+                    default=configs_path + '/io_config.py',
                     help="IO/streaming/data/paths -related config")
 
     parser.add_argument('--model_config',
                     type=str,
-                    default=script_path + '/model_config.py',
+                    default=configs_path + '/model_config.py',
                     help="model config")
 
     args = parser.parse_args()
