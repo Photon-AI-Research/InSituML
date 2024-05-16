@@ -7,16 +7,14 @@ Start training by executing `python ks_main.py`.
 import os
 import numpy as np
 import time
+import wandb
 
 from sys import stdout
-
 from queue import Queue
+from threading import Thread
 
-from ks_helperfuncs import *
-from ks_consumer_MAF_khi_radiation import *
-from ks_transform_policies import *
-from ks_producer_openPMD import *
-from ks_producer_openPMD_streaming import *
+import ks_transform_policies
+import ks_producer_openPMD
 
 print("Done importing modules.")
 
@@ -93,10 +91,11 @@ model = PC_MAF(
     activation = hyperparameter_defaults["activation"]
 )
 """
-particleDataTransformationPolicy = BoxesAttributesParticles()
+particleDataTransformationPolicy = (ks_transform_policies
+                                    .BoxesAttributesParticles())
 
 # radiationDataTransformationPolicy = PerpendicularAbsoluteAndPhase()
-radiationDataTransformationPolicy = AbsoluteSquare()
+radiationDataTransformationPolicy = ks_transform_policies.AbsoluteSquare()
 """
 # Calculate the total number of parameters
 total_params = sum(p.numel() for p in model.parameters())
@@ -166,7 +165,7 @@ dummyConsumer.start()
 
 
 # start the producer
-timeBatchLoader = RandomLoader(
+timeBatchLoader = ks_producer_openPMD.RandomLoader(
     batchDataBuffer,
     hyperparameter_defaults,
     particleDataTransformationPolicy,

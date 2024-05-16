@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import time
 import wandb
-from utilities import *
+import utilities
 
 
 def save_checkpoint(
@@ -133,12 +133,12 @@ class TrainLoader:
                         r = np.delete(r, self.blacklist_box, axis=0)
 
                     # Normalize particle data for all boxes
-                    p = [normalize_columns(element) for element in p]
+                    p = [utilities.normalize_columns(element) for element in p]
                     p = np.array(p, dtype=object)
 
                     # random sample N points from each box
                     p = [
-                        random_sample(element, sample_size=150000)
+                        utilities.random_sample(element, sample_size=150000)
                         for element in p
                     ]
                     p = torch.from_numpy(np.array(p, dtype=np.float32))
@@ -223,10 +223,11 @@ class ValidationDataset:
         )
         p = [p_loaded[box_index] for box_index in self.validation_boxes]
 
-        p = [normalize_columns(element) for element in p]
+        p = [utilities.normalize_columns(element) for element in p]
         p = np.array(p, dtype=object)
 
-        p = [random_sample(element, sample_size=150000) for element in p]
+        p = [utilities.random_sample(element, sample_size=150000)
+             for element in p]
         p = torch.from_numpy(np.array(p, dtype=np.float32))
 
         # Load radiation data for the validation boxes
