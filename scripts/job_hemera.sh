@@ -21,7 +21,7 @@
 
 export INSITUML="${INSITUML:-.}"
 
-. $INSITUML/src/inSituML/ddp_tested_hemera_env_erik.sh
+. $INSITUML/src/inSituML/ddp_tested_hemera_env.sh
 
 export WORLD_SIZE=$SLURM_NTASKS
 export MASTER_PORT="1$( echo -n $SLURM_JOBID | tail -c 4 )"

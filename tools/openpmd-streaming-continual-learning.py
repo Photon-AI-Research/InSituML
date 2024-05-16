@@ -372,9 +372,9 @@ def main():
             # create model and move it to GPU with id rank
             rank = rank % torch.cuda.device_count()
 
-        elif runner=="mpirun":
+        elif runner == "mpirun":
             
-            rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
+            rank = int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
             if torch.cuda.device_count() == 1:
                 rank = 0
             
