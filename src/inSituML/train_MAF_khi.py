@@ -68,6 +68,18 @@ def denormalize_point(point_normalized, vmin, vmax, a=0.0, b=1.0):
 from utilities import normalize_point, denormalize_point
 >>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
+<<<<<<< HEAD
+=======
+def save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id):
+        state = {
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'last_loss': last_loss.item(),
+            'epoch': epoch,
+            'min_valid_loss': min_valid_loss,
+            'wandb_run_id': wandb_run_id,
+        }
+>>>>>>> d893c55 (fix save_checkpoint)
 
 def save_checkpoint(
     model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id
