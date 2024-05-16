@@ -20,12 +20,12 @@ import torch.nn as nn
 from inSituML.utilities import MMD_multiscale, fit, load_checkpoint
 from inSituML.ks_models import PC_MAF, INNModel
 
-from inSituML.train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
-from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
-from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
-from inSituML.train_khi_AE_refactored.encoder_decoder import Conv3DDecoder, MLPDecoder
-from inSituML.train_khi_AE_refactored.loss_functions import EarthMoversLoss
-from inSituML.train_khi_AE_refactored.networks import VAE, ConvAutoencoder
+from inSituML.args_transform import MAPPING_TO_LOSS
+from inSituML.encoder_decoder import Encoder
+from inSituML.encoder_decoder import Encoder
+from inSituML.encoder_decoder import Conv3DDecoder, MLPDecoder
+from inSituML.loss_functions import EarthMoversLoss
+from inSituML.networks import VAE, ConvAutoencoder
 from inSituML.wandb_logger import WandbLogger
 import torch.multiprocessing as mp
 import torch.distributed as dist

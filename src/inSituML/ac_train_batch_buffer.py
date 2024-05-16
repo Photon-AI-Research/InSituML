@@ -87,7 +87,7 @@ class TrainBatchBuffer(Thread):
                  cl_mem_size=2048,
                  do_tranpose=True,
                  stall_loader=False,
-                 verbose=False,
+                 verbose=True,
                  consume_size = None,
                  radiation_data_folder = None):
 
