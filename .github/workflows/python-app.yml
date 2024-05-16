@@ -24,7 +24,7 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with flake8
       run: |
-        flake8 --exclude=*venv* --statistics
+        flake8 --exclude=*venv* --max-line-length=80 --statistics
     - name: Test with pytest
       run: |
         pytest
