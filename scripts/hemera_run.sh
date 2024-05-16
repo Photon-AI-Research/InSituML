@@ -1,9 +1,10 @@
 #!/bin/bash
+
 # Default values for arguments
 WORLD_SIZE=1
 TORCH_RANKS_PER_NODE=1
 NTASKS_PER_NODE=1
-CPUS_PER_TASK=1
+CPUS_PER_TASK=2
 GPUS=1
 MEM="128G"
 
