@@ -6,10 +6,7 @@ import torch.optim as optim
 import time
 import wandb
 import sys
-from utilities import normalize_point, denormalize_point
-
-
-
+from utilities import normalize_point
 
 def save_checkpoint(
     model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id
@@ -148,7 +145,7 @@ if __name__ == "__main__":
         timebatchsize=hyperparameter_defaults["timebatchsize"],
         particlebatchsize=hyperparameter_defaults["particlebatchsize"],
     )
-    
+
     model = PC_MAF(
         dim_condition=hyperparameter_defaults["dim_condition"],
         dim_input=9,
