@@ -116,7 +116,7 @@ class Loader:
 
             def __getitem__(self, timebatch):
                 i = self.timebatchsize * timebatch
-                bi = self.perm[i:i + self.timebatchsize]
+                bi = self.perm[i : i + self.timebatchsize]
                 radiation = []
                 particles = []
                 print("=" * 60)
@@ -171,7 +171,7 @@ class Loader:
 
                     def __getitem__(self, batch):
                         i = self.batchsize * batch
-                        bi = self.perm[i:i + self.batchsize]
+                        bi = self.perm[i : i + self.batchsize]
 
                         return self.particles[bi], self.radiation[bi]
 

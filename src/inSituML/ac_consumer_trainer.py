@@ -12,6 +12,7 @@ class LossLogger:
     This class prints losses and optionally calls another
     logger to log losses in another way.
     """
+
     def __init__(self, otherLogger=None, max_logs=20, out_prefix=""):
         self.printedHeader = False
         self.logger = otherLogger
