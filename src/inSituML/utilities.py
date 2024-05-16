@@ -568,6 +568,7 @@ def save_checkpoint_conditionally(
             " Skipping save."
         )
 
+
 def normalize_point(point, vmin, vmax, a=0., b=1.):
     '''
     Normalize point from a set of points with vmin(minimum) and vmax(maximum)
@@ -585,13 +586,14 @@ def normalize_point(point, vmin, vmax, a=0., b=1.):
 
     return result_array
 
+
 def denormalize_point(point_normalized, vmin, vmax, a=0., b=1.):
     '''
     Denormalize point back to the original range using vmin(minimum) and vmax(maximum).
     '''
-    
+
     # Convert the input to PyTorch tensors
-    #point_normalized = torch.tensor(point_normalized)
+    # point_normalized = torch.tensor(point_normalized)
     vmin = torch.tensor(vmin)
     vmax = torch.tensor(vmax)
 
