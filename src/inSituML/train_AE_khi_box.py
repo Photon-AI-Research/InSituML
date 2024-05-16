@@ -6,8 +6,6 @@ import torch.nn as nn
 import torch.optim as optim
 import time
 import wandb
-import sys
-import matplotlib.pyplot as plt
 from utilities import *
 
 
@@ -36,8 +34,10 @@ def chamfersDist(a, b):
 class TrainLoader:
     def __init__(
         self,
-        pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/40_80_80_160_0_2/{}.npy",
-        pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex/{}.npy",
+        pathpattern1=("/bigdata/hplsim/aipp/Jeyhun/khi/particle_box/" +
+                      "40_80_80_160_0_2/{}.npy"),
+        pathpattern2=("/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/" +
+                      "radiation_ex/{}.npy"),
         t0=0,
         t1=100,
         timebatchsize=20,
@@ -108,11 +108,11 @@ class TrainLoader:
 
             def __getitem__(self, timebatch):
                 i = self.timebatchsize * timebatch
-                bi = self.perm[i : i + self.timebatchsize]
+                bi = self.perm[i:i + self.timebatchsize]
                 radiation = []
                 particles = []
-                for time in bi:
-                    index = time + self.t0
+                for time_ in bi:
+                    index = time_ + self.t0
 
                     # Load particle data
                     p = np.load(
@@ -157,7 +157,8 @@ class TrainLoader:
                     particles.append(p)
                     radiation.append(r)
 
-                # concatenate particle and radiation data across randomly chosen timesteps
+                # concatenate particle and radiation data across randomly
+                # chosen timesteps
                 particles = torch.cat(particles)
                 radiation = torch.cat(radiation)
 
@@ -174,7 +175,7 @@ class TrainLoader:
 
                     def __getitem__(self, batch):
                         i = self.batchsize * batch
-                        bi = self.perm[i : i + self.batchsize]
+                        bi = self.perm[i:i + self.batchsize]
 
                         return self.particles[bi], self.radiation[bi]
 
@@ -258,8 +259,10 @@ if __name__ == "__main__":
         num_epochs=20000,
         val_boxes=[19, 5, 3],
         activation="relu",
-        pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_002/{}.npy",
-        pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_002/{}.npy",
+        pathpattern1=("/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/" +
+                      "particle_002/{}.npy"),
+        pathpattern2=("/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/" +
+                      "radiation_ex_002/{}.npy"),
     )
 
     print("New session...")
@@ -274,7 +277,7 @@ if __name__ == "__main__":
     pathpattern1 = config["pathpattern1"]
     pathpattern2 = config["pathpattern2"]
 
-    l = TrainLoader(
+    loader_ = TrainLoader(
         pathpattern1=pathpattern1,
         pathpattern2=pathpattern2,
         t0=config["t0"],
@@ -365,7 +368,7 @@ if __name__ == "__main__":
     else:
         print(f"Directory '{directory}' already exists.")
 
-    epoch = l[0]
+    epoch = loader_[0]
 
     patience = 20
     slow_improvement_patience = 10
@@ -416,7 +419,8 @@ if __name__ == "__main__":
             loss_timebatch_avg = sum(loss_avg) / len(loss_avg)
             loss_overall.append(loss_timebatch_avg)
             print(
-                "i_epoch:{}, tb: {}, last timebatch loss: {}, avg_loss: {}, time: {}".format(
+                ("i_epoch:{}, tb: {}, last timebatch loss: " +
+                 "{}, avg_loss: {}, time: {}").format(
                     i_epoch,
                     tb,
                     loss.item(),
@@ -442,13 +446,15 @@ if __name__ == "__main__":
                 val_loss = chamfersDist(
                     pc_pr_t.transpose(2, 1), p.transpose(2, 1)
                 )
-                # emd = emd_loss(pc_pr_t.transpose(2,1).contiguous(), p.transpose(2,1).contiguous())
+                # emd = emd_loss(pc_pr_t.transpose(2,1).contiguous(),
+                # p.transpose(2,1).contiguous())
                 val_loss_avg.append(val_loss.mean().item())
             val_loss_overall_avg = sum(val_loss_avg) / len(val_loss_avg)
 
         if min_valid_loss > val_loss_overall_avg:
             print(
-                f"Validation Loss Decreased({min_valid_loss:.6f}--->{val_loss_overall_avg:.6f}) \t Saving The Model"
+                f"Validation Loss Decreased({min_valid_loss:.6f}--->" +
+                f"{val_loss_overall_avg:.6f}) \t Saving The Model"
             )
             min_valid_loss = val_loss_overall_avg
             no_improvement_count = 0
@@ -478,7 +484,8 @@ if __name__ == "__main__":
             }
         )
 
-        # if no_improvement_count >= patience or slow_improvement_count >= slow_improvement_patience:
+        # if no_improvement_count >= patience or
+        # slow_improvement_count >= slow_improvement_patience:
         #     break  # Stop training
 
     # Code or process to be measured goes here
@@ -488,8 +495,11 @@ if __name__ == "__main__":
     print(f"Total elapsed time: {elapsed_time:.6f} seconds")
 
     # Plotting results
-#     create_position_density_plots(x, y, z, x_pr, y_pr, z_pr, bins=100, t=t_index)
+#     create_position_density_plots(x, y, z, x_pr, y_pr,
+#                                   z_pr, bins=100, t=t_index)
 
-#     create_momentum_density_plots(px, py, pz, px_pr, py_pr, pz_pr, bins=100, t=t_index)
+#     create_momentum_density_plots(px, py, pz, px_pr, py_pr,
+#                                   pz_pr, bins=100, t=t_index)
 
-#     create_force_density_plots(fx, fy, fz, fx_pr, fy_pr, fz_pr, bins=100, t=t_index)
+#     create_force_density_plots(fx, fy, fz, fx_pr, fy_pr,
+#                                fz_pr, bins=100, t=t_index)

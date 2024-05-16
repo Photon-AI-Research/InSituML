@@ -136,7 +136,7 @@ def create_position_density_plots(
     if path:
         plt.savefig(path + "/density_plots_{}.png".format(t))
 
-    if enable_wandb == True:
+    if enable_wandb:
         # Log the overlapping histogram plot
         wandb.log({"XY vs XZ vs YZ histograms": wandb.Image(plt)})
 
@@ -221,7 +221,7 @@ def create_momentum_density_plots(
     if path:
         plt.savefig(path + "/momentum_density_plots_{}.png".format(t))
 
-    if enable_wandb == True:
+    if enable_wandb:
         # Log the overlapping histogram plot
         wandb.log({"Px vs Py vs Pz histograms": wandb.Image(plt)})
 
@@ -306,7 +306,7 @@ def create_force_density_plots(
     if path:
         plt.savefig(path + "/force_density_plots_{}.png".format(t))
 
-    if enable_wandb == True:
+    if enable_wandb:
         # Log the overlapping histogram plot
         wandb.log({"Fx vs Fy vs FZ histograms": wandb.Image(plt)})
 
@@ -370,12 +370,16 @@ def plot_radiation(
     wandb=None,
 ):
     """
-    Plot radiation intensity against frequency and compute MSE and relative MSE
-    between ground truth and prediction. Compatible with both NumPy arrays and PyTorch tensors.
+    Plot radiation intensity against frequency and
+      compute MSE and relative MSE
+    between ground truth and prediction.
+    Compatible with both NumPy arrays and PyTorch tensors.
 
     Parameters:
-    - ground_truth_intensity: A tensor or array of ground truth radiation spectra values.
-    - predicted_intensity: A tensor or array of predicted radiation spectra values (optional).
+    - ground_truth_intensity:
+      A tensor or array of ground truth radiation spectra values.
+    - predicted_intensity:
+      A tensor or array of predicted radiation spectra values (optional).
     - t: Time step for the title (default=1000).
     - gpu_box: Identifier for the GPU box (default=0).
     - path: Path to save the plot (optional).
@@ -441,7 +445,8 @@ def plot_radiation(
     # Update plot title with MSE and Relative MSE if prediction is provided
     if predicted_intensity is not None:
         plt.title(
-            f"Radiation Intensity vs. Frequency t = {t}, box = {gpu_box}\nMSE = {mse:.2e}, Relative MSE = {rel_mse:.2e}"
+            f"Radiation Intensity vs. Frequency t = {t}," +
+            f" box = {gpu_box}\nMSE = {mse:.2e}, Relative MSE = {rel_mse:.2e}"
         )
     else:
         plt.title(
@@ -553,5 +558,6 @@ def save_checkpoint_conditionally(
         print(f"Checkpoint for iteration {iteration} saved.")
     else:
         print(
-            f"Checkpoint for iteration {iteration} already exists. Skipping save."
+            f"Checkpoint for iteration {iteration} already exists." +
+            " Skipping save."
         )

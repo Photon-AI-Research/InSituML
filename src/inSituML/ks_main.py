@@ -10,9 +10,6 @@ import time
 
 from sys import stdout
 
-import torch
-from torch import optim
-
 from queue import Queue
 
 from ks_helperfuncs import *
@@ -41,16 +38,29 @@ hyperparameter_defaults = dict(
     num_epochs=8,
     num_blocks_mat=2,
     activation="gelu",
-    pathpattern1="/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp",  # files on frontier
-    pathpattern2="/lustre/orion/csc380/world-shared/ksteinig/002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/e_radAmplitudes%T.bp",  # files on frontier
-    # pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/openPMD/simData_%T.bp5", # files on hemera
-    # pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
-    amplitude_direction=0,  # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
+    pathpattern1=(
+        "/lustre/orion/csc380/world-shared/ksteinig/"
+        + "002_KHI_withRad_randomInit_data-subset/openPMD/"
+        + "simData_%T.bp"
+    ),  # files on frontier
+    pathpattern2=(
+        "/lustre/orion/csc380/world-shared/ksteinig/"
+        + "002_KHI_withRad_randomInit_data-subset/radiationOpenPMD/"
+        + "e_radAmplitudes%T.bp"
+    ),  # files on frontier
+    # pathpattern1 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/
+    #  pic_run/openPMD/simData_%T.bp5", # files on hemera
+    # pathpattern2 = "/bigdata/hplsim/scratch/poesch58/InSituML_env/
+    #  pic_run/radiationOpenPMD/e_radAmplitudes_%T.bp5", # files on hemera
+    amplitude_direction=0,  # choose single direction along which the radiation
+    # signal is observed, max: N_observer-1, where N_observer is defined in
+    # PIConGPU's radiation plugin
     phase_space_variables=[
         "position",
         "momentum",
         "force",
-    ],  # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+    ],  # allowed are "position", "momentum", and "force".
+    # If "force" is set, "momentum" needs to be set too.
     normalization=normalization_values,
     number_particles_per_gpu=1000,
 )
@@ -73,14 +83,15 @@ if enable_wandb:
 
 
 """
-model = (PC_MAF(dim_condition = hyperparameter_defaults["dim_condition"],
-                           dim_input = hyperparameter_defaults["dim_input"],
-                           num_coupling_layers = hyperparameter_defaults["num_coupling_layers"],
-                           hidden_size = hyperparameter_defaults["hidden_size"],
-                           device = 'cuda',
-                           num_blocks_mat = hyperparameter_defaults["num_blocks_mat"],
-                           activation = hyperparameter_defaults["activation"]
-                         ))
+model = PC_MAF(
+    dim_condition = hyperparameter_defaults["dim_condition"],
+    dim_input = hyperparameter_defaults["dim_input"],
+    num_coupling_layers = hyperparameter_defaults["num_coupling_layers"],
+    hidden_size = hyperparameter_defaults["hidden_size"],
+    device = 'cuda',
+    num_blocks_mat = hyperparameter_defaults["num_blocks_mat"],
+    activation = hyperparameter_defaults["activation"]
+)
 """
 particleDataTransformationPolicy = BoxesAttributesParticles()
 
@@ -92,7 +103,8 @@ total_params = sum(p.numel() for p in model.parameters())
 print(f"Total number of parameters: {total_params}")
 
 optimizer = optim.Adam(model.parameters(), lr=hyperparameter_defaults["lr"])
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.9)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                            step_size=1000, gamma=0.9)
 """
 if enable_wandb:
     directory = "/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/" + str(
@@ -140,7 +152,7 @@ class DummyTimebatchConsumer(Thread):
                 break
             # block, to simulate effort
             sleep(3)
-            print(f">consumer got item")
+            print(">consumer got item")
             print(f"Number of boxes times number of timesteps {len(item)}")
             stdout.flush()
             # report
@@ -159,8 +171,10 @@ timeBatchLoader = RandomLoader(
     hyperparameter_defaults,
     particleDataTransformationPolicy,
     radiationDataTransformationPolicy,
-)  ## Normal load offline data with random order of iterations
-# timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults, particleDataTransformationPolicy, radiationDataTransformationPolicy) ## Streaming ready
+)  # Normal load offline data with random order of iterations
+# timeBatchLoader = StreamLoader(batchDataBuffer, hyperparameter_defaults,
+# particleDataTransformationPolicy, radiationDataTransformationPolicy)
+# Streaming ready
 timeBatchLoader.start()
 
 # modelTrainer.join()

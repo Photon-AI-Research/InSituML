@@ -1,7 +1,8 @@
 """
 Definitions of transformation policies for particle or radiation data.
 Implement policies as functors!
-To be used in the openPMD data producers which load PIConGPU data from disk or via streaming.
+To be used in the openPMD data producers which load PIConGPU data
+from disk or via streaming.
 """
 
 import numpy as np
@@ -16,16 +17,20 @@ from torch import log as torch_log
 
 
 #################################
-## Particle transform policies ##
+# Particle transform policies #
 #################################
 class BoxesAttributesParticles:
-    """Transform particle data to shape (GPUs, phaseSpaceComponents, particlesPerGPU)
+    """
+    Transform particle data to shape
+    (GPUs, phaseSpaceComponents, particlesPerGPU)
 
     Args:
-        loaded_particles (torch.tensor): particle data in the shape of (phaseSpaceComponents, GPUs, particlesPerGPU)
+        loaded_particles (torch.tensor): particle data in the shape of
+        (phaseSpaceComponents, GPUs, particlesPerGPU)
 
     Returns:
-        (torch.tensor): can be a map or a copy of the transformed data. pytorch decides.
+        (torch.tensor): can be a map or a copy of the transformed data.
+        pytorch decides.
     """
 
     def __call__(self, loaded_particles):
@@ -37,7 +42,8 @@ class ParticlesAttributes:
     That is, it performs a sum over all local subvolumes (=GPUs).
 
     Args:
-        loaded_particles (torch.tensor): particle data in the shape of (phaseSpaceComponents, GPUs, particlesPerGPU)
+        loaded_particles (torch.tensor): particle data in the shape of
+         (phaseSpaceComponents, GPUs, particlesPerGPU)
 
     Returns:
         (torch.tensor):
@@ -49,14 +55,19 @@ class ParticlesAttributes:
 
 
 ##################################
-## Radiation transform policies ##
+# Radiation transform policies #
 ##################################
 class PerpendicularAbsoluteAndPhase:
-    """Transform distributed amplitudes of radiation data to keep only components of the vector perpendicular to the x-direction.
-    Also returns the absolute and phase value of the complex radiation amplitude, instead of a complex number.
+    """
+    Transform distributed amplitudes of radiation data to keep only
+     components of the vector perpendicular to the x-direction.
+    Also returns the absolute and phase value of the complex radiation
+     amplitude, instead of a complex number.
 
     Args:
-        distributed_amplitudes (torch.Tensor): Radiation data in the shape of (MPI ranks or local chunks, components, frequencies)
+        distributed_amplitudes (torch.Tensor):
+         Radiation data in the shape of (MPI ranks or local chunks,
+          components, frequencies)
             That is, radiation data is already along a single direction.
 
     Returns:
@@ -85,20 +96,25 @@ class PerpendicularAbsoluteAndPhase:
         phase = torch_angle(r)
         # Compute the absolute value of the complex number
         absolute = torch_abs(r)
-        return torch_cat((absolute, phase), dim=1).to(
-            torch_float32
-        )  # shape: (MPI ranks or local chunks, 2 * (y,z)-components, frequencies)
+        return torch_cat((absolute, phase), dim=1).to(torch_float32)
+        # shape: (MPI ranks or local chunks, 2 * (y,z)-components, frequencies)
 
 
 class AbsoluteSquare:
-    """Transform distributed amplitudes of radiation data to return the summed absolute square of the distributed amplitude components.
+    """
+    Transform distributed amplitudes of radiation data to return
+     the summed absolute square of the distributed amplitude components.
 
     Args:
-        distributed_amplitudes (torch.Tensor): Radiation data in the shape of (MPI ranks or local chunks, components, frequencies)
+        distributed_amplitudes (torch.Tensor):
+         Radiation data in the shape of
+          (MPI ranks or local chunks, components, frequencies)
             That is, radiation data is already along a single direction.
 
     Returns:
-        r (torch.Tensor): sum of absolute square values of components of complex radiation amplitude vectors, shape (MPI ranks or local chunks, frequencies)
+        r (torch.Tensor): sum of absolute square values of
+         components of complex radiation amplitude vectors,
+          shape (MPI ranks or local chunks, frequencies)
     """
 
     def __call__(self, distributed_amplitudes):
@@ -121,14 +137,18 @@ class AbsoluteSquare:
 
 
 class AbsoluteSquareSumRanks:
-    """Same as AbsoluteSquare but return sum over all MPI ranks.
+    """
+    Same as AbsoluteSquare but return sum over all MPI ranks.
 
     Args:
-        distributed_amplitudes (torch.Tensor): Radiation data in the shape of (MPI ranks or local chunks, components, frequencies)
+        distributed_amplitudes (torch.Tensor): Radiation data in the shape of
+         (MPI ranks or local chunks, components, frequencies)
             That is, radiation data is already along a single direction.
 
     Returns:
-        r (torch.Tensor): Absolute square values of components of complex radiation amplitude vectors summed over all components and all MPI ranks.
+        r (torch.Tensor): Absolute square values of components of complex
+         radiation amplitude vectors summed over all components
+          and all MPI ranks.
     """
 
     def __call__(self, distributed_amplitudes):

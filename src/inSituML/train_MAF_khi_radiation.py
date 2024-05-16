@@ -116,7 +116,7 @@ class Loader:
 
             def __getitem__(self, timebatch):
                 i = self.timebatchsize * timebatch
-                bi = self.perm[i : i + self.timebatchsize]
+                bi = self.perm[i:i + self.timebatchsize]
                 radiation = []
                 particles = []
                 print("=" * 60)
@@ -171,7 +171,7 @@ class Loader:
 
                     def __getitem__(self, batch):
                         i = self.batchsize * batch
-                        bi = self.perm[i : i + self.batchsize]
+                        bi = self.perm[i:i + self.batchsize]
 
                         return self.particles[bi], self.radiation[bi]
 
@@ -221,7 +221,7 @@ if __name__ == "__main__":
         # Access all hyperparameter values through wandb.config
         config = wandb.config
 
-    l = Loader(
+    loader_ = Loader(
         pathpattern1=hyperparameter_defaults["pathpattern1"],
         pathpattern2=hyperparameter_defaults["pathpattern2"],
         t0=hyperparameter_defaults["t0"],
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         else:
             print(f"Directory '{directory}' already exists.")
 
-    epoch = l[0]
+    epoch = loader_[0]
 
     patience = 20
     slow_improvement_patience = 10

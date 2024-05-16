@@ -304,7 +304,8 @@ def main():
             original_state_dict = torch.load(
                 config["load_model"], map_location=map_location
             )
-            # updated_state_dict = {key.replace('VAE.', 'base_network.'): value for key, value in original_state_dict.items()}
+            # updated_state_dict = {key.replace('VAE.', 'base_network.'):
+            # value for key, value in original_state_dict.items()}
             model.load_state_dict(original_state_dict)
             print("Loaded pre-trained model successfully", flush=True)
 
@@ -406,7 +407,8 @@ def main():
                 BoxesAttributesParticles,
             )
 
-            # from ks_producer_openPMD_streaming import StreamLoaderExceptionCatcher as StreamLoader
+            # from ks_producer_openPMD_streaming
+            # import StreamLoaderExceptionCatcher as StreamLoader
             from inSituML.ks_producer_openPMD_streaming import StreamLoader
 
             from inSituML.LoaderExceptionHandler import (

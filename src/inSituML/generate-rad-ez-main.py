@@ -1,12 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 import openpmd_api as io
 import os
-from radiation import RadiationData
 
 
-filename2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/openPMD/simData_000000.bp"
+filename2 = (
+    "/bigdata/hplsim/production/KHI_for_GB_MR/runs/"
+    + "002_KHI_withRad_randomInit/simOutput/openPMD/simData_000000.bp"
+)
 series2 = io.Series(filename2, io.Access_Type.read_only)
 
 ii = series2.iterations[0]
@@ -32,7 +32,11 @@ r_offset[:, 0] = offset_x * ii.get_attribute("cell_width")
 r_offset[:, 1] = offset_y * ii.get_attribute("cell_height")
 r_offset[:, 2] = offset_z * ii.get_attribute("cell_depth")
 
-filename = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/002_KHI_withRad_randomInit/simOutput/radiationOpenPMD/e_radAmplitudes%T.bp"
+filename = (
+    "/bigdata/hplsim/production/KHI_for_GB_MR/runs/"
+    + "002_KHI_withRad_randomInit/simOutput/radiationOpenPMD/"
+    + "e_radAmplitudes%T.bp"
+)
 series = io.Series(filename, io.Access_Type.read_only)
 
 for iteration in range(2, 2001):

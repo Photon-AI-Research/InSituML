@@ -1,8 +1,10 @@
 """
-Loader for PIConGPU openPMD particle and radiation data to be used for insitu machine learning model training.
+Loader for PIConGPU openPMD particle and radiation data to be used
+for insitu machine learning model training.
 The data is put in a buffer provided during construction of the producer class.
 The buffer is expected to be fillable by a `put()` method.
-Furthermore, policies are taken which transform particle or radiation data from the their standard layouts to the requested layout.
+Furthermore, policies are taken which transform particle or radiation
+data from the their standard layouts to the requested layout.
 """
 
 from threading import Thread
@@ -12,29 +14,33 @@ from time import sleep
 
 import numpy as np
 from torch import from_numpy as torch_from_numpy
-from torch import cat as torch_cat
 from torch import float32 as torch_float32
 from torch import complex64 as torch_complex64
 from torch import empty as torch_empty
-from torch import zeros as torch_zeros
 from torch import transpose as torch_transpose
 from torch import stack as torch_stack
 
-# need to import mpi4py, otherwise there is an undefined symbol required by adios when importing openpmd_api (on hemera)
-from mpi4py import MPI
+# need to import mpi4py, otherwise there is an undefined symbol
+# required by adios when importing openpmd_api (on hemera)
 import openpmd_api as opmd
 
 from .ks_helperfuncs import *
 
 
 class RandomLoader(Thread):
-    """Thread providing PIConGPU particle and radiation data for the ML model training.
+    """Thread providing PIConGPU particle and radiation data for
+    the ML model training.
 
-    PIConGPU data is loaded from openPMD files on a per-timestep basis in Timebatches.
-    The standard format of loaded particle data is a torch.Tensor of shape (numLocalSubvolumes, phaseSpaceComponents, numParticlesPerSubvolume).
-    phaseSpaceComponents are: (pos_x, pos_y, pos_z, mom_x, mom_y, mom_z, force_x, force_y, force_z)
-    This data can be reshaped according to the needs of the training/model by a dataTransformationPolicy.
-    Loaded and reshaped data is put in a buffer which is shared with the training thread.
+    PIConGPU data is loaded from openPMD files on a per-timestep basis
+    in Timebatches.
+    The standard format of loaded particle data is a torch.Tensor of shape
+    (numLocalSubvolumes, phaseSpaceComponents, numParticlesPerSubvolume).
+    phaseSpaceComponents are:
+    (pos_x, pos_y, pos_z, mom_x, mom_y, mom_z, force_x, force_y, force_z)
+    This data can be reshaped according to the needs of
+    the training/model by a dataTransformationPolicy.
+    Loaded and reshaped data is put in a buffer which
+    is shared with the training thread.
 
     All of this is orchestrated in the run() method.
     """
@@ -50,18 +56,25 @@ class RandomLoader(Thread):
         """Set parameters of the loader
 
         Arguments:
-            batchDataBuffer (e.g. queue.Queue) : buffer to put the data into (where the consumer reads it)
-            hyperParameterDefaults (dict) : Defines timesteps, paths to data, etc.
-            dataReadPolicy (functor) : Provides particle and radiation data per time step
+            batchDataBuffer (e.g. queue.Queue) : buffer to put the data
+            into (where the consumer reads it)
+            hyperParameterDefaults (dict) :
+            Defines timesteps, paths to data, etc.
+            dataReadPolicy (functor) :
+            Provides particle and radiation data per time step
             dataTransformationPolicy (functor) :
         """
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
         self.particlePathpattern = hyperParameterDefaults["pathpattern1"]
-        #        self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/simData_%T.bp"
+        # self.particlePathpattern = "/gpfs/alpine2/csc380/proj-shared/
+        # ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/openPMD/
+        # simData_%T.bp"
         self.radiationPathPattern = hyperParameterDefaults["pathpattern2"]
-        #        self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/e_radAmplitudes_%T_0_0_0.h5"
+        # self.radiationPathPattern = "/gpfs/alpine2/csc380/proj-shared/
+        # ksteinig/2024-02_KHI-for-ML_reduced/001/simOutput/radiationOpenPMD/
+        # e_radAmplitudes_%T_0_0_0.h5"
         self.t0 = hyperParameterDefaults["t0"]
         self.t1 = hyperParameterDefaults[
             "t1"
@@ -83,7 +96,7 @@ class RandomLoader(Thread):
         self.reqPhaseSpaceVars = hyperParameterDefaults[
             "phase_space_variables"
         ]
-        ## check input validity
+        # check input validity
         allowedVars = ["position", "momentum", "force"]
         variablesAllowed = True
         for var in self.reqPhaseSpaceVars:
@@ -96,11 +109,13 @@ class RandomLoader(Thread):
             variablesAllowed = False
             assert (
                 variablesAllowed
-            ), "Phase space variable 'force' can only be used in combination with 'momentum'"
+            ), ("Phase space variable 'force' can only be used in " +
+                "combination with 'momentum'")
 
         assert (
             variablesAllowed
-        ), f"Requested phase space variables are not in allowed range {allowedVars}"
+        ), ("Requested phase space variables are not " +
+            f"in allowed range {allowedVars}")
 
         self.verbose = (
             hyperParameterDefaults["verbose"]
@@ -136,7 +151,7 @@ class RandomLoader(Thread):
                 if self.verbose:
                     print("loading iteration ", step, iteration)
 
-                ## obtain particle distribution over GPUs ##
+                # obtain particle distribution over GPUs ##
                 #
                 ps = iteration.particles["e_all"]  # particle species
 
@@ -150,9 +165,12 @@ class RandomLoader(Thread):
 
                 totalParticles = np.sum(numParticles)
 
-                # prepare selection of particle indices that will be used for training from the whole data set
-                # In case numParticlesPerGpu < particlePerGpuForTraining, rng.choice() will throw a ValueError and stop.
-                # In streaming setups, we should catch this error and have a mitigation strategy in order to be able to continue.
+                # prepare selection of particle indices that will be used
+                # for training from the whole data set
+                # In case numParticlesPerGpu < particlePerGpuForTraining,
+                # rng.choice() will throw a ValueError and stop.
+                # In streaming setups, we should catch this error and have
+                # a mitigation strategy in order to be able to continue.
                 randomParticlesPerGPU = np.array(
                     [
                         self.rng.choice(
@@ -173,7 +191,8 @@ class RandomLoader(Thread):
                     "extent": [totalParticles],
                 }
 
-                # prepare torch tensor to hold particle data in shape (phaseSpaceComponents, GPUs, particlesPerGPU)
+                # prepare torch tensor to hold particle data in shape
+                # (phaseSpaceComponents, GPUs, particlesPerGPU)
                 loaded_particles = torch_empty(
                     (
                         len(self.reqPhaseSpaceVars) * 3,
@@ -183,7 +202,9 @@ class RandomLoader(Thread):
                     dtype=torch_float32,
                 )
                 for i_c, component in enumerate(["x", "y", "z"]):
-                    """Read particle data component-wise to reduce host memory usage.
+                    """
+                    Read particle data component-wise to reduce
+                    host memory usage.
                     And immediately reshape by subdividing in particles per GPU.
                     Also, reduce to requested number particles per GPU.
                     """
@@ -216,10 +237,13 @@ class RandomLoader(Thread):
                         )
                         del position
 
-                        ## Normalize Positions
-                        ## TODO: The local box min and max values used for normalization,
-                        ## need to be stored somewhere, in order to be able to be able to
-                        ## denormalize during inference if position is used in training.
+                        # Normalize Positions
+                        # TODO: The local box min and max values used
+                        # for normalization,
+                        # need to be stored somewhere, in order to be able
+                        # to be able to
+                        # denormalize during inference if position is used
+                        # in training.
                         for particleBoxIndex in np.arange(len(numParticles)):
                             posMin = gpuBoxOffset[particleBoxIndex]
                             posMax = posMin + gpuBoxExtent[particleBoxIndex]
@@ -289,7 +313,7 @@ class RandomLoader(Thread):
 
                         writing_index += 3
                     if "force" in self.reqPhaseSpaceVars:
-                        ## Normalize force
+                        # Normalize force
                         for particleBoxIndex in np.arange(len(numParticles)):
                             loaded_particles[
                                 writing_index + i_c, particleBoxIndex
@@ -302,14 +326,15 @@ class RandomLoader(Thread):
                                 "force_std"
                             ]
 
-                #                iteration.close() # It is currently not possible to reopen an iteration in openPMD
+                # iteration.close() # It is currently not possible to reopen
+                # an iteration in openPMD
 
                 if self.particleTransformPolicy is not None:
                     loaded_particles = self.particleTransformPolicy(
                         loaded_particles
                     )
 
-                ## obtain radiation data per GPU ##
+                # obtain radiation data per GPU #
                 #
                 radIter = radiationSeries.iterations[step]
 
@@ -323,7 +348,8 @@ class RandomLoader(Thread):
                 )  # shape: (GPUs, components)
                 n_vec = np.empty(
                     (radIter.meshes["DetectorDirection"]["x"].shape[0], 3)
-                )  # shape: (radiation measurement directions along x, components)
+                )
+                # shape: (radiation measurement directions along x, components)
 
                 DetectorFrequency = radIter.meshes["DetectorFrequency"][
                     "omega"
@@ -357,7 +383,8 @@ class RandomLoader(Thread):
                         Dist_Amplitude[:, self.amplitude_direction, :]
                     )  # shape of component i_c: (GPUs, frequencies)
 
-                #                radIter.close() # It is currently not possible to reopen an iteration in openPMD
+                # radIter.close() # It is currently not possible
+                # to reopen an iteration in openPMD
 
                 # time retardation correction
                 phase_offset = torch_from_numpy(
@@ -403,7 +430,9 @@ class RandomLoader(Thread):
                             sleep(1)
                             continue
 
-            """All timesteps have been read once within this epoch. Epoch finished."""
+            """
+            All timesteps have been read once within this epoch. Epoch finished.
+            """
             print("Finished epoch", i_epoch)
             stdout.flush()
             i_epoch += int(1)

@@ -9,7 +9,6 @@ from torch import tanh as t_tanh
 from torch.nn import functional as F
 
 from nflows.flows.base import Flow
-from nflows.transforms.standard import AffineTransform
 from nflows.transforms.permutations import ReversePermutation
 from nflows.transforms.autoregressive import (
     MaskedAffineAutoregressiveTransform,
@@ -17,7 +16,6 @@ from nflows.transforms.autoregressive import (
 from nflows.transforms.base import CompositeTransform
 from nflows.distributions.normal import StandardNormal as nflows_StandardNormal
 
-import FrEIA
 from FrEIA.framework import InputNode, OutputNode, Node, ReversibleGraphNet
 from FrEIA.modules import GLOWCouplingBlock, PermuteRandom
 
@@ -36,12 +34,15 @@ class PC_MAF(nn.Module):
         random_mask=False,
     ):
         """
-        Masked autoregressive flows model from https://papers.nips.cc/paper/2017/hash/6c1da886822c67822bcf3679d04369fa-Abstract.html
+        Masked autoregressive flows model from
+        https://papers.nips.cc/paper/2017/hash/
+        6c1da886822c67822bcf3679d04369fa-Abstract.html
         Args:
             dim_condition(integer): dimensionality of condition
             dim_input(integer): dimensionality of input
             num_coupling_blocks(integer): number of coupling blocks in the model
-            hidden_size(integer): number of hidden units per hidden layer in subnetworks
+            hidden_size(integer): number of hidden units per
+              hidden layer in subnetworks
             device: "cpu" or "cuda"
 
         """
@@ -236,12 +237,12 @@ class INNModel(nn.Module):
         output, _ = self.model(x)
 
         # Shorten output, and remove gradients wrt y, for latent loss
-        y_short = torch.cat((y[:, : self.ndim_z], y[:, -self.ndim_y :]), dim=1)
+        y_short = torch.cat((y[:, :self.ndim_z], y[:, -self.ndim_y:]), dim=1)
         l_fit = self.lambd_predict * self.loss_fit(
-            output[:, self.ndim_z :], y[:, self.ndim_z :]
+            output[:, self.ndim_z:], y[:, self.ndim_z:]
         )
         output_block_grad = torch.cat(
-            (output[:, : self.ndim_z], output[:, -self.ndim_y :].data), dim=1
+            (output[:, :self.ndim_z], output[:, -self.ndim_y:].data), dim=1
         )
         l_latent = self.lambd_latent * self.loss_latent(
             output_block_grad, y_short
@@ -258,7 +259,7 @@ class INNModel(nn.Module):
             batch_size, self.ndim_y, device=device
         )
         orig_z_perturbed = output.data[
-            :, : self.ndim_z
+            :, :self.ndim_z
         ] + self.y_noise_scale * torch.randn(
             batch_size, self.ndim_z, device=device
         )
@@ -276,7 +277,7 @@ class INNModel(nn.Module):
         output_rev, _ = self.model(y_rev, rev=True)
         output_rev_rand, _ = self.model(y_rev_rand, rev=True)
         l_rev = self.lambd_rev * self.loss_backward(
-            output_rev_rand[:, : self.ndim_x], x[:, : self.ndim_x]
+            output_rev_rand[:, :self.ndim_x], x[:, :self.ndim_x]
         )
         l_rev += self.lambd_predict * self.loss_fit(output_rev, x)
 
