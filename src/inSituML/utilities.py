@@ -563,13 +563,10 @@ def save_checkpoint_conditionally(
         )
         print(f"Checkpoint for iteration {iteration} saved.")
     else:
-<<<<<<< HEAD
         print(
             f"Checkpoint for iteration {iteration} already exists." +
             " Skipping save."
         )
-=======
-        print(f"Checkpoint for iteration {iteration} already exists. Skipping save.")
 
 def normalize_point(point, vmin, vmax, a=0., b=1.):
     '''
@@ -608,4 +605,3 @@ def denormalize_point(point_normalized, vmin, vmax, a=0., b=1.):
     result_array = torch.cat((denormalized_first_three_col, point_normalized[:, 3:]), dim=1).to(point_normalized.dtype)
 
     return result_array
->>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
