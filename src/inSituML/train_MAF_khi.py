@@ -1,85 +1,15 @@
-<<<<<<< HEAD
-# _v1_5_1
-import os
-import numpy as np
-import torch
-from ks_models import PC_MAF as model_MAF
-=======
 import os
 import numpy as np
 import torch
 from ks_models import PC_MAF
->>>>>>> dc15086 (fix import MAF)
 import torch.optim as optim
 import time
 import wandb
 import sys
-<<<<<<< HEAD
-
-
-def normalize_point(point, vmin, vmax, a=0.0, b=1.0):
-    """
-    Normalize point from a set of points with vmin(minimum) and vmax(maximum)
-    to be in a range [a, b]
-    """
-
-    # Extract the first three columns
-    first_three_col = point[:, :3]
-
-    # Perform operations on the first three columns
-    modified_first_three_col = a + (first_three_col - vmin) * (b - a) / (
-        vmax - vmin
-    )
-
-    # Combine the modified columns with the unchanged columns
-    result_array = torch.cat(
-        (modified_first_three_col, point[:, 3:]), dim=1
-    ).to(point.dtype)
-
-    return result_array
-
-
-def denormalize_point(point_normalized, vmin, vmax, a=0.0, b=1.0):
-    """
-    Denormalize point back to the original range using vmin(minimum)
-         and vmax(maximum).
-    """
-
-    # Convert the input to PyTorch tensors
-    # point_normalized = torch.tensor(point_normalized)
-    vmin = torch.tensor(vmin)
-    vmax = torch.tensor(vmax)
-
-    # Extract the first three columns
-    first_three_col_normalized = point_normalized[:, :3]
-
-    # Perform operations on the first three columns to denormalize them
-    denormalized_first_three_col = vmin + (first_three_col_normalized - a) * (
-        vmax - vmin
-    ) / (b - a)
-
-    # Combine the denormalized columns with the unchanged columns
-    result_array = torch.cat(
-        (denormalized_first_three_col, point_normalized[:, 3:]), dim=1
-    ).to(point_normalized.dtype)
-
-    return result_array
-=======
 from utilities import normalize_point, denormalize_point
->>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
-<<<<<<< HEAD
-=======
-def save_checkpoint(model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id):
-        state = {
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'last_loss': last_loss.item(),
-            'epoch': epoch,
-            'min_valid_loss': min_valid_loss,
-            'wandb_run_id': wandb_run_id,
-        }
->>>>>>> d893c55 (fix save_checkpoint)
+
+
 
 def save_checkpoint(
     model, optimizer, path, last_loss, min_valid_loss, epoch, wandb_run_id
@@ -87,7 +17,7 @@ def save_checkpoint(
     state = {
         "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
-        "last_loss": loss.item(),
+        "last_loss": last_loss.item(),
         "epoch": epoch,
         "min_valid_loss": min_valid_loss,
         "wandb_run_id": wandb_run_id,
@@ -212,28 +142,14 @@ if __name__ == "__main__":
     # min/max of particle dataa for normalisation
     pos_minmax = np.load("/bigdata/hplsim/aipp/Jeyhun/khi/pos_minmax.npy")
 
-<<<<<<< HEAD
     loader_ = Loader(
         t0=hyperparameter_defaults["t0"],
         t1=hyperparameter_defaults["t1"],
         timebatchsize=hyperparameter_defaults["timebatchsize"],
         particlebatchsize=hyperparameter_defaults["particlebatchsize"],
     )
-=======
-    l = Loader(t0=hyperparameter_defaults["t0"], t1=hyperparameter_defaults["t1"], timebatchsize=hyperparameter_defaults["timebatchsize"], particlebatchsize=hyperparameter_defaults["particlebatchsize"])
     
-    model = PC_MAF(dim_condition=hyperparameter_defaults["dim_condition"],
-                               dim_input=9,
-                               num_coupling_layers=hyperparameter_defaults["num_coupling_layers"],
-                               hidden_size=hyperparameter_defaults["hidden_size"],
-                               device='cuda',
-                               weight_particles=False)
-    
-    
-    optimizer = optim.Adam(model.parameters(), lr=hyperparameter_defaults["lr"])
->>>>>>> dc15086 (fix import MAF)
-
-    model = model_MAF.PC_MAF(
+    model = PC_MAF(
         dim_condition=hyperparameter_defaults["dim_condition"],
         dim_input=9,
         num_coupling_layers=hyperparameter_defaults["num_coupling_layers"],
