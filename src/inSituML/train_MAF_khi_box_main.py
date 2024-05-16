@@ -1,30 +1,14 @@
-<<<<<<< HEAD
-# train_MAF_khi_box_v2-2-1-3.py
-import os
-import numpy as np
-import torch
-from ks_models import PC_MAF as model_MAF
-=======
 import os
 import numpy as np
 import torch
 from ks_models import PC_MAF
->>>>>>> dc15086 (fix import MAF)
 import torch.optim as optim
 import time
 import wandb
-<<<<<<< HEAD
-=======
-import sys
-import matplotlib.pyplot as plt
 from utilities import normalize_point, denormalize_point
    
-<<<<<<< HEAD
->>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
 
-=======
->>>>>>> dc15086 (fix import MAF)
 def sample_pointcloud(model, num_samples, cond, vmin, vmax):
     model.model.eval()
     with torch.no_grad():
@@ -62,58 +46,6 @@ def generate_one_hot_tensors(num_categories, num_samples):
 
     return one_hot_tensors_sequence
 
-<<<<<<< HEAD
-
-def normalize_point(point, vmin, vmax, a=0.0, b=1.0):
-    """
-    Normalize point from a set of points with vmin(minimum) and vmax(maximum)
-    to be in a range [a, b]
-    """
-
-    # Extract the first three columns
-    first_three_col = point[:, :3]
-
-    # Perform normalisation on the first three columns
-    modified_first_three_col = a + (first_three_col - vmin) * (b - a) / (
-        vmax - vmin
-    )
-
-    # Combine the modified columns with the unchanged columns
-    result_array = torch.cat(
-        (modified_first_three_col, point[:, 3:]), dim=1
-    ).to(point.dtype)
-
-    return result_array
-
-
-def denormalize_point(point_normalized, vmin, vmax, a=0.0, b=1.0):
-    """
-    Denormalize point back to the original range using vmin(minimum)
-        and vmax(maximum).
-    """
-
-    # Convert the input to PyTorch tensors
-    # point_normalized = torch.tensor(point_normalized)
-    vmin = torch.tensor(vmin)
-    vmax = torch.tensor(vmax)
-
-    # Extract the first three columns
-    first_three_col_normalized = point_normalized[:, :3]
-
-    # Perform operations on the first three columns to denormalize them
-    denormalized_first_three_col = vmin + (first_three_col_normalized - a) * (
-        vmax - vmin
-    ) / (b - a)
-
-    # Combine the denormalized columns with the unchanged columns
-    result_array = torch.cat(
-        (denormalized_first_three_col, point_normalized[:, 3:]), dim=1
-    ).to(point_normalized.dtype)
-
-    return result_array
-=======
-
->>>>>>> a300c41 (Move normalize/denormalize functions to utilities.py)
 
 
 def save_checkpoint(
@@ -297,24 +229,6 @@ if __name__ == "__main__":
         activation=config["activation"],
     )
 
-<<<<<<< HEAD
-=======
-    pathpattern = file_path + config["pathpattern"].replace("-", "_")+'/{}.npy'
-    
-    l = Loader(pathpattern=pathpattern, t0=config["t0"], t1=config["t1"], timebatchsize=config["timebatchsize"], particlebatchsize=config["particlebatchsize"])
-    
-    model = PC_MAF(dim_condition=config["dim_condition"],
-                               dim_input=9,
-                               num_coupling_layers=config["num_coupling_layers"],
-                               hidden_size=config["hidden_size"],
-                               device='cuda',
-                               weight_particles=False,
-                               num_blocks_mat = config["num_blocks_mat"],
-                               activation = config["activation"]
-                             )
-    
-    
->>>>>>> dc15086 (fix import MAF)
     optimizer = optim.Adam(model.parameters(), lr=config["lr"])
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=500, gamma=0.8
