@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 
-from StreamDataReader.stream_reader import StreamReader
+from .stream_reader import StreamReader
 
 
 class StreamBuffer(Thread):

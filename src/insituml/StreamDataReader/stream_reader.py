@@ -1,24 +1,26 @@
 import json
 import os
-import sys
-from typing import List, Optional, Tuple, Union
+import time
+from typing import Optional, Tuple
 
 import numpy as np
 import openpmd_api as io
 
 
 class StreamData:
-    __slots__ = ['data', 'np_shape', 'pic_shape']
+    __slots__ = ['data', 'np_shape', 'pic_shape', 'unit_si']
 
     def __init__(
             self,
-            data: Union[np.ndarray, List[np.ndarray]],
+            data: np.ndarray,
             np_shape: Tuple,
             pic_shape: Optional[int],
+            unit_si: Optional[float],
     ):
         self.data = data
         self.np_shape = np_shape
         self.pic_shape = pic_shape
+        self.unit_si = unit_si
 
     def __len__(self):
         return len(self.__slots__)
@@ -51,11 +53,31 @@ class StreamReader():
         self._series_iterator = self._init_series_iterator()
 
     def _init_stream(self):
-        print("initialized stream")
-        return io.Series(self._stream_path, io.Access_Type.read_only)
-    
+        print("initializing stream")
+        sleep_duration = 2
+        sleep_limit = 60
+
+        sleeped_secs = 0
+        while not os.path.isfile(self._stream_path):
+            time.sleep(sleep_duration)
+            sleeped_secs += sleep_duration
+            if sleeped_secs >= sleep_limit:
+                raise OSError(
+                    f'stream file did not appear after {sleep_limit} seconds')
+
+        max_tries = 10
+        sleep_duration = 10
+        for i in range(max_tries):
+            try:
+                return io.Series(self._stream_path, io.Access_Type.read_only)
+            except RuntimeError as ex:
+                prev_msg = str(ex)
+                print('opening', self._stream_path, 'failed...')
+                time.sleep(10)
+        raise RuntimeError(prev_msg)
+
     def _init_series_iterator(self):
-        print("initialized iterator")
+        print("initializing iterator")
         return iter(self._series.read_iterations())
 
     def __iter__(self):
@@ -79,38 +101,60 @@ class StreamReader():
     def _get_data_from_key(self, record, record_key):
         if record_key in record:
             current_record = record[record_key]
-            if len(current_record) == 1:
-                data = current_record[io.Mesh_Record_Component.SCALAR]
-                if 'shape' in data.attributes:
-                    pic_shape = data.get_attribute('shape')
-                else:
-                    pic_shape = None
-                data = data[0]
+            if (
+                    len(current_record) == 1
+                    and (
+                        list(current_record)[0]
+                        == io.Mesh_Record_Component.SCALAR
+                    )
+            ):
+                rc = current_record[io.Mesh_Record_Component.SCALAR]
+                data = rc[0]
                 np_shape = ()
-            else:
-                loadedChunks = []
-                np_shapes = []
-                for dim in current_record:
-                    rc = current_record[dim]
-                    loadedChunks.append(rc.load_chunk([0], rc.shape))
-                    np_shapes.append(rc.shape)
 
-                # PIConGPU shape stays the same over all dimensions.
-                if np_shapes and 'shape' in rc.attributes:
+                if 'shape' in rc.attributes:
                     pic_shape = rc.get_attribute('shape')
                 else:
                     pic_shape = None
-
-                data = loadedChunks
-                if isinstance(np_shapes[0], int):
-                    np_shape = (len(np_shapes), np_shapes[0])
+                if 'unitSI' in rc.attributes:
+                    unit_si = rc.get_attribute('unitSI')
                 else:
-                    np_shapes[0].insert(0, len(np_shapes))
-                    np_shape = tuple(np_shapes[0])
+                    unit_si = None
+
+                result = StreamData(data, np_shape, pic_shape, unit_si)
+            else:
+                result = {}
+                for dim in current_record:
+                    rc = current_record[dim]
+                    data = rc.load_chunk([0], rc.shape)
+                    np_shape = rc.shape
+
+                    if isinstance(np_shape, int):
+                        np_shape = (1, np_shape)
+                    else:
+                        np_shape = (1,) + tuple(np_shape)
+
+                    # PIConGPU shape stays the same over all dimensions,
+                    # but we duplicate it anyway.
+                    if 'shape' in rc.attributes:
+                        pic_shape = rc.get_attribute('shape')
+                    else:
+                        pic_shape = None
+
+                    if 'unitSI' in rc.attributes:
+                        unit_si = rc.get_attribute('unitSI')
+                    else:
+                        unit_si = None
+
+                    dim_result = StreamData(data, np_shape, pic_shape, unit_si)
+                    result[dim] = dim_result
+                if not result:
+                    print('Got no per-entry data for', record_key)
+                    return None
         else:
             print("Didn't find", record_key)
             return None
-        return StreamData(data, np_shape, pic_shape)
+        return result
 
     def _get_data(self,current_iteration):
         data_dict = dict(iteration_index=current_iteration.iteration_index)
@@ -137,15 +181,22 @@ class StreamReader():
                 # Add more remaining nodes, descend tree.
                 for (key, stream_cfg_child) in stream_cfg_node.items():
                     child_found = False
+                    # If we have an empty list, assume the key is the leaf.
+                    if not stream_cfg_child:
+                        stream_cfg_child = [key]
+                        child_record = current_record
+                        child_found = True
                     # Access outer-most values by attribute, after that
                     # only use `getitem`.
-                    if current_record is current_iteration:
-                        if hasattr(current_record, key):
-                            child_record = getattr(current_record, key)
-                            child_found = True
+                    elif (
+                            current_record is current_iteration
+                            and hasattr(current_record, key)
+                    ):
+                        child_record = getattr(current_record, key)
+                        child_found = True
                     elif key in current_record:
-                            child_record = current_record[key]
-                            child_found = True
+                        child_record = current_record[key]
+                        child_found = True
 
                     if child_found:
                         data_dict_child = {}
@@ -184,4 +235,3 @@ class StreamReader():
             self.close()
         except AttributeError:
             pass
-        super().__del__()

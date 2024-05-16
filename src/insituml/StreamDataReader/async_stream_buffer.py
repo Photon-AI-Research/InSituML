@@ -1,12 +1,16 @@
+from multiprocessing import Process, Queue as MPQueue, Value
 import os
 from queue import Empty, Queue
 from threading import Thread
 import time
 
-import numpy as np
+from .stream_reader import StreamReader
+from .StreamBuffer import get_data_locally
 
-from StreamDataReader.stream_reader import StreamReader
-from StreamDataReader.StreamBuffer import get_data_locally
+
+class _DummyValue:
+    def __init__(self, typecode, value):
+        self.value = value
 
 
 class AsyncStreamBuffer:
@@ -19,6 +23,7 @@ class AsyncStreamBuffer:
             ),
             buffer_size=3,
             use_local_data=False,
+            use_multiprocessing=False,
             elp_time_max_size=10000,
             max_step_duration_sec=180,
     ):
@@ -31,25 +36,30 @@ class AsyncStreamBuffer:
             The amount of data iterations the buffer holds before
             reading the stream again
         """
-        self._buffer_data = Queue(buffer_size)
+        self._buffer_size = buffer_size
         self.use_local_data = use_local_data
-        if use_local_data:
-            self._iteration_id = 0
-        else:
-            self._stream = StreamReader(stream_path, stream_config_json)
-        self.elp_time = []
-        self._elp_time_max_size = elp_time_max_size
         self._max_step_duration_sec = max_step_duration_sec
 
         self._last_data = None
-        self._is_finished = False
-        self._is_closed = False
-        self._fill_buffer_thread = Thread(target=self._fill_buffer)
-        self._fill_buffer_thread.start()
+        if use_multiprocessing:
+            queue_cls = MPQueue
+            value_cls = Value
+            thread_cls = Process
+        else:
+            self.elp_time = []
+            self._elp_time_max_size = elp_time_max_size
+            queue_cls = Queue
+            value_cls = _DummyValue
+            thread_cls = Thread
 
-    @property
-    def _buffer_size(self):
-        return self._buffer_data.maxsize
+        self._buffer_data = queue_cls(self._buffer_size)
+        self._is_finished_value = value_cls('b', False)
+        self._is_closed_value = value_cls('b', False)
+        self._fill_buffer_thread = thread_cls(
+            target=self._fill_buffer,
+            args=(stream_path, stream_config_json, use_multiprocessing),
+        )
+        self._fill_buffer_thread.start()
 
     def __iter__(self):
         while True:
@@ -58,6 +68,22 @@ class AsyncStreamBuffer:
                 break
             yield self._last_data
             self._last_data = None
+
+    @property
+    def _is_finished(self):
+        return self._is_finished_value.value
+
+    @_is_finished.setter
+    def _is_finished(self, value):
+        self._is_finished_value.value = value
+
+    @property
+    def _is_closed(self):
+        return self._is_closed_value.value
+
+    @_is_closed.setter
+    def _is_closed(self, value):
+        self._is_closed_value.value = value
 
     def get_next_data(self):
         """Return one data iteration from the buffer. If the stream has
@@ -106,9 +132,19 @@ class AsyncStreamBuffer:
             buf_data.append(data)
         return buf_data
 
-    def _fill_buffer(self):
+    def _fill_buffer(
+            self,
+            stream_path,
+            stream_config_json,
+            use_multiprocessing,
+    ):
         """Fill the buffer."""
         print("Filling buffer")
+        if self.use_local_data:
+            self._iteration_id = 0
+        else:
+            self._stream = StreamReader(stream_path, stream_config_json)
+
         while not self._is_closed:
             start = time.time()
 
@@ -123,11 +159,12 @@ class AsyncStreamBuffer:
             if self.use_local_data:
                 self._iteration_id += 1
 
-            self.elp_time.append(time.time() - start)
-            if len(self.elp_time) >= self._elp_time_max_size:
-                # Reduce size of infinitely growing list.
-                self.elp_time = [sum(self.elp_time) / len(self.elp_time)]
-            self._buffer_data.put(data_dicts)
+            if not use_multiprocessing:
+                self.elp_time.append(time.time() - start)
+                if len(self.elp_time) >= self._elp_time_max_size:
+                    # Reduce size of infinitely growing list.
+                    self.elp_time = [sum(self.elp_time) / len(self.elp_time)]
+            self._buffer_data.put(data_dict)
 
     def close(self):
         if self._is_closed:
@@ -143,4 +180,3 @@ class AsyncStreamBuffer:
             self.close()
         except AttributeError:
             pass
-        super().__del__()
