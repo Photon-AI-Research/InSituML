@@ -9,7 +9,7 @@
 #SBATCH -t 2:0:0 
 
 # This jobscript can be used as a quick tets for overall functionality on hemera:
-# * Ensure, that the file sourced in line 17 loads a wokring environment (modules + python venv with local inSituML install.
+# * NOTE: Ensure, that the environment file (. $INSITUML/share/env/ddp_tested_hemera_env.sh) loads a working environment (modules + python venv with local inSituML install.
 # * Submit from repository root: `sbatch scripts/job_hemera.sh`.
 # * Observe the loss printed in slurm-*/loss_0.dat, should look like:
 #    ```
