@@ -219,7 +219,6 @@ def main():
     }
 
     def load_objects(rank):
-
         torch.cuda.set_device(rank)
         torch.cuda.empty_cache()
 
@@ -373,11 +372,13 @@ def main():
             # create model and move it to GPU with id rank
             rank = rank % torch.cuda.device_count()
 
-        elif runner == "mpirun":
-
-            rank = int(os.environ["OMPI_COMM_WORLD_NODE_RANK"])
-
-            global_rank = int(os.environ["OMPI_COMM_WORLD_RANK"])
+        elif runner=="mpirun":
+            
+            rank=int(os.environ['OMPI_COMM_WORLD_NODE_RANK'])
+            if torch.cuda.device_count() == 1:
+                rank = 0
+            
+            global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
             print("ranks", global_rank, rank, flush=True)
 
             dist.init_process_group(
