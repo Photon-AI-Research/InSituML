@@ -6,7 +6,6 @@ import torch.optim as optim
 import time
 import wandb
 from utilities import normalize_point, denormalize_point
-   
 
 
 def sample_pointcloud(model, num_samples, cond, vmin, vmax):
@@ -45,7 +44,6 @@ def generate_one_hot_tensors(num_categories, num_samples):
     one_hot_tensors_sequence = torch.stack(one_hot_tensors_sequence)
 
     return one_hot_tensors_sequence
-
 
 
 def save_checkpoint(
@@ -218,7 +216,7 @@ if __name__ == "__main__":
         particlebatchsize=config["particlebatchsize"],
     )
 
-    model = model_MAF.PC_MAF(
+    model = PC_MAF(
         dim_condition=config["dim_condition"],
         dim_input=9,
         num_coupling_layers=config["num_coupling_layers"],
