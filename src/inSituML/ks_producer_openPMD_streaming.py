@@ -232,6 +232,7 @@ class StreamLoader(Thread):
         radiationDataTransformationPolicy=None,
         consumer_thread=None,
         includeRadiation=True,
+        includeMetadata=False,
     ):
         """Set parameters of the loader
 
@@ -257,6 +258,7 @@ class StreamLoader(Thread):
         self.hyperParameterDefaults = hyperParameterDefaults
         self.consumer_thread = consumer_thread
         self.includeRadiation = includeRadiation
+        self.includeMetadata = includeMetadata
         if hyperParameterDefaults["streaming_config"] is not None:
             self.streamingConfig = hyperParameterDefaults["streaming_config"]
         else:
@@ -813,14 +815,18 @@ class StreamLoader(Thread):
             # Put particle and radiation data in shared buffer
             while True:
                 try:
+                    data_to_put = [loaded_particles]
+
                     if self.includeRadiation:
-                        self.data.put(
-                            [loaded_particles, distributed_amplitudes], block=False
-                        )
+                        data_to_put.append(distributed_amplitudes)
+                        if self.includeMetadata:
+                            data_to_put.extend([iteration.time, gpuBoxOffset, gpuBoxExtent])
                     else:
-                        self.data.put(
-                            [loaded_particles, None], block=False
-                        )
+                        data_to_put.append(None)
+                        if self.includeMetadata:
+                            data_to_put.extend([iteration.time, gpuBoxOffset, gpuBoxExtent])
+
+                    self.data.put(data_to_put, block=False)
                     break
                 except Full:
                     if (
