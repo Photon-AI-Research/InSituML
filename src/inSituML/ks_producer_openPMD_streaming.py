@@ -231,6 +231,7 @@ class StreamLoader(Thread):
         particleDataTransformationPolicy=None,
         radiationDataTransformationPolicy=None,
         consumer_thread=None,
+        includeRadiation=True,
     ):
         """Set parameters of the loader
 
@@ -255,6 +256,7 @@ class StreamLoader(Thread):
         self.comm = MPI.COMM_WORLD
         self.hyperParameterDefaults = hyperParameterDefaults
         self.consumer_thread = consumer_thread
+        self.includeRadiation = includeRadiation
         if hyperParameterDefaults["streaming_config"] is not None:
             self.streamingConfig = hyperParameterDefaults["streaming_config"]
         else:
@@ -302,12 +304,14 @@ class StreamLoader(Thread):
             self.comm,
             self.streamingConfig,
         )
-        radiationSeries = opmd.Series(
-            self.radiationPathPattern,
-            opmd.Access.read_linear,
-            self.comm,
-            self.streamingConfig,
-        )
+
+        if self.includeRadiation:
+            radiationSeries = opmd.Series(
+                self.radiationPathPattern,
+                opmd.Access.read_linear,
+                self.comm,
+                self.streamingConfig,
+            )
 
         if self.comm.rank == 0 or self.verbose:
             print(">>>>> StreamLoader: Series defined.", flush=True)
@@ -316,11 +320,14 @@ class StreamLoader(Thread):
         # To avoid deadlocks, we need to open both concurrently
         # (PIConGPU opens the streams one after the other)
         t1 = Thread(target=series.parse_base)
-        t2 = Thread(target=radiationSeries.parse_base)
+        if self.includeRadiation:
+            t2 = Thread(target=radiationSeries.parse_base)
         t1.start()
-        t2.start()
+        if self.includeRadiation:
+            t2.start()
         t1.join()
-        t2.join()
+        if self.includeRadiation:
+            t2.join()
 
         if self.comm.rank == 0 or self.verbose:
             print(">>>>> StreamLoader: Series parsed.", flush=True)
@@ -346,7 +353,8 @@ class StreamLoader(Thread):
         # us greater control over when to wait for data (e.g. we can avoid
         # useless waiting)
         particle_iterations = series.read_iterations().__iter__()
-        radiation_iterations = radiationSeries.read_iterations().__iter__()
+        if self.includeRadiation:
+            radiation_iterations = radiationSeries.read_iterations().__iter__()
 
         # start reading data
         while True:
@@ -394,7 +402,8 @@ class StreamLoader(Thread):
                             self.hyperParameterDefaults["t1"],
                         )
                     )
-                get_next_radiation()
+                if self.includeRadiation:
+                    get_next_radiation()
                 continue
 
             if self.comm.rank == 0 or self.verbose:
@@ -696,116 +705,122 @@ class StreamLoader(Thread):
 
             # obtain radiation data per GPU #
             #
-            radIter = get_next_radiation()
+            if self.includeRadiation:
+                radIter = get_next_radiation()
 
-            cellExtensionNames = {
-                "x": "cell_width",
-                "y": "cell_height",
-                "z": "cell_depth",
-            }
-            r_offset = np.empty(
-                (num_processed_chunks_per_rank, 3)
-            )  # shape: (local GPUs, components)
-            n_vec = np.empty(
-                (radIter.meshes["DetectorDirection"]["x"].shape[0], 3)
-            )  # shape: (N_observer, components)
+                cellExtensionNames = {
+                    "x": "cell_width",
+                    "y": "cell_height",
+                    "z": "cell_depth",
+                }
+                r_offset = np.empty(
+                    (num_processed_chunks_per_rank, 3)
+                )  # shape: (local GPUs, components)
+                n_vec = np.empty(
+                    (radIter.meshes["DetectorDirection"]["x"].shape[0], 3)
+                )  # shape: (N_observer, components)
 
-            DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][
-                0, :, 0
-            ]  # shape: (frequencies)
-            # radiationSeries.flush()
+                DetectorFrequency = radIter.meshes["DetectorFrequency"]["omega"][
+                    0, :, 0
+                ]  # shape: (frequencies)
+                # radiationSeries.flush()
 
-            distributed_amplitudes = torch_empty(
-                (3, num_processed_chunks_per_rank, len(DetectorFrequency)),
-                dtype=torch_complex64,
-            )  # shape: (components, local GPUs, frequencies)
+                distributed_amplitudes = torch_empty(
+                    (3, num_processed_chunks_per_rank, len(DetectorFrequency)),
+                    dtype=torch_complex64,
+                )  # shape: (components, local GPUs, frequencies)
 
-            rad_chunk_distribution = determine_local_region(
-                radIter.meshes["Amplitude_distributed"]["x"],
-                self.comm,
-                inranks,
-                outranks,
-                SelectAccordingToChunkDistribution(chunk_distribution),
-                verbose=self.verbose,
-            )
-            local_radiation_chunk = rad_chunk_distribution[self.comm.rank]
-            local_radiation_chunk.merge_chunks()
-            if len(local_radiation_chunk) != 1:
-                raise RuntimeError(
-                    "Radiation: Need to load contiguous regions."
+                rad_chunk_distribution = determine_local_region(
+                    radIter.meshes["Amplitude_distributed"]["x"],
+                    self.comm,
+                    inranks,
+                    outranks,
+                    SelectAccordingToChunkDistribution(chunk_distribution),
+                    verbose=self.verbose,
                 )
-            else:
-                local_radiation_chunk = local_radiation_chunk[0]
-
-            loaded_buffers = dict()
-            for i_c, component in enumerate(["x", "y", "z"]):
-                component_buffers = EnqueuedBuffers()
-                # See (https://picongpu.readthedocs.io/en/latest/usage/plugins/
-                #                               radiation.html#openpmd-output)
-                # for a description of the radiation plugin's output structure.
-                component_buffers.Dist_Amplitude = radIter.meshes[
-                    "Amplitude_distributed"
-                ][component].load_chunk(
-                    local_radiation_chunk.offset, local_radiation_chunk.extent
-                )  # shape: (GPUs, N_observer, frequencies)
-                # read components of the observation direction vector n_vec
-                component_buffers.DetectorDirection = radIter.meshes[
-                    "DetectorDirection"
-                ][component][
-                    :, 0, 0
-                ]  # shape: (N_observer)
-                loaded_buffers[component] = component_buffers
-
-            radIter.close()
-
-            amplitude_direction = self.hyperParameterDefaults[
-                "amplitude_direction"
-            ]
-
-            for i_c, component in enumerate(["x", "y", "z"]):
-                component_buffers = loaded_buffers[component]
-
-                r_offset[:, i_c] = gpuBoxOffset[
-                    component
-                ] * iteration.get_attribute(cellExtensionNames[component])
-                n_vec[:, i_c] = component_buffers.DetectorDirection
-                #  reduce Dist_Amplitude data to single observation direction
-                distributed_amplitudes[i_c] = torch_from_numpy(
-                    component_buffers.Dist_Amplitude[:, amplitude_direction, :]
-                )  # shape of component i_c: (local GPUs, frequencies)
-
-            # time retardation correction
-            # QUESTION: The `iteration.iteration_index`=int variable appears
-            # in here, not the actual time? (but r_offset is also in cells...)
-            # ANSWER: Calculation is fully in PIConGPU coordinates. All fine.
-            phase_offset = torch_from_numpy(
-                np.exp(
-                    -1.0j
-                    * DetectorFrequency[np.newaxis, np.newaxis, :]
-                    * (
-                        iteration.iteration_index
-                        - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0
+                local_radiation_chunk = rad_chunk_distribution[self.comm.rank]
+                local_radiation_chunk.merge_chunks()
+                if len(local_radiation_chunk) != 1:
+                    raise RuntimeError(
+                        "Radiation: Need to load contiguous regions."
                     )
-                )
-            )[:, amplitude_direction, :]
-            distributed_amplitudes = distributed_amplitudes * phase_offset
+                else:
+                    local_radiation_chunk = local_radiation_chunk[0]
 
-            # Transform to shape: (GPUs, components, frequencies)
-            distributed_amplitudes = torch_transpose(
-                distributed_amplitudes, 0, 1
-            )  # shape: (local GPUs, components, frequencies)
+                loaded_buffers = dict()
+                for i_c, component in enumerate(["x", "y", "z"]):
+                    component_buffers = EnqueuedBuffers()
+                    # See (https://picongpu.readthedocs.io/en/latest/usage/plugins/
+                    #                               radiation.html#openpmd-output)
+                    # for a description of the radiation plugin's output structure.
+                    component_buffers.Dist_Amplitude = radIter.meshes[
+                        "Amplitude_distributed"
+                    ][component].load_chunk(
+                        local_radiation_chunk.offset, local_radiation_chunk.extent
+                    )  # shape: (GPUs, N_observer, frequencies)
+                    # read components of the observation direction vector n_vec
+                    component_buffers.DetectorDirection = radIter.meshes[
+                        "DetectorDirection"
+                    ][component][
+                        :, 0, 0
+                    ]  # shape: (N_observer)
+                    loaded_buffers[component] = component_buffers
 
-            if self.radiationTransformPolicy is not None:
-                distributed_amplitudes = self.radiationTransformPolicy(
-                    distributed_amplitudes
-                )
+                radIter.close()
+
+                amplitude_direction = self.hyperParameterDefaults[
+                    "amplitude_direction"
+                ]
+
+                for i_c, component in enumerate(["x", "y", "z"]):
+                    component_buffers = loaded_buffers[component]
+
+                    r_offset[:, i_c] = gpuBoxOffset[
+                        component
+                    ] * iteration.get_attribute(cellExtensionNames[component])
+                    n_vec[:, i_c] = component_buffers.DetectorDirection
+                    #  reduce Dist_Amplitude data to single observation direction
+                    distributed_amplitudes[i_c] = torch_from_numpy(
+                        component_buffers.Dist_Amplitude[:, amplitude_direction, :]
+                    )  # shape of component i_c: (local GPUs, frequencies)
+
+                # time retardation correction
+                # QUESTION: The `iteration.iteration_index`=int variable appears
+                # in here, not the actual time? (but r_offset is also in cells...)
+                # ANSWER: Calculation is fully in PIConGPU coordinates. All fine.
+                phase_offset = torch_from_numpy(
+                    np.exp(
+                        -1.0j
+                        * DetectorFrequency[np.newaxis, np.newaxis, :]
+                        * (
+                            iteration.iteration_index
+                            - np.dot(r_offset, n_vec.T)[:, :, np.newaxis] / 1.0
+                        )
+                    )
+                )[:, amplitude_direction, :]
+                distributed_amplitudes = distributed_amplitudes * phase_offset
+
+                # Transform to shape: (GPUs, components, frequencies)
+                distributed_amplitudes = torch_transpose(
+                    distributed_amplitudes, 0, 1
+                )  # shape: (local GPUs, components, frequencies)
+
+                if self.radiationTransformPolicy is not None:
+                    distributed_amplitudes = self.radiationTransformPolicy(
+                        distributed_amplitudes
+                    )
 
             # Put particle and radiation data in shared buffer
             while True:
                 try:
-                    self.data.put(
-                        [loaded_particles, distributed_amplitudes], block=False
-                    )
+                    if self.includeRadiation:
+                        self.data.put(
+                            [loaded_particles, distributed_amplitudes], block=False
+                        )
+                    else:
+                        self.data.put(
+                            [loaded_particles, None], block=False
+                        )
                     break
                 except Full:
                     if (
@@ -832,4 +847,5 @@ class StreamLoader(Thread):
 
         # close series
         series.close()
-        radiationSeries.close()
+        if self.includeRadiation:
+            radiationSeries.close()
