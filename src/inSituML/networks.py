@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .utilities import sample_gaussian, kl_normal, inspect_and_select
+from utilities import sample_gaussian, kl_normal, inspect_and_select
 
 # property_ to input_dim
 P2ID = {
