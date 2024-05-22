@@ -18,11 +18,11 @@ import torch.nn as nn
 from inSituML.utilities import MMD_multiscale, fit, load_checkpoint
 from inSituML.ks_models import INNModel
 
-from inSituML.train_khi_AE_refactored.args_transform import MAPPING_TO_LOSS
-from inSituML.train_khi_AE_refactored.encoder_decoder import Encoder
-from inSituML.train_khi_AE_refactored.encoder_decoder import Conv3DDecoder
-from inSituML.train_khi_AE_refactored.loss_functions import EarthMoversLoss
-from inSituML.train_khi_AE_refactored.networks import VAE
+from inSituML.args_transform import MAPPING_TO_LOSS
+from inSituML.encoder_decoder import Encoder
+from inSituML.encoder_decoder import Conv3DDecoder
+from inSituML.loss_functions import EarthMoversLoss
+from inSituML.networks import VAE
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import argparse
