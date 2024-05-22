@@ -93,7 +93,10 @@ class VAE(nn.Module):
         self.type = "VAE"
 
     def check_kwargs(self, kwargs, type_):
-        for val in ["z_dim", "ae_config", "input_dim", "particles_to_sample"]:
+        hyperparams = ["z_dim", "ae_config", "input_dim"]
+        if type_ == "decoder":
+            hyperparams.append("particles_to_sample")
+        for val in hyperparams:
             network_val = getattr(self, val)
             if val not in kwargs:
                 kwargs[val] = network_val
