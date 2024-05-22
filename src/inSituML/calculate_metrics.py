@@ -39,8 +39,8 @@ def main():
     parser.add_argument("--generate_best_box_plot", type=str_to_bool,
                         help="Whether to generate best box plot", default=True)
     parser.add_argument("--plot_directory_path", type=str, help="Directory for saving plots.", default="metrics/")
-    parser.add_argument("--model_filepath_pattern", type=str, 
-                        help="Model file pattern.", 
+    parser.add_argument("--model_filepath_pattern", type=str,
+                        help="Model file pattern.",
                         default="/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}")
     parser.add_argument("--load_model_checkpoint", type=str, help="Load model checkpoint", default="model_24211")
 
@@ -314,7 +314,7 @@ def main():
 
         # Identify the cluster with the lowest mean
         lowest_mean_index = np.argmin(cluster_means)
-        lowest_mean = cluster_means[lowest_mean_index]     
+        lowest_mean = cluster_means[lowest_mean_index]
 
         # Extract the data points belonging to the cluster with the lowest mean
         data_points_lowest_mean_cluster = emd_losses_inn_tensor[cluster_labels == lowest_mean_index]
@@ -438,7 +438,7 @@ def main():
                         plot_directory_path=norm_path,
                         show_plot=False,
                         denorm=False
-                    )     
+                    )
 
                     # denormalised plots
                     generate_momentum_force_radiation_plots(
@@ -530,7 +530,7 @@ def main():
                     plot_losses_histogram(
                         emd_losses_inn_tensor,
                         histogram_bins=20,
-                        histogram_alpha=0.5, 
+                        histogram_alpha=0.5,
                         plot_title='Histogram of INN-VAE reconstruction losses',
                         x_title='EMD Losses',
                         t=t_index,
@@ -863,7 +863,7 @@ def main():
         return results_dict
 
     results_dict = calculate_all_metrics(config, model)
-    
+
     return results_dict
 
 
