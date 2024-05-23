@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
-from utilities import (
+from inSituML.utilities import (
     fit,
     MMD_multiscale,
     load_checkpoint,
@@ -17,11 +17,11 @@ from utilities import (
 from sklearn.cluster import KMeans
 import argparse
 from distutils.util import strtobool
-from ks_models import INNModel
-from train_khi_AE_refactored.encoder_decoder import Encoder
-from train_khi_AE_refactored.encoder_decoder import Conv3DDecoder
-from train_khi_AE_refactored.loss_functions import EarthMoversLoss, ChamfersLoss
-from train_khi_AE_refactored.networks import VAE
+from inSituML.ks_models import INNModel
+from inSituML.encoder_decoder import Encoder
+from inSituML.encoder_decoder import Conv3DDecoder
+from inSituML.loss_functions import EarthMoversLoss, ChamfersLoss
+from inSituML.networks import VAE
 
 
 def main():
