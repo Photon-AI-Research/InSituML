@@ -108,7 +108,8 @@ def main():
         plot_directory_path='metrics/',
         # model_filepath_pattern = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/{}',
         model_filepath_pattern='/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}',
-        mean_std_file_path='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_{}/global_stats_{}_{}.npz',
+        mean_std_file_path=normalization_values,
+        # '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_{}/global_stats_{}_{}.npz',
         pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_{}/{}.npy",
         pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_{}/{}.npy",
     )
@@ -327,9 +328,7 @@ def main():
             p_gt = [
                 normalize_mean_6d(
                     element,
-                    mean_std_file=config["mean_std_file_path"].format(
-                        config["sim"], config["t0"], config["t1"]
-                    )
+                    mean_std_file=config["mean_std_file_path"]
                 )
                 for element in p_gt
             ]
@@ -429,9 +428,7 @@ def main():
                 pc_pr, lat_z_pred = model.reconstruct(p_gt_clone, cond)
                 pc_pr_denorm = denormalize_mean_6d(
                     normalized_array=pc_pr.squeeze(),
-                    mean_std_file=config["mean_std_file_path"].format(
-                        config["sim"], config["t0"], config["t1"]
-                    )
+                    mean_std_file=config["mean_std_file_path"]
                 )
                 # pc_pr_denorm torch.Size([4096, 6])
                 # p_gt_og torch.Size([150000, 6])
@@ -445,9 +442,7 @@ def main():
 
                 pc_pr_ae_denorm = denormalize_mean_6d(
                     pc_pr_ae.squeeze(),
-                    mean_std_file=config["mean_std_file_path"].format(
-                        config["sim"], config["t0"], config["t1"]
-                    )
+                    mean_std_file=config["mean_std_file_path"]
                 )
                 emd_loss_vae_sam = emd_loss(pc_pr_ae_denorm.unsqueeze(0), p_gt_og.unsqueeze(0).to(device))
                 emd_losses_vae.append(emd_loss_vae_sam)
