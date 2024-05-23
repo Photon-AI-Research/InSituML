@@ -137,7 +137,7 @@ def main():
                                 # is observed, max: N_observer-1, where N_observer is
                                 # defined in PIConGPU's radiation plugin
         phase_space_variables=[
-            "position", "momentum", "force"
+            "momentum", "force"
         ],  # allowed are "position", "momentum", and "force". If "force" is set,
             # "momentum" needs to be set too.
         number_particles_per_gpu=30000,
@@ -395,7 +395,6 @@ def main():
 
     def evaluate(
         p_gt,
-        p_gt_og,
         r,
         model,
         t_index,
@@ -419,8 +418,13 @@ def main():
 
         ensure_path_exists(plot_directory_path)
 
+        p_gt = p_gt.permute(0, 2, 1)
         p_gt = p_gt[gpu_index]  # normalised p_gt torch.Size([150000, 6])
-        p_gt_og = p_gt_og[gpu_index]  # unnormalised
+        # unnormalised
+        p_gt_og = denormalize_mean_6d(
+            normalized_array=p_gt,
+            mean_std_file = config["mean_std_file_path"]
+        )
         r = r[gpu_index]  # radiation
 
         cond = r.reshape(1, -1).to(device)
@@ -683,7 +687,7 @@ def main():
 
         return results
 
-    def evaluate_boxes(model, t_index, config, device, N_samples, boxes, flow_type='vortex'):
+    def evaluate_boxes(model, ii, t_index, config, device, N_samples, boxes, flow_type='vortex'):
         # Initialize lists to store results
         boxes_emd_losses_inn_mean = []
         boxes_emd_losses_inn_std = []
@@ -698,26 +702,14 @@ def main():
         boxes_chamfers_losses_vae_mean = []
         boxes_chamfers_losses_vae_std = []
 
-        # raw p_gt
-        filepath1 = config["pathpattern1"].format(config["sim"], t_index)
+        p_gt=data[ii][0]
 
-        p_gt_all = np.load(filepath1, allow_pickle=True)
-
-        # normalised transformed p_gt
-        p_gt = particle_transformation(p_gt_all, normalise=True)
-
-        # unnormalised transformed p_gt
-        p_gt_og = particle_transformation(p_gt_all, normalise=False)
-
-        # Load radiation data
-        filepath2 = config["pathpattern2"].format(config["sim"], t_index)
-
-        if config["radiation_transformation"]:
-            r = torch.from_numpy(np.load(filepath2).astype(np.cfloat))
-            r = radiation_transformation(r)
+        if streamLoader_config["pathpattern2"].endswith('.npy'):
+            rad_t_index=streamLoader_config["t0"]-streamLoader_config["sim_t0"]+1
+            r=np.load(streamLoader_config["pathpattern2"].format(rad_t_index))
+            r=torch.from_numpy(r).squeeze()
         else:
-            r = torch.from_numpy(np.load(filepath2))
-            r = r.squeeze()
+            r=data[ii][1]
 
         # Iterate over each GPU index
         for gpu_index in boxes:
@@ -725,7 +717,6 @@ def main():
             # Call the evaluate function
             results = evaluate(
                 p_gt,
-                p_gt_og,
                 r,
                 model,
                 t_index,
@@ -787,7 +778,6 @@ def main():
         # generate plots for the best box again
         best_results = evaluate(
             p_gt,
-            p_gt_og,
             r,
             model,
             t_index,
@@ -832,10 +822,11 @@ def main():
         left_flow_boxes_data_across_timesteps = []
         right_flow_boxes_data_across_timesteps = []
 
-        for t_index in timesteps:
+        for ii, t_index in enumerate(timesteps):
             print('t_index:', t_index)
             left_flow_boxes_data = evaluate_boxes(
                 model,
+                ii,
                 t_index,
                 config,
                 config["device"],
@@ -845,6 +836,7 @@ def main():
             )
             right_flow_boxes_data = evaluate_boxes(
                 model,
+                ii,
                 t_index,
                 config,
                 config["device"],
@@ -854,6 +846,7 @@ def main():
             )
             lower_vortex_boxes_data = evaluate_boxes(
                 model,
+                ii,
                 t_index,
                 config,
                 config["device"],
@@ -863,6 +856,7 @@ def main():
             )
             upper_vortex_boxes_data = evaluate_boxes(
                 model,
+                ii,
                 t_index,
                 config,
                 config["device"],
@@ -910,7 +904,7 @@ def main():
             elif y_box_min >= y_upper_min and y_box_max <= y_upper_max:
                 upper_vortex_boxes.append(box_id)
             else:
-                if p_box[:, 3].mean() > 0:
+                if p_box[:, 0].mean() > 0:
                     right_flow_boxes.append(box_id)
                 else:
                     left_flow_boxes.append(box_id)
