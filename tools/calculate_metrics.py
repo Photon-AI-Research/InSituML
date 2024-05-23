@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
-import queue
 from queue import Queue
 from inSituML.utilities import (
     fit,
@@ -423,7 +422,7 @@ def main():
         # unnormalised
         p_gt_og = denormalize_mean_6d(
             normalized_array=p_gt,
-            mean_std_file = config["mean_std_file_path"]
+            mean_std_file=config["mean_std_file_path"]
         )
         r = r[gpu_index]  # radiation
 
@@ -702,14 +701,14 @@ def main():
         boxes_chamfers_losses_vae_mean = []
         boxes_chamfers_losses_vae_std = []
 
-        p_gt=data[ii][0]
+        p_gt = data[ii][0]
 
         if streamLoader_config["pathpattern2"].endswith('.npy'):
-            rad_t_index=streamLoader_config["t0"]-streamLoader_config["sim_t0"]+1
-            r=np.load(streamLoader_config["pathpattern2"].format(rad_t_index))
-            r=torch.from_numpy(r).squeeze()
+            rad_t_index = streamLoader_config["t0"]-streamLoader_config["sim_t0"]+1
+            r = np.load(streamLoader_config["pathpattern2"].format(rad_t_index))
+            r = torch.from_numpy(r).squeeze()
         else:
-            r=data[ii][1]
+            r = data[ii][1]
 
         # Iterate over each GPU index
         for gpu_index in boxes:
