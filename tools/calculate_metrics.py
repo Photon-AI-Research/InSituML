@@ -46,6 +46,13 @@ def main():
 
     args = parser.parse_args()
 
+    normalization_values = dict(
+    momentum_mean = 1.2091940752668797e-08,
+    momentum_std = 0.11923234769525472,
+    force_mean = -2.7682006649827533e-09,
+    force_std = 7.705477610810592e-05
+    )
+
     config = dict(
         y_noise_scale=1e-1,
         zeros_noise_scale=5e-2,
@@ -99,6 +106,24 @@ def main():
         mean_std_file_path='/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_{}/global_stats_{}_{}.npz',
         pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_{}/{}.npy",
         pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_{}/{}.npy",
+    )
+
+    streamLoader_config = dict(
+    sim_t0 = 900,
+    t0 = 900,
+    t1 = 1001,
+    streaming_config = None,
+#     pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/03-30_learning-rate-scaling-with-ranks_chamfersdistance_fix-gpu-volume/96-nodes_lr-0.0005_min-tb-16/simOutput/openPMD/simData_%T.bp5",
+#     pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/03-30_learning-rate-scaling-with-ranks_chamfersdistance_fix-gpu-volume/96-nodes_lr-0.0005_min-tb-16/simOutput/streamedRadiation/ts_{}.npy",
+    pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/openPMD/simData_%T.bp5",
+    pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/streamedRadiation/ts_{}.npy",
+    amplitude_direction=0,  # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
+    phase_space_variables = ["position", "momentum", "force"],  # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
+    number_particles_per_gpu = 30000,
+    verbose=False,
+    # offline training params
+    num_epochs = .01,  # .0625
+    normalization = normalization_values
     )
 
     # Update config with values from command-line arguments
