@@ -118,8 +118,8 @@ def main():
     t0 = 900,
     t1 = 1001,
     streaming_config = None,
-#     pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/03-30_learning-rate-scaling-with-ranks_chamfersdistance_fix-gpu-volume/96-nodes_lr-0.0005_min-tb-16/simOutput/openPMD/simData_%T.bp5",
-#     pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/03-30_learning-rate-scaling-with-ranks_chamfersdistance_fix-gpu-volume/96-nodes_lr-0.0005_min-tb-16/simOutput/streamedRadiation/ts_{}.npy",
+    # pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5",
+    # pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5",
     pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/openPMD/simData_%T.bp5",
     pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/streamedRadiation/ts_{}.npy",
     amplitude_direction=0,  # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
@@ -147,6 +147,8 @@ def main():
         includeMetadata = True
     )
 
+    timeBatchLoader.start()
+
     # Update config with values from command-line arguments
     config["sim"] = args.sim
     config["N_samples"] = args.N_samples
@@ -168,6 +170,16 @@ def main():
         point_dim = 6
     else:
         point_dim = 3
+
+    data = []
+    while True:
+        data.append(openPMDBuffer.get())
+        if data[-1] is None:
+            print("No more data to consume. Exiting.")
+            break
+
+    # filter data corresponding to evaluation timesteps
+    data = [item for item in data if item is not None and item[2] in config["eval_timesteps"]]
 
     class ModelFinal(nn.Module):
         def __init__(
