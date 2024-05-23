@@ -52,10 +52,10 @@ def main():
 
     openPMDBuffer = Queue(8)
     normalization_values = dict(
-    momentum_mean = 1.2091940752668797e-08,
-    momentum_std = 0.11923234769525472,
-    force_mean = -2.7682006649827533e-09,
-    force_std = 7.705477610810592e-05
+        momentum_mean=1.2091940752668797e-08,
+        momentum_std=0.11923234769525472,
+        force_mean=-2.7682006649827533e-09,
+        force_std=7.705477610810592e-05
     )
 
     config = dict(
@@ -115,21 +115,36 @@ def main():
     )
 
     streamLoader_config = dict(
-    sim_t0 = 900,
-    t0 = 900,
-    t1 = 1001,
-    streaming_config = None,
-    # pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5",
-    # pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5",
-    pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/openPMD/simData_%T.bp5",
-    pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/streamedRadiation/ts_{}.npy",
-    amplitude_direction=0,  # choose single direction along which the radiation signal is observed, max: N_observer-1, where N_observer is defined in PIConGPU's radiation plugin
-    phase_space_variables = ["position", "momentum", "force"],  # allowed are "position", "momentum", and "force". If "force" is set, "momentum" needs to be set too.
-    number_particles_per_gpu = 30000,
-    verbose=False,
-    # offline training params
-    num_epochs = .01,  # .0625
-    normalization = normalization_values
+        sim_t0=900,
+        t0=900,
+        t1=1001,
+        streaming_config=None,
+        # pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/
+        # 24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5",
+        # pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/
+        # 24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5",
+        pathpattern1=(
+            "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+            "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
+            "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/openPMD/simData_%T.bp5"
+        ),
+        pathpattern2=(
+            "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+            "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
+            "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/streamedRadiation/ts_{}.npy"
+        ),
+        amplitude_direction=0,  # choose single direction along which the radiation signal
+                                # is observed, max: N_observer-1, where N_observer is
+                                # defined in PIConGPU's radiation plugin
+        phase_space_variables=[
+            "position", "momentum", "force"
+        ],  # allowed are "position", "momentum", and "force". If "force" is set,
+            # "momentum" needs to be set too.
+        number_particles_per_gpu=30000,
+        verbose=False,
+        # offline training params
+        num_epochs=.01,  # .0625
+        normalization=normalization_values
     )
 
     # Check if the file ends with .npy
@@ -144,8 +159,8 @@ def main():
         streamLoader_config,
         BoxesAttributesParticles(),
         AbsoluteSquare(),
-        includeRadiation = config["includeRadiation"],
-        includeMetadata = True
+        includeRadiation=config["includeRadiation"],
+        includeMetadata=True
     )
 
     timeBatchLoader.start()
@@ -889,7 +904,7 @@ def main():
         left_flow_boxes = []
         for box_id, p_box in enumerate(p_gt_all):
             y_box_min = int(gpu_offset['y'][box_id])
-            y_box_max = int(y_box_min+ gpu_extent['y'][box_id])
+            y_box_max = int(y_box_min + gpu_extent['y'][box_id])
             if y_box_min >= y_lower_min and y_box_max <= y_lower_max:
                 lower_vortex_boxes.append(box_id)
             elif y_box_min >= y_upper_min and y_box_max <= y_upper_max:
