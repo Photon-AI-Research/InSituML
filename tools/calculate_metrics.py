@@ -873,18 +873,26 @@ def main():
 
     def calculate_all_metrics(config, model):
 
-        y_lower_min, y_lower_max, y_upper_min, y_upper_max = config["y_borders"].get(config["sim"])
+        y_lower_min, y_lower_max, y_upper_min, y_upper_max = config["y_borders"].get(config["sim"], [32, 96, 160, 224])
 
-        p_gt_all = np.load(config["pathpattern1"].format(config["sim"], config["t0"]), allow_pickle=True)
+        # particle data at t0
+        p_gt_all = data[0][0]
+        gpu_offset = data[0][3]
+        gpu_extent = data[0][4]
+
+        # Permute the dimensions to [gpu_box, num_of_particles, particles_dim]
+        p_gt_all = p_gt_all.permute(0, 2, 1)
 
         lower_vortex_boxes = []
         upper_vortex_boxes = []
         right_flow_boxes = []
         left_flow_boxes = []
         for box_id, p_box in enumerate(p_gt_all):
-            if np.all((p_box[:, 1] > y_lower_min) & (p_box[:, 1] < y_lower_max)):
+            y_box_min = int(gpu_offset['y'][box_id])
+            y_box_max = int(y_box_min+ gpu_extent['y'][box_id])
+            if y_box_min >= y_lower_min and y_box_max <= y_lower_max:
                 lower_vortex_boxes.append(box_id)
-            elif np.all((p_box[:, 1] > y_upper_min) & (p_box[:, 1] < y_upper_max)):
+            elif y_box_min >= y_upper_min and y_box_max <= y_upper_max:
                 upper_vortex_boxes.append(box_id)
             else:
                 if p_box[:, 3].mean() > 0:
