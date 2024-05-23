@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from geomloss import SamplesLoss
+import queue
+from queue import Queue
 from inSituML.utilities import (
     fit,
     MMD_multiscale,
@@ -22,6 +24,8 @@ from inSituML.encoder_decoder import Encoder
 from inSituML.encoder_decoder import Conv3DDecoder
 from inSituML.loss_functions import EarthMoversLoss, ChamfersLoss
 from inSituML.networks import VAE
+from inSituML.ks_producer_openPMD_streaming import StreamLoader
+from inSituML.ks_transform_policies import AbsoluteSquare, BoxesAttributesParticles
 
 
 def main():
@@ -46,6 +50,7 @@ def main():
 
     args = parser.parse_args()
 
+    openPMDBuffer = Queue(8)
     normalization_values = dict(
     momentum_mean = 1.2091940752668797e-08,
     momentum_std = 0.11923234769525472,
@@ -124,6 +129,22 @@ def main():
     # offline training params
     num_epochs = .01,  # .0625
     normalization = normalization_values
+    )
+
+    # Check if the file ends with .npy
+    if streamLoader_config["pathpattern2"].endswith('.npy'):
+        print("File is a .npy file. Setting includeRadiation = False in StreamLoader.")
+        config["includeRadiation"] = False
+    else:
+        config["includeRadiation"] = True
+
+    timeBatchLoader = StreamLoader(
+        openPMDBuffer,
+        streamLoader_config,
+        BoxesAttributesParticles(),
+        AbsoluteSquare(),
+        includeRadiation = config["includeRadiation"],
+        includeMetadata = True
     )
 
     # Update config with values from command-line arguments
