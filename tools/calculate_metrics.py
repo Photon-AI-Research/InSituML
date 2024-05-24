@@ -192,7 +192,7 @@ def main():
         model_filepath_pattern='/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}',
         mean_std_file_path=normalization_values,
         # '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_{}/global_stats_{}_{}.npz',
-        streamLoader_config = streamLoader_config,
+        streamLoader_config=streamLoader_config,
     )
 
     # Update config with values from command-line arguments
@@ -830,7 +830,7 @@ def main():
             t_index,
             boxes[min_emd_loss_inn_index],
             device,
-            N_samples = config["N_best_samples"],
+            N_samples=config["N_best_samples"],
             generate_plots=config["generate_plots"],
             generate_best_box_plot=config["generate_best_box_plot"],
             flow_type=flow_type
