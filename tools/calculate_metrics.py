@@ -72,12 +72,6 @@ def main():
         default="metrics/"
     )
     parser.add_argument(
-        "--model_filepath_pattern",
-        type=str,
-        help="Model file pattern.",
-        default="/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}"
-    )
-    parser.add_argument(
         "--load_model_checkpoint",
         type=str,
         help="Load model checkpoint",
@@ -163,7 +157,7 @@ def main():
         particles_to_sample=150000,
         activation='gelu',
         load_model=None,  # '24k0zbm4/best_model_',
-        load_model_checkpoint='model_24211',  # 'model_6058',
+        load_model_checkpoint='/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/model_24211',
         lambd_AE=1.0,
         lambd_IM=0.001,
         weight_kl=0.001,
@@ -188,10 +182,7 @@ def main():
         generate_best_box_plot=True,
         radiation_transformation=True,
         plot_directory_path='metrics/',
-        # model_filepath_pattern = '/bigdata/hplsim/aipp/Jeyhun/khi/checkpoints/{}',
-        model_filepath_pattern='/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}',
         mean_std_file_path=normalization_values,
-        # '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_{}/global_stats_{}_{}.npz',
         streamLoader_config=streamLoader_config,
     )
 
@@ -201,11 +192,12 @@ def main():
     config["eval_timesteps"] = args.eval_timesteps
     config["generate_best_box_plot"] = args.generate_best_box_plot
     config["plot_directory_path"] = args.plot_directory_path
-    config["model_filepath_pattern"] = args.model_filepath_pattern
     config["load_model_checkpoint"] = args.load_model_checkpoint
     config["generate_plots"] = args.generate_plots
     config["streamLoader_config"]["particle_pathpattern"] = args.particle_pathpattern
     config["streamLoader_config"]["radiation_pathpattern"] = args.radiation_pathpattern
+
+    config["model_checkpoint"] = os.path.basename(config["load_model_checkpoint"])
 
     # Check if the file ends with .npy
     if config["streamLoader_config"]["radiation_pathpattern"].endswith('.npy'):
@@ -365,16 +357,14 @@ def main():
                        weight_AE=config["lambd_AE"],
                        weight_IM=config["lambd_IM"])
 
-    filepath = config["model_filepath_pattern"]
-
     if config["load_model"] is not None:
-        original_state_dict = torch.load(filepath.format(config["load_model"]), map_location=device)
+        original_state_dict = torch.load(config["load_model"], map_location=device)
         model.load_state_dict(original_state_dict)
         print('Loaded pre-trained model successfully')
 
     elif config["load_model_checkpoint"] is not None:
         model, _, _, _, _, _ = load_checkpoint(
-            filepath.format(config["load_model_checkpoint"]),
+            config["load_model_checkpoint"],
             model,
             map_location=device
         )
@@ -458,7 +448,7 @@ def main():
 
         plot_directory_path = os.path.join(
             config["plot_directory_path"],
-            config["load_model_checkpoint"],
+            config["model_checkpoint"],
             config["sim"],
             flow_type,
             f"data_gpu_{gpu_index}_tindex_{t_index}")
@@ -969,7 +959,7 @@ def main():
         results_dict = evaluate_across_timesteps(config["eval_timesteps"], config, model)
         metrics_path = os.path.join(
             config["plot_directory_path"],
-            config["load_model_checkpoint"],
+            config["model_checkpoint"],
             config["sim"],
             'results.npz',
         )
