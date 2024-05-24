@@ -14,9 +14,9 @@ number_of_particles = 4096
 streamLoader_config = dict(
     t0=890,
     t1=900,  # endpoint=false, t1 is not used in training
-    pathpattern1="openPMD/simData.sst",  # streaming on frontier
+    particle_pathpattern="openPMD/simData.sst",  # streaming on frontier
     # streaming on frontier
-    pathpattern2="radiationOpenPMD/e_radAmplitudes.sst",
+    radiation_pathpattern="radiationOpenPMD/e_radAmplitudes.sst",
     streaming_config="@inconfig.json",  # set to None when reading from file
     # pathpattern1 = "/lustre/orion/csc380/world-shared/ksteinig/
     #     002_KHI_withRad_randomInit_data-subset/openPMD/simData_%T.bp",

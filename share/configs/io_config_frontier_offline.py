@@ -17,14 +17,14 @@ streamLoader_config = dict(
     t0=898,
     t1=999,  # endpoint=false, t1 is not used in training
     streaming_config=None,  # set to None when reading from file
-    pathpattern1=(
+    particle_pathpattern=(
         "/lustre/orion/csc380/proj-shared/ksteinig/"
         + "2024-03_Training-from-Stream_chamfersdistance_fix"
         + "-gpu-volume_scaling/24-nodes_full-picongpu-data/"
         + "04-01_1013/simOutput/openPMD/simData_%T.bp5"
     ),
     # files for 96GCDs on frontier
-    pathpattern2=(
+    radiation_pathpattern=(
         "/lustre/orion/csc380/proj-shared/ksteinig/"
         + "2024-03_Training-from-Stream_chamfersdistance_fix"
         + "-gpu-volume_scaling/24-nodes_full-picongpu-data/"
