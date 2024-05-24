@@ -34,18 +34,71 @@ def main():
 
     parser = argparse.ArgumentParser(description="Update config settings for the script.")
 
-    parser.add_argument("--sim", type=str, help="Simulation to evaluate on.", default="014")
-    parser.add_argument("--N_samples", type=int, help="Number model passes for loss calculation.", default=5)
-    parser.add_argument("--eval_timesteps", nargs='+', type=int,
-                        help="Timesteps to evaluate on.", default=[900, 950, 1000])
-    parser.add_argument("--generate_plots", type=str_to_bool, help="Whether to generate all plots", default=False)
-    parser.add_argument("--generate_best_box_plot", type=str_to_bool,
-                        help="Whether to generate best box plot", default=True)
-    parser.add_argument("--plot_directory_path", type=str, help="Directory for saving plots.", default="metrics/")
-    parser.add_argument("--model_filepath_pattern", type=str,
-                        help="Model file pattern.",
-                        default="/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}")
-    parser.add_argument("--load_model_checkpoint", type=str, help="Load model checkpoint", default="model_24211")
+    parser.add_argument(
+        "--sim",
+        type=str,
+        help="Simulation to evaluate on.",
+        default="014"
+    )
+    parser.add_argument(
+        "--N_samples",
+        type=int,
+        help="Number model passes for loss calculation.",
+        default=5
+    )
+    parser.add_argument(
+        "--eval_timesteps",
+        nargs='+',
+        type=int,
+        help="Timesteps to evaluate on.",
+        default=[900, 950, 1000]
+    )
+    parser.add_argument(
+        "--generate_plots",
+        type=str_to_bool,
+        help="Whether to generate all plots",
+        default=True
+    )
+    parser.add_argument(
+        "--generate_best_box_plot",
+        type=str_to_bool,
+        help="Whether to generate best box plot",
+        default=True
+    )
+    parser.add_argument(
+        "--plot_directory_path",
+        type=str,
+        help="Directory for saving plots.",
+        default="metrics/"
+    )
+    parser.add_argument(
+        "--model_filepath_pattern",
+        type=str,
+        help="Model file pattern.",
+        default="/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}"
+    )
+    parser.add_argument(
+        "--load_model_checkpoint",
+        type=str,
+        help="Load model checkpoint",
+        default="model_24211"
+    )
+    parser.add_argument(
+        "--particle_pathpattern",
+        type=str,
+        help="Specify partilce path",
+        default="/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+                "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
+                "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/openPMD/simData_%T.bp5"
+    )
+    parser.add_argument(
+        "--radiation_pathpattern",
+        type=str,
+        help="Specify radiation path",
+        default="/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+                "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
+                "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/streamedRadiation/ts_{}.npy"
+    )
 
     args = parser.parse_args()
 
@@ -55,6 +108,39 @@ def main():
         momentum_std=0.11923234769525472,
         force_mean=-2.7682006649827533e-09,
         force_std=7.705477610810592e-05
+    )
+
+    streamLoader_config = dict(
+        sim_t0=900,
+        t0=900,
+        t1=1001,
+        streaming_config=None,
+        # particle_pathpattern = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+        # "24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5",
+        # radiation_pathpattern = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+        # "24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5",
+        particle_pathpattern=(
+            "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+            "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
+            "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/openPMD/simData_%T.bp5"
+        ),
+        radiation_pathpattern=(
+            "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
+            "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
+            "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/streamedRadiation/ts_{}.npy"
+        ),
+        amplitude_direction=0,  # choose single direction along which the radiation signal
+                                # is observed, max: N_observer-1, where N_observer is
+                                # defined in PIConGPU's radiation plugin
+        phase_space_variables=[
+            "momentum", "force"
+        ],  # allowed are "position", "momentum", and "force". If "force" is set,
+            # "momentum" needs to be set too.
+        number_particles_per_gpu=30000,
+        verbose=False,
+        # offline training params
+        num_epochs=.01,  # .0625
+        normalization=normalization_values
     )
 
     config = dict(
@@ -94,13 +180,10 @@ def main():
             "014": [32, 96, 160, 224],
             "015": [48, 72, 168, 192],
             "016": [32, 96, 160, 224],
-            "24-nodes_full-picongpu-data": [32, 96, 160, 224],
-            "model_350": [32, 96, 160, 224],
-            "04_01_1807": [32, 96, 160, 224],
-            "04_01_1840": [32, 96, 160, 224],
         },
         eval_timesteps=[900, 950, 1000],
         N_samples=5,
+        N_best_samples=10,
         generate_plots=False,
         generate_best_box_plot=True,
         radiation_transformation=True,
@@ -109,60 +192,8 @@ def main():
         model_filepath_pattern='/bigdata/hplsim/scratch/kelling/chamfers/slurm-6923925/{}',
         mean_std_file_path=normalization_values,
         # '/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/mean_std_{}/global_stats_{}_{}.npz',
-        pathpattern1="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/particle_{}/{}.npy",
-        pathpattern2="/bigdata/hplsim/aipp/Jeyhun/khi/part_rad/radiation_ex_{}/{}.npy",
+        streamLoader_config = streamLoader_config,
     )
-
-    streamLoader_config = dict(
-        sim_t0=900,
-        t0=900,
-        t1=1001,
-        streaming_config=None,
-        # pathpattern1 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/
-        # 24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/simData_%T.bp5",
-        # pathpattern2 = "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/
-        # 24-nodes_full-picongpu-data/04-01_1013/simOutput/radiationOpenPMD/e_radAmplitudes_%T.bp5",
-        pathpattern1=(
-            "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
-            "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
-            "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/openPMD/simData_%T.bp5"
-        ),
-        pathpattern2=(
-            "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
-            "04-01_rerun-independent-AE-scaling_chamfersdistance_fix-gpu-volume_scaling/"
-            "8-nodes_lr-0.0001_min-tb-4_lrAE-20/04-01_1645/simOutput/streamedRadiation/ts_{}.npy"
-        ),
-        amplitude_direction=0,  # choose single direction along which the radiation signal
-                                # is observed, max: N_observer-1, where N_observer is
-                                # defined in PIConGPU's radiation plugin
-        phase_space_variables=[
-            "momentum", "force"
-        ],  # allowed are "position", "momentum", and "force". If "force" is set,
-            # "momentum" needs to be set too.
-        number_particles_per_gpu=30000,
-        verbose=False,
-        # offline training params
-        num_epochs=.01,  # .0625
-        normalization=normalization_values
-    )
-
-    # Check if the file ends with .npy
-    if streamLoader_config["pathpattern2"].endswith('.npy'):
-        print("File is a .npy file. Setting includeRadiation = False in StreamLoader.")
-        config["includeRadiation"] = False
-    else:
-        config["includeRadiation"] = True
-
-    timeBatchLoader = StreamLoader(
-        openPMDBuffer,
-        streamLoader_config,
-        BoxesAttributesParticles(),
-        AbsoluteSquare(),
-        includeRadiation=config["includeRadiation"],
-        includeMetadata=True
-    )
-
-    timeBatchLoader.start()
 
     # Update config with values from command-line arguments
     config["sim"] = args.sim
@@ -173,6 +204,26 @@ def main():
     config["model_filepath_pattern"] = args.model_filepath_pattern
     config["load_model_checkpoint"] = args.load_model_checkpoint
     config["generate_plots"] = args.generate_plots
+    config["streamLoader_config"]["particle_pathpattern"] = args.particle_pathpattern
+    config["streamLoader_config"]["radiation_pathpattern"] = args.radiation_pathpattern
+
+    # Check if the file ends with .npy
+    if config["streamLoader_config"]["radiation_pathpattern"].endswith('.npy'):
+        print("File is a .npy file. Setting includeRadiation = False in StreamLoader.")
+        config["includeRadiation"] = False
+    else:
+        config["includeRadiation"] = True
+
+    timeBatchLoader = StreamLoader(
+        openPMDBuffer,
+        config["streamLoader_config"],
+        BoxesAttributesParticles(),
+        AbsoluteSquare(),
+        includeRadiation=config["includeRadiation"],
+        includeMetadata=True
+    )
+
+    timeBatchLoader.start()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config["device"] = device
@@ -411,9 +462,6 @@ def main():
             config["sim"],
             flow_type,
             f"data_gpu_{gpu_index}_tindex_{t_index}")
-
-        # if not os.path.exists(plot_directory_path):
-        #     os.makedirs(plot_directory_path)
 
         ensure_path_exists(plot_directory_path)
 
@@ -703,9 +751,9 @@ def main():
 
         p_gt = data[ii][0]
 
-        if streamLoader_config["pathpattern2"].endswith('.npy'):
-            rad_t_index = streamLoader_config["t0"]-streamLoader_config["sim_t0"]+1
-            r = np.load(streamLoader_config["pathpattern2"].format(rad_t_index))
+        if config["streamLoader_config"]["radiation_pathpattern"].endswith('.npy'):
+            rad_t_index = config["streamLoader_config"]["t0"]-config["streamLoader_config"]["sim_t0"]+1
+            r = np.load(config["streamLoader_config"]["radiation_pathpattern"].format(rad_t_index))
             r = torch.from_numpy(r).squeeze()
         else:
             r = data[ii][1]
@@ -782,7 +830,7 @@ def main():
             t_index,
             boxes[min_emd_loss_inn_index],
             device,
-            N_samples*2,
+            N_samples = config["N_best_samples"],
             generate_plots=config["generate_plots"],
             generate_best_box_plot=config["generate_best_box_plot"],
             flow_type=flow_type
