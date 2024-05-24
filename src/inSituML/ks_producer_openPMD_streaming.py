@@ -248,8 +248,8 @@ class StreamLoader(Thread):
         Thread.__init__(self)
         # instantiate all required parameters
         self.data = batchDataBuffer
-        self.particlePathPattern = hyperParameterDefaults["pathpattern1"]
-        self.radiationPathPattern = hyperParameterDefaults["pathpattern2"]
+        self.particlePathPattern = hyperParameterDefaults["particle_pathpattern"]
+        self.radiationPathPattern = hyperParameterDefaults["radiation_pathpattern"]
 
         self.rng = np.random.default_rng()
         self.particleTransformPolicy = particleDataTransformationPolicy
