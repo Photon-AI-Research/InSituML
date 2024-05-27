@@ -17,7 +17,6 @@ from inSituML.utilities import (
 )
 from sklearn.cluster import KMeans
 import argparse
-from distutils.util import strtobool
 from inSituML.ks_models import INNModel
 from inSituML.encoder_decoder import Encoder
 from inSituML.encoder_decoder import Conv3DDecoder
