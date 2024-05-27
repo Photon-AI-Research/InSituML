@@ -29,9 +29,6 @@ from inSituML.ks_transform_policies import AbsoluteSquare, BoxesAttributesPartic
 
 def main():
 
-    def str_to_bool(v):
-        return bool(strtobool(v))
-
     parser = argparse.ArgumentParser(description="Update config settings for the script.")
 
     parser.add_argument(
@@ -55,13 +52,13 @@ def main():
     )
     parser.add_argument(
         "--generate_plots",
-        type=str_to_bool,
+        action=argparse.BooleanOptionalAction,
         help="Whether to generate all plots",
         default=True
     )
     parser.add_argument(
         "--generate_best_box_plot",
-        type=str_to_bool,
+        action=argparse.BooleanOptionalAction,
         help="Whether to generate best box plot",
         default=True
     )
