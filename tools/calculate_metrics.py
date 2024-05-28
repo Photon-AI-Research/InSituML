@@ -16,6 +16,7 @@ from inSituML.utilities import (
     plot_losses_histogram
 )
 from sklearn.cluster import KMeans
+from scipy.special import erfinv
 import argparse
 from inSituML.ks_models import INNModel
 from inSituML.encoder_decoder import Encoder
@@ -174,6 +175,7 @@ def main():
         eval_timesteps=[900, 950, 1000],
         N_samples=5,
         N_best_samples=10,
+        fraction = 0.8,
         generate_plots=False,
         generate_best_box_plot=True,
         radiation_transformation=True,
@@ -234,6 +236,82 @@ def main():
 
     # filter data corresponding to evaluation timesteps
     data = [item for item in data if item is not None and item[2] in config["eval_timesteps"]]
+
+    # denormalised data
+    denorm_data = [
+        denormalize_mean_6d(
+            item[0].permute(0, 2, 1).reshape(-1, item[0].shape[1]),
+            config["mean_std_file_path"]) for item in data
+    ]
+
+    N = len(data)  # Number of timesteps
+
+    sum_values = torch.zeros(point_dim)
+    total_count = 0
+
+    for i in range(N):
+        sum_values += denorm_data[i].sum(dim=0)
+        total_count += denorm_data[i].size(0)
+
+    # Compute the global mean
+    mean_values = sum_values / total_count
+
+    sum_squared_diff = torch.zeros(point_dim)
+
+    for i in range(N):
+        sum_squared_diff += ((denorm_data[i] - mean_values) ** 2).sum(dim=0)
+
+    # Compute the global standard deviation
+    std_values = torch.sqrt(sum_squared_diff / total_count)
+
+    denorm_mean_std_dict = {
+        "px": (mean_values[0].item(), std_values[0].item()),
+        "py": (mean_values[1].item(), std_values[1].item()),
+        "pz": (mean_values[2].item(), std_values[2].item()),
+        "fx": (mean_values[3].item(), std_values[3].item()),
+        "fy": (mean_values[4].item(), std_values[4].item()),
+        "fz": (mean_values[5].item(), std_values[5].item())
+    }
+
+    def get_bounds(mean_std_dict, fraction=0.95):
+        bounds_dict = {}
+
+        for param, (mean, stddev) in mean_std_dict.items():
+
+            # Compute n using the inverse error function
+            n = np.sqrt(2) * erfinv(fraction)
+
+            # Calculate bounds based on mean and standard deviation
+            lower_bound = mean - n * stddev
+            upper_bound = mean + n * stddev
+
+            bounds_dict[param] = (lower_bound, upper_bound)
+
+        return bounds_dict
+
+    # bounds for denormalised plots
+    config["denorm_max_min_dict"] = get_bounds(denorm_mean_std_dict, config["fraction"])
+
+    def normalize(value, mean, std):
+        return (value - mean) / std
+
+    # Normalized bounds dictionary
+    max_min_dict = {}
+
+    for key, (min_val, max_val) in config["denorm_max_min_dict"].items():
+        if key.startswith('p'):
+            mean = config["mean_std_file_path"]['momentum_mean']
+            std = config["mean_std_file_path"]['momentum_std']
+        else:
+            mean = config["mean_std_file_path"]['force_mean']
+            std = config["mean_std_file_path"]['force_std']
+
+        normalized_min = normalize(min_val, mean, std)
+        normalized_max = normalize(max_val, mean, std)
+        max_min_dict[key] = (normalized_min, normalized_max)
+
+    # bounds for normalised plots
+    config["max_min_dict"] = max_min_dict
 
     class ModelFinal(nn.Module):
         def __init__(
@@ -515,8 +593,8 @@ def main():
                 # find the lowest emd inn value
                 if emd_loss_inn_sam < emd_loss_inn_sam_min and generate_best_box_plot:
                     emd_loss_inn_sam_min = emd_loss_inn_sam
-                    norm_path = plot_directory_path + '/normalised'
-                    denorm_path = plot_directory_path + '/denormalised'
+                    norm_path = plot_directory_path + '/normalised_best_box'
+                    denorm_path = plot_directory_path + '/denormalised_best_box'
 
                     ensure_path_exists(norm_path)
                     ensure_path_exists(denorm_path)
@@ -542,7 +620,7 @@ def main():
                         # chamfers_loss=chamfers_loss_vae_sam_norm.item(),
                         plot_directory_path=norm_path,
                         show_plot=False,
-                        denorm=False
+                        max_min_dict=config["max_min_dict"]
                     )
 
                     # denormalised plots
@@ -561,7 +639,7 @@ def main():
                         # chamfers_loss=chamfers_loss_vae_sam.item(),
                         plot_directory_path=denorm_path,
                         show_plot=False,
-                        denorm=True
+                        max_min_dict=config["denorm_max_min_dict"]
                     )
 
             emd_losses_inn_tensor = torch.tensor(emd_losses_inn)
@@ -700,7 +778,7 @@ def main():
                 chamfers_losses_vae_mean=chamfers_losses_vae_mean.item(),
                 plot_directory_path=plot_directory_path,
                 show_plot=False,
-                denorm=True,
+                max_min_dict=config["denorm_max_min_dict"],
             )
 
         results = {
