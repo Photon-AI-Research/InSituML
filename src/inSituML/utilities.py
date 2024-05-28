@@ -172,22 +172,16 @@ def create_momentum_density_plots(
     path='',
     show_plot=True,
     enable_wandb=False,
-    denorm=False
+    max_min_dict=None
 ):
 
     # Specify the number of bins for each axis
     # bins_px = np.linspace(min(px), max(px), bins)
     # bins_py = np.linspace(min(py), max(py), bins)
     # bins_pz = np.linspace(min(pz), max(pz), bins)
-    if denorm:
-        bins_px = np.linspace(-0.3, 0.3, bins)
-        bins_py = np.linspace(-0.005, 0.005, bins)
-        bins_pz = np.linspace(-0.005, 0.005, bins)
-
-    else:
-        bins_px = np.linspace(-2.52, 2.52, bins)
-        bins_py = np.linspace(-0.042, 0.042, bins)
-        bins_pz = np.linspace(-0.042, 0.042, bins)
+    bins_px = np.linspace(max_min_dict["px"][0], max_min_dict["px"][1], bins)
+    bins_py = np.linspace(max_min_dict["py"][0], max_min_dict["py"][1], bins)
+    bins_pz = np.linspace(max_min_dict["pz"][0], max_min_dict["pz"][1], bins)
 
     loss_info_inn = ''
     loss_info_vae = ''
@@ -314,21 +308,16 @@ def create_force_density_plots(
     path='',
     show_plot=True,
     enable_wandb=False,
-    denorm=False
+    max_min_dict=None
 ):
 
     # Specify the number of bins for each axis
     # bins_fx = np.linspace(min(fx), max(fx), bins)
     # bins_fy = np.linspace(min(fy), max(fy), bins)
     # bins_fz = np.linspace(min(fz), max(fz), bins)
-    if denorm:
-        bins_fx = np.linspace(-0.00005, 0.00005, bins)
-        bins_fy = np.linspace(-0.00005, 0.00005, bins)
-        bins_fz = np.linspace(-0.00005, 0.00005, bins)
-    else:
-        bins_fx = np.linspace(-0.65, 0.65, bins)
-        bins_fy = np.linspace(-0.65, 0.65, bins)
-        bins_fz = np.linspace(-0.65, 0.65, bins)
+    bins_fx = np.linspace(max_min_dict["fx"][0], max_min_dict["fx"][1], bins)
+    bins_fy = np.linspace(max_min_dict["fy"][0], max_min_dict["fy"][1], bins)
+    bins_fz = np.linspace(max_min_dict["fz"][0], max_min_dict["fz"][1], bins)
 
     loss_info_inn = ''
     loss_info_vae = ''
@@ -939,7 +928,7 @@ def generate_momentum_force_radiation_plots(p_gt,
                                             chamfers_losses_inn_mean=None,
                                             chamfers_losses_vae_mean=None,
                                             show_plot=False,
-                                            denorm=False):
+                                            max_min_dict=None):
 
     # Momentum components extraction
     px, py, pz = p_gt[:, 0], p_gt[:, 1], p_gt[:, 2]
@@ -972,7 +961,7 @@ def generate_momentum_force_radiation_plots(p_gt,
         # chamfers_loss=chamfers_loss,
         chamfers_loss_inn=chamfers_losses_inn_mean,
         chamfers_loss_vae=chamfers_losses_vae_mean,
-        denorm=denorm
+        max_min_dict=max_min_dict
     )
 
     # Call to create force density plots
@@ -995,7 +984,7 @@ def generate_momentum_force_radiation_plots(p_gt,
         show_plot=show_plot,
         chamfers_loss_inn=chamfers_losses_inn_mean,
         chamfers_loss_vae=chamfers_losses_vae_mean,
-        denorm=denorm
+        max_min_dict=max_min_dict
     )
 
     # Call to plot radiation
