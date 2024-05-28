@@ -175,7 +175,7 @@ def main():
         eval_timesteps=[900, 950, 1000],
         N_samples=5,
         N_best_samples=10,
-        fraction = 0.8,
+        fraction=0.8,
         generate_plots=False,
         generate_best_box_plot=True,
         radiation_transformation=True,
