@@ -21,12 +21,12 @@ streamLoader_config = dict(
     # streaming on frontier
     streaming_config=None,  # "@inconfig.json",
     # set to None when reading from file
-    pathpattern1=(
+    particle_pathpattern=(
         "/lustre/orion/csc380/world-shared/ksteinig/"
         + "016_KHI_withRad_randomInit_16gpus/simOutput/"
         + "openPMD/simData_%T.bp5"
     ),  # files for 16GPUs on frontier
-    pathpattern2=(
+    radiation_pathpattern=(
         "/lustre/orion/csc380/world-shared/ksteinig/"
         + "016_KHI_withRad_randomInit_16gpus/simOutput/"
         + "radiationOpenPMD/e_radAmplitudes_%T.bp5"

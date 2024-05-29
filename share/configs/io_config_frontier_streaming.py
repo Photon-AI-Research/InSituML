@@ -16,8 +16,8 @@ number_of_particles = 4096
 streamLoader_config = dict(
     t0=900,
     t1=1001,  # endpoint=false, t1 is not used in training
-    pathpattern1="openPMD/simData.sst",  # streaming on frontier
-    pathpattern2="radiationOpenPMD/e_radAmplitudes.sst",
+    particle_pathpattern="openPMD/simData.sst",  # streaming on frontier
+    radiation_pathpattern="radiationOpenPMD/e_radAmplitudes.sst",
     # streaming on frontier
     streaming_config="@inconfig.json",  # set to None when reading from file
     amplitude_direction=0,  # choose single direction along which the radiation

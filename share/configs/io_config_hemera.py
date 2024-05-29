@@ -21,12 +21,12 @@ streamLoader_config = dict(
     # pathpattern2 = "/bigdata/hplsim/production/KHI_for_GB_MR/runs/
     # 014_KHI_007_noWindowFunction/simOutput/radiationOpenPMD/
     # e_radAmplitudes%T.bp", # files on hemera
-    pathpattern1=(
+    particle_pathpattern=(
         "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
         + "24-nodes_full-picongpu-data/04-01_1013/simOutput/openPMD/"
         + "simData_%T.bp5"
     ),  # files for 96GCDs on hemera
-    pathpattern2=(
+    radiation_pathpattern=(
         "/bigdata/hplsim/aipp/SC24_PIConGPU-Continual-Learning/"
         + "24-nodes_full-picongpu-data/04-01_1013/simOutput/"
         + "radiationOpenPMD/e_radAmplitudes_%T.bp5"

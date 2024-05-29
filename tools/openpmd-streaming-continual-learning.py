@@ -475,8 +475,8 @@ def main():
                 flush=True,
             )
             print(
-                "#Param streamLoader_config.pathpattern1=",
-                streamLoader_config["pathpattern1"],
+                "#Param streamLoader_config.particle_pathpattern=",
+                streamLoader_config["particle_pathpattern"],
                 flush=True,
             )
             print(
