@@ -1,0 +1,2 @@
+export openPMD_USE_MPI=ON
+module load Python/3.11.3 GCC/12.3.0  BullMPI/4.1.4 ADIOS2/2.9.2
