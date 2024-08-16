@@ -65,7 +65,7 @@ def distribution_strategy(
             ].lower()
         else:
             strategy_identifier = (
-                "hostname_roundrobinofsourceranks" + "_roundrobinofsourceranks"
+                "hostname_blocksofsourceranks" + "_blocksofsourceranks"
             )  # default
     match = re.search("hostname_(.*)_(.*)", strategy_identifier)
     if match is not None:
@@ -88,6 +88,8 @@ def distribution_strategy(
         return opmd.RoundRobin()
     elif strategy_identifier == "roundrobinofsourceranks":
         return EveryoneGetsData(opmd.RoundRobinOfSourceRanks())
+    elif strategy_identifier == "blocksofsourceranks":
+        return opmd.BlocksOfSourceRanks()
     elif strategy_identifier == "binpacking":
         return opmd.BinPacking()
     elif strategy_identifier == "slicedataset":
