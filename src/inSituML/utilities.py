@@ -42,28 +42,29 @@ def kl_normal(qm, qv, pm, pv):
 # Losses
 def MMD_multiscale(x, y):
 
-    worldShape = [*x.shape]
-    worldShape[0] *= dist.get_world_size()
-    # print("MMD_multiscale dist:", x.shape, dist.get_world_size(), worldShape)
-    xall = torch.zeros(worldShape, dtype=x.dtype, device=x.device)
-    xh = dist.all_gather_into_tensor(xall, x, async_op=True)
-    yall = torch.zeros(worldShape, dtype=x.dtype, device=x.device)
-    yh = dist.all_gather_into_tensor(yall, y, async_op=True)
+    if dist.is_initialized():
+        worldShape = [*x.shape]
+        worldShape[0] *= dist.get_world_size()
+        xall = torch.zeros(worldShape, dtype=x.dtype, device=x.device)
+        xh = dist.all_gather_into_tensor(xall, x, async_op=True)
+        yall = torch.zeros(worldShape, dtype=x.dtype, device=x.device)
+        yh = dist.all_gather_into_tensor(yall, y, async_op=True)
 
-    # xx, yy, zz = torch.mm(x, x.t()), torch.mm(y, y.t()), torch.mm(x, y.t())
-    xh.wait()
-    xx = torch.mm(xall, xall.t())
-    rx = xx.diag().unsqueeze(0).expand_as(xx)
-    dxx = rx.t() + rx - 2.0 * xx
+        xh.wait()
+        xx = torch.mm(xall, xall.t())
+        rx = xx.diag().unsqueeze(0).expand_as(xx)
+        dxx = rx.t() + rx - 2.0 * xx
 
-    yh.wait()
-    yy, zz = torch.mm(yall, yall.t()), torch.mm(xall, yall.t())
-    ry = yy.diag().unsqueeze(0).expand_as(yy)
+        yh.wait()
+        yy, zz = torch.mm(yall, yall.t()), torch.mm(xall, yall.t())
+        ry = yy.diag().unsqueeze(0).expand_as(yy)
+    else:
+        xx, yy, zz = torch.mm(x, x.t()), torch.mm(y, y.t()), torch.mm(x, y.t())
 
-    # rx = xx.diag().unsqueeze(0).expand_as(xx)
-    # ry = yy.diag().unsqueeze(0).expand_as(yy)
+        rx = xx.diag().unsqueeze(0).expand_as(xx)
+        ry = yy.diag().unsqueeze(0).expand_as(yy)
 
-    # print("MMD_multiscale xx.shape={}, rx.shape={}".format(xx.shape, rx.shape));
+        dxx = rx.t() + rx - 2.0 * xx
 
     dyy = ry.t() + ry - 2.0 * yy
     dxy = rx.t() + ry - 2.0 * zz
