@@ -116,9 +116,9 @@ class ChamfersLoss(nn.Module):
         relative_distances: A tensor containing relative distances between
         the particles.
         """
-        loss_per_batch = torch.sum(
-            torch.min(relative_distances, -1).values
-        ) + torch.sum(torch.min(relative_distances, -2).values)
+        a = torch.min(relative_distances, -1).values
+        b = torch.min(relative_distances, -2).values
+        loss_per_batch = torch.sum(a, -1) + torch.sum(b, -1)
 
         reduced_loss = getattr(loss_per_batch, self.reduction)()
 
