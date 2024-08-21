@@ -89,7 +89,7 @@ def distribution_strategy(
     elif strategy_identifier == "roundrobinofsourceranks":
         return EveryoneGetsData(opmd.RoundRobinOfSourceRanks())
     elif strategy_identifier == "blocksofsourceranks":
-        return opmd.BlocksOfSourceRanks()
+        return opmd.BlocksOfSourceRanks(mpi_rank, mpi_size)
     elif strategy_identifier == "binpacking":
         return opmd.BinPacking()
     elif strategy_identifier == "slicedataset":
@@ -206,6 +206,8 @@ class SelectAccordingToChunkDistribution(opmd.Strategy):
             # We could theoretically ignore the chunk if the target rank
             # is different from the current rank, but it's not a huge overhead
             # and it makes debugging simpler.
+            if not unassigned_chunk.source_id in self.source_to_target:
+                continue # ignore: source ranks for other ranks are not available
             target_ranks = self.source_to_target[unassigned_chunk.source_id]
             for target_rank in target_ranks:
                 if target_rank not in res:
