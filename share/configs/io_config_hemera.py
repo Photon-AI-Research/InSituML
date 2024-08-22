@@ -62,7 +62,7 @@ trainBatchBuffer_config = dict(
     # - 1,  # 7 is the max we can fit on P100 with our stupid chamfer's impl
     stall_loader=True,
     consume_size=1,
-    min_tb_from_unchanged_now_bf=round(4*4/batch_size),
+    min_tb_from_unchanged_now_bf=round(int(environ.get("ISML_MIN_TB_FROM_UNCHANGED", 8))*2/batch_size),
     radiation_data_folder=out_prefix,
     # Train buffer.
     buffersize=10,
