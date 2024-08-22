@@ -467,7 +467,7 @@ def main():
         else:
             timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
 
-        if rank == 0:
+        if dist.get_rank() == 0:
             # print some parameters
             print(
                 "#Param streamLoader_config.amplitude_direction=",
@@ -479,20 +479,8 @@ def main():
                 streamLoader_config["particle_pathpattern"],
                 flush=True,
             )
-            print(
-                "#Param config.load_model=", config["load_model"], flush=True
-            )
-            print(
-                "#Param config.load_model_checkpoint=",
-                config["load_model_checkpoint"],
-                flush=True,
-            )
-            print(
-                "#Param config.loss_function=",
-                config["loss_function"],
-                flush=True,
-            )
-            print("#Param config.lrAEmult=", config["lrAEmult"], flush=True)
+            for k in config:
+                print("#Param config.{}=".format(k), config[k], flush=True)
             print("#Param type_streamer=", io_config.type_streamer, flush=True)
             print(
                 "#Param trainBatchBuffer_config.cl_mem_size=",
