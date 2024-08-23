@@ -24,7 +24,7 @@ config = dict(
     lr=(
         float(environ["LEARNING_RATE"])
         if ("LEARNING_RATE" in environ)
-        else 0.0001
+        else 0.000001
     ),
     lrAEmult=(
         float(environ["LEARNING_RATE_AE"])
