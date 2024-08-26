@@ -401,6 +401,21 @@ def main():
 
         optimizer, scheduler, model = load_objects(rank)
 
+        trainBF = TrainBatchBuffer(
+            openPMDBuffer, **io_config.trainBatchBuffer_config
+        )
+
+        modelTrainer = ModelTrainer(
+            trainBF,
+            model,
+            optimizer,
+            scheduler,
+            gpu_id=rank,
+            **io_config.modelTrainer_config,
+            logger=None,
+        )
+
+
         if args.type_streamer == "streaming":
 
             from inSituML.ks_transform_policies import (
@@ -416,7 +431,7 @@ def main():
                 wrapLoaderWithExceptionHandler,
             )
 
-            Loader = wrapLoaderWithExceptionHandler(StreamLoader)
+            Loader = wrapLoaderWithExceptionHandler(StreamLoader, trainBF)
 
             particleDataTransformationPolicy = BoxesAttributesParticles()
             # returns particle data of shape
@@ -451,7 +466,7 @@ def main():
                 wrapLoaderWithExceptionHandler,
             )
 
-            Loader = wrapLoaderWithExceptionHandler(RandomLoader)
+            Loader = wrapLoaderWithExceptionHandler(RandomLoader, trainBF)
 
             particleDataTransformationPolicy = BoxesAttributesParticles()
             radiationDataTransformationPolicy = (
@@ -465,7 +480,7 @@ def main():
                 radiationDataTransformationPolicy,
             )  # Streaming ready
         else:
-            timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
+            timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer, trainBF)
 
         if dist.get_rank() == 0:
             # print some parameters
@@ -520,18 +535,6 @@ def main():
         # wandb_logger = WandbLogger(project="khi_public",
         #                            args=config,
         #                            entity='jeyhun')
-        trainBF = TrainBatchBuffer(
-            openPMDBuffer, **io_config.trainBatchBuffer_config
-        )
-        modelTrainer = ModelTrainer(
-            trainBF,
-            model,
-            optimizer,
-            scheduler,
-            gpu_id=rank,
-            **io_config.modelTrainer_config,
-            logger=None,
-        )
 
         ####################
         #  Start training  #
