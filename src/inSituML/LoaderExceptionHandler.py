@@ -9,6 +9,5 @@ def wrapLoaderWithExceptionHandler(LoaderType):
             except Exception:
                 traceback.print_exc()
                 self.data.put(None)
-                self.data.shut_down()
 
     return StreamLoaderExceptionCatcher

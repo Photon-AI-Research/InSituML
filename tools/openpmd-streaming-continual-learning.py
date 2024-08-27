@@ -102,14 +102,6 @@ def main():
     if "training_bs" not in io_config.trainBatchBuffer_config:
         io_config.trainBatchBuffer_config["training_bs"] = 4
 
-    class QueueWithShutDown(Queue):
-
-        def shut_down(self):
-            self.qsize = self.qsize_inf
-
-        def qsize_inf(self):
-            return np.inf
-
     # Buffer shared between openPMD data loader and model
     openPMDBuffer = QueueWithShutDown(io_config.openPMD_queue_size)
 
