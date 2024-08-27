@@ -1,7 +1,7 @@
 import traceback
 
 
-def wrapLoaderWithExceptionHandler(LoaderType, trainBF):
+def wrapLoaderWithExceptionHandler(LoaderType):
     class StreamLoaderExceptionCatcher(LoaderType):
         def run(self):
             try:
@@ -9,6 +9,6 @@ def wrapLoaderWithExceptionHandler(LoaderType, trainBF):
             except Exception:
                 traceback.print_exc()
                 self.data.put(None)
-                trainBF.openpmdProduction=False
+                self.data.shut_down()
 
     return StreamLoaderExceptionCatcher

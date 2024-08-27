@@ -27,6 +27,8 @@ import torch.multiprocessing as mp
 import torch.distributed as dist
 import argparse
 from inSituML.dummy_openpmd_producer import DummyOpenPMDProducer
+from numpy as np
+
 
 import pathlib
 import importlib.util
@@ -100,8 +102,21 @@ def main():
     if "training_bs" not in io_config.trainBatchBuffer_config:
         io_config.trainBatchBuffer_config["training_bs"] = 4
 
+    class QueueWithShutDown(Queue):
+    """
+    Simple extension of Queue class with shutdown feature which
+    forces the qsize method to return infinity, so that the train buffer
+    that the openPMDproduction has stopped.
+    """
+
+        def shut_down(self):
+            self.qsize = self.qsize_inf
+
+        def qsize_inf(self):
+            return np.inf
+
     # Buffer shared between openPMD data loader and model
-    openPMDBuffer = Queue(io_config.openPMD_queue_size)
+    openPMDBuffer = QueueWithShutDown(io_config.openPMD_queue_size)
 
     # nomraliztion values loaded from model_config,
     # because they are related to the pre-trained model
