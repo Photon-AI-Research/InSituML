@@ -103,11 +103,6 @@ def main():
         io_config.trainBatchBuffer_config["training_bs"] = 4
 
     class QueueWithShutDown(Queue):
-    """
-    Simple extension of Queue class with shutdown feature which
-    forces the qsize method to return infinity, so that the train buffer
-    that the openPMDproduction has stopped.
-    """
 
         def shut_down(self):
             self.qsize = self.qsize_inf
