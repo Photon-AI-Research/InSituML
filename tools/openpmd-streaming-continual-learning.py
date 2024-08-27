@@ -27,7 +27,7 @@ import torch.multiprocessing as mp
 import torch.distributed as dist
 import argparse
 from inSituML.dummy_openpmd_producer import DummyOpenPMDProducer
-from numpy as np
+import numpy as np
 
 
 import pathlib
