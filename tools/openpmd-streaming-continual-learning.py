@@ -431,7 +431,7 @@ def main():
                 wrapLoaderWithExceptionHandler,
             )
 
-            Loader = wrapLoaderWithExceptionHandler(StreamLoader, trainBF)
+            Loader = wrapLoaderWithExceptionHandler(StreamLoader)
 
             particleDataTransformationPolicy = BoxesAttributesParticles()
             # returns particle data of shape
@@ -466,7 +466,7 @@ def main():
                 wrapLoaderWithExceptionHandler,
             )
 
-            Loader = wrapLoaderWithExceptionHandler(RandomLoader, trainBF)
+            Loader = wrapLoaderWithExceptionHandler(RandomLoader)
 
             particleDataTransformationPolicy = BoxesAttributesParticles()
             radiationDataTransformationPolicy = (
@@ -480,7 +480,7 @@ def main():
                 radiationDataTransformationPolicy,
             )  # Streaming ready
         else:
-            timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer, trainBF)
+            timeBatchLoader = DummyOpenPMDProducer(openPMDBuffer)
 
         if dist.get_rank() == 0:
             # print some parameters
