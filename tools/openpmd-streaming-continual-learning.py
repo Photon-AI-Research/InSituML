@@ -401,21 +401,6 @@ def main():
 
         optimizer, scheduler, model = load_objects(rank)
 
-        trainBF = TrainBatchBuffer(
-            openPMDBuffer, **io_config.trainBatchBuffer_config
-        )
-
-        modelTrainer = ModelTrainer(
-            trainBF,
-            model,
-            optimizer,
-            scheduler,
-            gpu_id=rank,
-            **io_config.modelTrainer_config,
-            logger=None,
-        )
-
-
         if args.type_streamer == "streaming":
 
             from inSituML.ks_transform_policies import (
@@ -547,6 +532,18 @@ def main():
         # wandb_logger = WandbLogger(project="khi_public",
         #                            args=config,
         #                            entity='jeyhun')
+        trainBF = TrainBatchBuffer(
+            openPMDBuffer, **io_config.trainBatchBuffer_config
+        )
+        modelTrainer = ModelTrainer(
+            trainBF,
+            model,
+            optimizer,
+            scheduler,
+            gpu_id=rank,
+            **io_config.modelTrainer_config,
+            logger=None,
+        )
 
         ####################
         #  Start training  #
