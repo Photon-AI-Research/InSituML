@@ -146,7 +146,7 @@ srun -N !TBG_nodes_adjusted --ntasks-per-node=1 mkdir -p "/mnt/bb/$USER/sync_bin
 # Use sbcast to put the launch binaries and their libraries to node-local storage.
 # Note that this puts only the Python binary itself, but not its runtime dependency to node-local storage.
 # That seems to be the lesser problem anyway.
-for binary in "!TBG_dstPath/input/bin/"{picongpu,cuda_memtest,cuda_memtest.sh,mpiInfo} "$(which python)" "$compressed_env"; do
+for binary in "!TBG_dstPath/input/bin/"{picongpu,cuda_memtest,cuda_memtest.sh,mpiInfo} "$compressed_env"; do
     dest="/mnt/bb/$USER/sync_bins/${binary##*/}"
     sbcast "$binary" "$dest"
     if [ ! "$?" == "0" ]; then
@@ -157,7 +157,9 @@ for binary in "!TBG_dstPath/input/bin/"{picongpu,cuda_memtest,cuda_memtest.sh,mp
     fi
 done
 
-srun -N !TBG_nodes_adjusted --ntasks-per-node=1 tar -xzf "/mnt/bb/$USER/sync_bins/local.tar.gz" --directory "/mnt/bb/$USER/"
+srun -N !TBG_nodes_adjusted --ntasks-per-node=1 \
+    tar -xzf "/mnt/bb/$USER/sync_bins/local.tar.gz" --directory "/mnt/bb/$USER/"
+
 export LD_LIBRARY_PATH="/mnt/bb/$USER/local/lib:/mnt/bb/$USER/local/lib64:$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH"
 export PATH="/mnt/bb/$USER/sync_bins/:$PATH"
 for python_version in "/mnt/bb/$USER/local/"lib{64,}/python*; do
@@ -166,6 +168,9 @@ for python_version in "/mnt/bb/$USER/local/"lib{64,}/python*; do
     fi
     export PYTHONPATH="$python_version/site-packages:$PYTHONPATH"
 done
+
+# don't use the python binary fromt the virtualenv
+python_binary="$(PATH="$(echo $PATH | tr : '\n' | grep -E '^/(opt|sw)' | tr '\n' :)" /usr/bin/which python)"
 
 verify_synced() {
     ls "/mnt/bb/$USER/local/"* -lisah
@@ -177,7 +182,7 @@ verify_synced() {
 
     which picongpu
     ldd `which picongpu`
-    srun python -c 'import openpmd_api; print("OPENPMD PATH:", openpmd_api)'
+    srun "$python_binary" -c 'import openpmd_api; print("OPENPMD PATH:", openpmd_api)'
 }
 #DEBUG verify_synced | sed 's|^|>\t|'
 
@@ -331,6 +336,8 @@ popd
 sbcast insituml.tar.gz "/mnt/bb/$USER/insituml.tar.gz"
 srun -N !TBG_nodes_adjusted --ntasks-per-node=1 tar -xzf "/mnt/bb/$USER/insituml.tar.gz" --directory "/mnt/bb/$USER/"
 
+export PYTHONPATH="/mnt/bb/$USER/InSituML/src:$PYTHONPATH"
+
 ## Copy ML input files to input directory
 ##
 mkdir -p ../input/training
@@ -405,7 +412,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
       --gpus-per-task=1                           \
       --network=single_node_vni,job_vni           \
       /mnt/bb/$USER/sync_bins/launch.sh           \
-      /mnt/bb/$USER/sync_bins/python              \
+      "$python_binary"                            \
         "/mnt/bb/$USER/InSituML/tools/openpmd-streaming-continual-learning.py" \
         --io_config /mnt/bb/$USER/InSituML/share/configs/io_config_frontier_streaming.py --runner srun \
         --model_config /mnt/bb/$USER/InSituML/share/configs/model_config.py \
@@ -447,6 +454,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
         !TBG_programParams                  \
         > ../pic.out 2> ../pic.err          &
 
+    wait -n || exit 1
     wait
 else
     echo "Job stopped because of previous issues."
