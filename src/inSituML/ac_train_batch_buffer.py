@@ -203,10 +203,10 @@ class TrainBatchBuffer(Thread):
                 # get a particles, radiation from the queue
                 particles_radiation = self.get_data()
 
-                if not particles_radiation:
-                    break
-                elif particles_radiation is None:
+                if particles_radiation is None:
                     self.openpmdProduction = False
+                    break
+                elif not particles_radiation:
                     break
 
                 if self.radiation_data_writer is not None:
