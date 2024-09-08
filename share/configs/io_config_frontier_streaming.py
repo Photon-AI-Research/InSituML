@@ -32,9 +32,9 @@ streamLoader_config = dict(
     verbose=False,
 )
 
-openPMD_queue_size = 4
+openPMD_queue_size = 8
 
-batch_size = 4
+batch_size = 8
 
 trainBatchBuffer_config = dict(
     training_bs=batch_size,
@@ -42,9 +42,7 @@ trainBatchBuffer_config = dict(
     stall_loader=True,
     consume_size=1,
     min_tb_from_unchanged_now_bf=(
-        int(environ["MIN_TB_FROM_UNCHANGED_NOW_BF"])
-        if ("MIN_TB_FROM_UNCHANGED_NOW_BF" in environ)
-        else 16
+        round(int(environ.get(["MIN_TB_FROM_UNCHANGED_NOW_BF"], 96))*2/batch_size),
     ),
     radiation_data_folder="streamedRadiation",  # fixed
     # Train buffer.
@@ -55,7 +53,7 @@ trainBatchBuffer_config = dict(
 
 
 modelTrainer_config = dict(
-    checkpoint_interval=350,
+    checkpoint_interval=800,
     checkpoint_final=True,
 )
 
