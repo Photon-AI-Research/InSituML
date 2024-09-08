@@ -58,7 +58,7 @@ trainBatchBuffer_config = dict(
     stall_loader=True,
     consume_size=1,
     min_tb_from_unchanged_now_bf=round(int(environ.get("ISML_MIN_TB_FROM_UNCHANGED", 32))*2/batch_size),
-    radiation_data_folder=out_prefix,
+    # radiation_data_folder=out_prefix,
     radiation_data_folder="streamedRadiation",  # fixed
     # Train buffer.
     buffersize=10,
