@@ -2,7 +2,7 @@ name: InSituML
 
 on:
   pull_request:
-    branches: [ "khi" ]
+    branches: [ "main" ]
 
 permissions:
   contents: read
