@@ -42,7 +42,7 @@ trainBatchBuffer_config = dict(
     stall_loader=True,
     consume_size=1,
     min_tb_from_unchanged_now_bf=(
-        round(int(environ.get(["MIN_TB_FROM_UNCHANGED_NOW_BF"], 96))*2/batch_size),
+        round(int(environ.get("MIN_TB_FROM_UNCHANGED_NOW_BF", 96))*2/batch_size),
     ),
     radiation_data_folder="streamedRadiation",  # fixed
     # Train buffer.
