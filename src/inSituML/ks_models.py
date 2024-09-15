@@ -238,13 +238,11 @@ class INNModel(nn.Module):
         output, _ = self.model(x)
 
         # Shorten output, and remove gradients wrt y, for latent loss
-        y_short = torch.cat((y[:, :self.ndim_z], y[:, -self.ndim_y:]), dim=1)
+        y_short = y[:, :self.ndim_z].clone()
         l_fit = self.lambd_predict * self.loss_fit(
             output[:, self.ndim_z:], y[:, self.ndim_z:]
         )
-        output_block_grad = torch.cat(
-            (output[:, :self.ndim_z], output[:, -self.ndim_y:].data), dim=1
-        )
+        output_block_grad = output[:, :self.ndim_z].clone()
         l_latent = self.lambd_latent * self.loss_latent(
             output_block_grad, y_short
         )
