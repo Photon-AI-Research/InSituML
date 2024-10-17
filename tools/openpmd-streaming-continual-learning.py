@@ -32,6 +32,7 @@ import pathlib
 import importlib.util
 
 print("Done importing modules.", flush=True)
+print("torch version:", torch.__version__)
 
 
 def main():
