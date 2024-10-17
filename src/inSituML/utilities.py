@@ -7,6 +7,7 @@ import os
 import inspect
 import wandb
 
+from torch.distributed._tensor import init_device_mesh, Shard, Replicate, distribute_tensor, DTensor
 
 def inspect_and_select(base):
 
@@ -43,44 +44,33 @@ def kl_normal(qm, qv, pm, pv):
 def MMD_multiscale(x, y):
 
     if dist.is_initialized():
-        worldShape = [*x.shape]
-        worldShape[0] *= dist.get_world_size()
-        xall = torch.zeros(worldShape, dtype=x.dtype, device=x.device)
-        xh = dist.all_gather_into_tensor(xall, x, async_op=True)
-        yall = torch.zeros(worldShape, dtype=x.dtype, device=x.device)
-        yh = dist.all_gather_into_tensor(yall, y, async_op=True)
-
-        xh.wait()
-        xx = torch.mm(xall, xall.t())
-        rx = xx.diag().unsqueeze(0).expand_as(xx)
-        dxx = rx.t() + rx - 2.0 * xx
-
-        yh.wait()
-        yy, zz = torch.mm(yall, yall.t()), torch.mm(xall, yall.t())
-        ry = yy.diag().unsqueeze(0).expand_as(yy)
+        mesh = init_device_mesh("cuda", (dist.get_world_size(),))
+        xall = DTensor.from_local(x, mesh, [Shard(0)])
+        yall = DTensor.from_local(y, mesh, [Shard(0)])
     else:
-        xx, yy, zz = torch.mm(x, x.t()), torch.mm(y, y.t()), torch.mm(x, y.t())
+        xall = x
+        yall = y
 
-        rx = xx.diag().unsqueeze(0).expand_as(xx)
-        ry = yy.diag().unsqueeze(0).expand_as(yy)
+    xx = torch.mm(xall, xall.t())
+    rx = xx.diag().unsqueeze(0).expand_as(xx)
 
-        dxx = rx.t() + rx - 2.0 * xx
+    yy, zz = torch.mm(yall, yall.t()), torch.mm(xall, yall.t())
+    ry = yy.diag().unsqueeze(0).expand_as(yy)
 
+    dxx = rx.t() + rx - 2.0 * xx
     dyy = ry.t() + ry - 2.0 * yy
     dxy = rx.t() + ry - 2.0 * zz
 
-    XX, YY, XY = (
-        torch.zeros(xx.shape).to(x.device),
-        torch.zeros(xx.shape).to(x.device),
-        torch.zeros(xx.shape).to(x.device),
-    )
+    XX = torch.zeros_like(dxx)
+    YY = torch.zeros_like(dyy)
+    XY = torch.zeros_like(dxx)
 
     for a in [0.05, 0.2, 0.9]:
         XX += a**2 * (a**2 + dxx) ** -1
         YY += a**2 * (a**2 + dyy) ** -1
         XY += a**2 * (a**2 + dxy) ** -1
 
-    return torch.mean(XX + YY - 2.0 * XY)
+    return torch.mean(XX + YY - 2.0 * XY).redistribute(mesh, [Replicate()]).to_local()
 
 
 def fit(input, target):
