@@ -377,7 +377,7 @@ def main():
             if torch.cuda.device_count() == 1:
                 rank = 0
             global_rank = int(os.environ["OMPI_COMM_WORLD_RANK"])
-            print("ranks", global_rank, rank, flush=True)
+            print(f"ranks {global_rank} ({rank}) / {world_size}", flush=True)
 
             dist.init_process_group(
                 backend="nccl", world_size=world_size, rank=global_rank

@@ -4,8 +4,6 @@
 #SBATCH -p hlab
 #SBATCH -A hlab
 #SBATCH --gres=gpu:1
-#SBATCH -n 1
-#SBATCH --ntasks=1 
 #SBATCH -t 2:0:0 
 
 # This jobscript can be used as a quick tets for overall functionality on hemera:
