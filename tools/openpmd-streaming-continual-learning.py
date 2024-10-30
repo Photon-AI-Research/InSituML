@@ -25,6 +25,7 @@ from inSituML.loss_functions import EarthMoversLoss
 from inSituML.networks import VAE
 import torch.multiprocessing as mp
 import torch.distributed as dist
+import inSituML.dtensor as dtensor
 import argparse
 from inSituML.dummy_openpmd_producer import DummyOpenPMDProducer
 
@@ -382,6 +383,7 @@ def main():
             dist.init_process_group(
                 backend="nccl", world_size=world_size, rank=global_rank
             )
+            dtensor.init_global_device_mesh()
             print(f"Initiated DDP GPU {rank}", flush=True)
 
         elif runner == "srun":
@@ -393,6 +395,7 @@ def main():
             dist.init_process_group(
                 backend="nccl", world_size=world_size, rank=global_rank
             )
+            dtensor.init_global_device_mesh()
             print(
                 f"Initiated DDP GPU {rank}, global_rank {global_rank}",
                 flush=True,

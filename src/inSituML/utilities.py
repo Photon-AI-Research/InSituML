@@ -7,7 +7,8 @@ import os
 import inspect
 import wandb
 
-from torch.distributed._tensor import init_device_mesh, Shard, Replicate, distribute_tensor, DTensor
+from torch.distributed._tensor import Shard, Replicate, distribute_tensor, DTensor
+from . import dtensor
 
 def inspect_and_select(base):
 
@@ -43,23 +44,39 @@ def kl_normal(qm, qv, pm, pv):
 # Losses
 def MMD_multiscale(x, y):
 
-    if dist.is_initialized():
-        mesh = init_device_mesh("cuda", (dist.get_world_size(),))
-        xall = DTensor.from_local(x, mesh, [Shard(0)])
-        yall = DTensor.from_local(y, mesh, [Shard(0)])
+    PAR = False
+
+    if dtensor.is_initialized():
+        xall = DTensor.from_local(x, dtensor.mesh, [Shard(0)])
+        yall = DTensor.from_local(y, dtensor.mesh, [Shard(0)])
+        if not PAR:
+            xall = xall.redistribute(dtensor.mesh, [Replicate()]).to_local()
+            yall = yall.redistribute(dtensor.mesh, [Replicate()]).to_local()
     else:
         xall = x
         yall = y
 
     xx = torch.mm(xall, xall.t())
-    rx = xx.diag().unsqueeze(0).expand_as(xx)
-
     yy, zz = torch.mm(yall, yall.t()), torch.mm(xall, yall.t())
-    ry = yy.diag().unsqueeze(0).expand_as(yy)
+
+    if PAR:
+        assert(xx.shape[0] % mesh.shape[0] == 0)
+        rxl = xx._local_tensor.diag(dtensor.mesh.get_rank()*xx._local_tensor.shape[0])
+        rxl = rxl.unsqueeze(0).expand_as(xx._local_tensor.T) # actually yields rx.t()
+        rx = DTensor.from_local(rxl, dtensor.mesh, [Shard(1)])
+        ryl = yy._local_tensor.diag(dtensor.mesh.get_rank()*yy._local_tensor.shape[0])
+        ryl = ryl.unsqueeze(0).expand_as(yy._local_tensor.T)
+        ry = DTensor.from_local(ryl, dtensor.mesh, [Shard(1)])
+    else:
+        rx = xx.diag().unsqueeze(0).expand_as(xx)
+        ry = yy.diag().unsqueeze(0).expand_as(yy)
 
     dxx = rx.t() + rx - 2.0 * xx
     dyy = ry.t() + ry - 2.0 * yy
-    dxy = rx.t() + ry - 2.0 * zz
+    if PAR:
+        dxy = rx + ry.t() - 2.0 * zz
+    else:
+        dxy = rx.t() + ry - 2.0 * zz
 
     XX = torch.zeros_like(dxx)
     YY = torch.zeros_like(dyy)
@@ -70,7 +87,10 @@ def MMD_multiscale(x, y):
         YY += a**2 * (a**2 + dyy) ** -1
         XY += a**2 * (a**2 + dxy) ** -1
 
-    return torch.mean(XX + YY - 2.0 * XY).redistribute(mesh, [Replicate()]).to_local()
+    if PAR:
+        return torch.mean(XX + YY - 2.0 * XY).redistribute(dtensor.mesh, [Replicate()]).to_local()
+    else:
+        return torch.mean(XX + YY - 2.0 * XY)
 
 
 def fit(input, target):
