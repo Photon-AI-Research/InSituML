@@ -234,6 +234,7 @@ if [ -f /mnt/bb/$USER/sync_bins/cuda_memtest ] && [ !TBG_numDevicesForPIConGPUPe
 else
     run_cuda_memtest=0
 fi
+run_cuda_memtest=0
 
 .TBG_numHostedDevicesPerNode=8
 
@@ -327,7 +328,7 @@ rm ./tmp.sh
 
 
 #insituml=/autofs/nccs-svm1_home1/fpoeschel/git-repos/InSituML
-insituml=/autofs/nccs-svm1_home1/ksteinig/src/InSituML
+insituml=/autofs/nccs-svm1_home1/kelling/checkout/InSituML
 
 oldpwd="$(pwd)"
 pushd "${insituml%/*}"
@@ -365,6 +366,8 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     export LEARNING_RATE_AE=!TBG_learnRAE
     .TBG_minTB=${MIN_TB:-"4"}
     export MIN_TB_FROM_UNCHANGED_NOW_BF=!TBG_minTB
+    .TBG_bs=${BATCH_SIZE:-"8"}
+    export BATCH_SIZE=!TBG_bs
 
     # NCCL and torch.distributed (logging) settings
     # see (https://pytorch.org/docs/stable/distributed.html#logging)

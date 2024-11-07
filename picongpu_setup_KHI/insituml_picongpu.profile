@@ -9,7 +9,7 @@ export MY_NAME="$(whoami) <$MY_MAIL>"
 
 # Project Information ######################################## (edit this line)
 #   - project for allocation and shared directories
-export PROJID=csc380
+export PROJID=CSC621
 
 # Text Editor for Tools ###################################### (edit this line)
 #   - examples: "nano", "vim", "emacs -nw", "vi" or without terminal: "gedit"
@@ -22,14 +22,14 @@ export PROJID=csc380
 # The following modules just add to these.
 
 
-source /lustre/orion/csc380/proj-shared/openpmd_environment/env.sh
+source /autofs/nccs-svm1_home1/kelling/checkout/frontier_env/env.sh
 
 # Name and Path of this Script ############################### (DO NOT change!)
 export PIC_PROFILE=$(cd $(dirname $BASH_SOURCE) && pwd)"/"$(basename $BASH_SOURCE)
 
 # Environment #################################################################
 #
-export PICSRC=$HOME/src/picongpu
+export PICSRC=/autofs/nccs-svm1_home1/kelling/checkout/frontier_env/build/picongpu/
 export PIC_EXAMPLES=$PICSRC/share/picongpu/examples
 
 # Path to the required templates of the system,

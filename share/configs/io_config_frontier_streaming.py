@@ -34,7 +34,7 @@ streamLoader_config = dict(
 
 openPMD_queue_size = 8
 
-batch_size = 8
+batch_size = int(environ.get("BATCH_SIZE", 8))
 
 trainBatchBuffer_config = dict(
     training_bs=batch_size,
@@ -51,7 +51,7 @@ trainBatchBuffer_config = dict(
 
 
 modelTrainer_config = dict(
-    checkpoint_interval=800,
+    checkpoint_interval=200,
     checkpoint_final=True,
 )
 
