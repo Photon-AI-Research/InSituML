@@ -34,6 +34,9 @@ examples = [
     "icecream",
     "matplotlib",
 
+    # Serialization for adults
+    "dill",
+
     # Steve's experimental convergence control code.
     "nmbx @ git+https://github.com/elcorto/nmbx@d2afdb37753653cfeaeb2001ee231434a7927677",
     ]
