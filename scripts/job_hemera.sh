@@ -3,6 +3,7 @@
 ##SBATCH -p gpu
 #SBATCH -p hlab
 #SBATCH -A hlab
+#SBATCH --ntasks-per-node 1
 #SBATCH --gres=gpu:1
 #SBATCH -t 2:0:0 
 

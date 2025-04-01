@@ -137,3 +137,4 @@ wandb/
 checkpoints/
 Model/
 datasets/
+*.dat

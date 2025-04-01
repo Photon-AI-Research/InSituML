@@ -1,10 +1,12 @@
 FrEIA @ git+https://github.com/VLL-HD/FrEIA.git@1779d1fba1e21000fda1927b59eeac0a6fcaa284
 geomloss>=0.2.6
 openPMD-api @ git+https://github.com/franzpoeschel/openPMD-api.git@pic_env
-torch
+#openPMD-api @ git+https://github.com/jkelling/openPMD-api.git@pic_env
+torch>=2.6
 wandb
 sympy
 scipy
-numpy
+numpy==2.0.1
 matplotlib
 nflows
+mpi4py
