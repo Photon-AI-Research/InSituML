@@ -32,4 +32,5 @@ nvidia-smi
 
 BATCH_SIZE="${BATCH_SIZE:-4}"
 mpiexec bash $INSITUML/scripts/ompi_CUDA_VISIBLE_DEVICES_wrapper.sh python $INSITUML/tools/openpmd-streaming-continual-learning.py --io_config $INSITUML/share/configs/io_config_hemera.py  --model_config $INSITUML/share/configs/model_config.py
+# mpiexec bash $INSITUML/scripts/ompi_CUDA_VISIBLE_DEVICES_wrapper.sh python $INSITUML/tools/openpmd-streaming-continual-learning.py --io_config $INSITUML/share/configs/io_config_hemera.py  --model_config $INSITUML/share/configs/model_config.py
 # mpiexec python $INSITUML/tools/openpmd-streaming-continual-learning.py --io_config $INSITUML/share/configs/io_config_hemera.py  --model_config $INSITUML/share/configs/model_config.py --type_streamer offline
