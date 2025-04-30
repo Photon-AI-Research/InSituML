@@ -22,7 +22,7 @@ export PROJID=CSC621
 # The following modules just add to these.
 
 
-source /autofs/nccs-svm1_home1/kelling/checkout/frontier_env/env.sh
+source /lustre/orion/csc621/proj-shared/kelling/checkout/frontier_env_rocm6.2.4/env.sh
 
 # Name and Path of this Script ############################### (DO NOT change!)
 export PIC_PROFILE=$(cd $(dirname $BASH_SOURCE) && pwd)"/"$(basename $BASH_SOURCE)
@@ -39,7 +39,7 @@ export PIC_SYSTEM_TEMPLATE_PATH=${PIC_SYSTEM_TEMPLATE_PATH:-"etc/picongpu/fronti
 export PATH=$PICSRC/bin:$PATH
 export PATH=$PICSRC/src/tools/bin:$PATH
 
-export PYTHONPATH=$PICSRC/lib/python:$PYTHONPATH
+export PYTHONPATH=$PICSRC/lib/python:$PYTHONPATH:$( realpath $( dirname $PIC_PROFILE )/../src )
 
 # "tbg" default options #######################################################
 #   - SLURM (sbatch)

@@ -13,8 +13,8 @@ dependencies = [
     ##"torch",
 
     # Data reading
-    "openpmd-api",
-    "h5py",
+    # "openpmd-api",
+    # "h5py",
     "numpy",
 
     # cINN library
