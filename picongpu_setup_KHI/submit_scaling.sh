@@ -2,8 +2,8 @@
 # execute by
 #   bash submit_scaling.sh | tee -a submit_scaling_$(date '+%F_%H%M%S').log
 
-INSITUML_PIC_DIR="/ccs/home/kelling/checkout/InSituML/picongpu_setup_KHI"
-PIC_BUILD_DIR="/ccs/home/kelling/checkout/frontier_env/build/pic_build"
+PIC_BUILD_DIR="/lustre/orion/csc621/proj-shared/kelling/checkout/frontier_env_rocm6.2.4/build/pic_KHI_large"
+
 
 cd $INSITUML_PIC_DIR
 
