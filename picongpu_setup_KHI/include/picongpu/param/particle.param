@@ -1,4 +1,4 @@
-/* Copyright 2013-2022 Axel Huebl, Rene Widera, Benjamin Worpitz,
+/* Copyright 2013-2024 Axel Huebl, Rene Widera, Benjamin Worpitz,
  *                     Richard Pausch, Klaus Steiniger
  *
  * This file is part of PIConGPU.
@@ -10,7 +10,7 @@
  *
  * PIConGPU is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -92,29 +92,21 @@ namespace picongpu
          *  unit: none */
         constexpr float_X MIN_WEIGHTING = 10.0;
 
-        /** Approximate number of maximum macro-particles per cell.
-         *
-         * Used internally for unit normalization.
-         */
-        constexpr uint32_t TYPICAL_PARTICLES_PER_CELL
-            = mCT::volume<startPosition::QuietParam::numParticlesPerDimension>::type::value;
-
         namespace manipulators
         {
-
             /** Define Lorentz factor of initial particle drift along +X. */
             struct DriftParamPositive
             {
                 static constexpr float_64 gamma = 1.021;
                 /** Define initial particle drift direction vector.
                  */
-                static constexpr auto driftDirection = float3_X(1.0, 0.0, 0.0);	      
+                static constexpr auto driftDirection = float3_X(1.0, 0.0, 0.0);
             };
+
             /** Definition of manipulator that assigns a drift in +X
              *  using parameters from struct DriftParamPositive.
              */
             using AssignXDriftPositive = unary::Drift<DriftParamPositive, pmacc::math::operation::Assign>;
-
 
             /** Define Lorentz factor of initial particle drift along -X. */
             struct DriftParamNegative
@@ -124,11 +116,11 @@ namespace picongpu
                  */
                 static constexpr auto driftDirection = float3_X(-1.0, 0.0, 0.0);
             };
+
             /** Definition of manipulator that assigns a drift in -X
              *  using parameters from struct DriftParamNegative.
              */
             using AssignXDriftNegative = unary::Drift<DriftParamNegative, pmacc::math::operation::Assign>;
-
 
             /** Define initial particle temperature. */
             struct TemperatureParam
@@ -138,6 +130,7 @@ namespace picongpu
                  */
                 static constexpr float_64 temperature = 0.0005;
             };
+
             /** Definition of manipulator assigning a temperature
              *  using parameters from struct TemperatureParam.
              */
