@@ -5,5 +5,8 @@ module load gcc/12.2.0 cuda/12.1 openmpi/4.1.5-cuda121-gdr ucx/1.14.0-gdr \
 	# openpmd/0.15.2-cuda121-blosc2-py3122
 # for (re-)instaling openpmd-api
 export openPMD_USE_MPI=ON
-source /home/kelling/checkout/insitumlNp2Torch26Env/bin/activate
 export PMIX_MCA_gds=hash
+
+source /bigdata/hplsim/production/KHI_hackathon_2025/jeffrey_setup/venv2505/bin/activate
+export INSITUML="${INSITUML:-$( realpath $( dirname $BASH_SOURCE )/../.. )}"
+export PYTHONPATH=$PYTHONPATH:$INSITUML/src
