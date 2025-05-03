@@ -29,7 +29,8 @@ export PIC_PROFILE=$(cd $(dirname $BASH_SOURCE) && pwd)"/"$(basename $BASH_SOURC
 
 # Environment #################################################################
 #
-export PICSRC=/autofs/nccs-svm1_home1/kelling/checkout/frontier_env/build/picongpu/
+#export PICSRC=/autofs/nccs-svm1_home1/kelling/checkout/frontier_env/build/picongpu/
+export PICSRC=/lustre/orion/csc621/proj-shared/frontier_env/build/picongpu
 export PIC_EXAMPLES=$PICSRC/share/picongpu/examples
 
 # Path to the required templates of the system,
