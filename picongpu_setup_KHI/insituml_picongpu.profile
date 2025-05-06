@@ -27,6 +27,8 @@ source /lustre/orion/csc621/proj-shared/kelling/checkout/frontier_env_rocm6.2.4/
 # Name and Path of this Script ############################### (DO NOT change!)
 export PIC_PROFILE=$(cd $(dirname $BASH_SOURCE) && pwd)"/"$(basename $BASH_SOURCE)
 
+export INSITUML="${INSITUML:-$( realpath $( dirname $PIC_PROFILE )/../ )}"
+
 # Environment #################################################################
 #
 #export PICSRC=/autofs/nccs-svm1_home1/kelling/checkout/frontier_env/build/picongpu/
@@ -40,7 +42,7 @@ export PIC_SYSTEM_TEMPLATE_PATH=${PIC_SYSTEM_TEMPLATE_PATH:-"etc/picongpu/fronti
 export PATH=$PICSRC/bin:$PATH
 export PATH=$PICSRC/src/tools/bin:$PATH
 
-export PYTHONPATH=$PICSRC/lib/python:$PYTHONPATH:$( realpath $( dirname $PIC_PROFILE )/../src )
+export PYTHONPATH=$PICSRC/lib/python:$PYTHONPATH:$INSITUML/src
 
 # "tbg" default options #######################################################
 #   - SLURM (sbatch)
