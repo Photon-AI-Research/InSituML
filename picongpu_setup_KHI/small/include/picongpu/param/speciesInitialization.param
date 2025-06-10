@@ -1,4 +1,4 @@
-/* Copyright 2015-2022 Rene Widera, Axel Huebl
+/* Copyright 2015-2024 Rene Widera, Axel Huebl
  *
  * This file is part of PIConGPU.
  *
@@ -9,7 +9,7 @@
  *
  * PIConGPU is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -30,7 +30,6 @@
 
 #include "picongpu/particles/InitFunctors.hpp"
 
-
 namespace picongpu
 {
     namespace particles
@@ -40,14 +39,14 @@ namespace picongpu
          * the functors are called in order (from first to last functor)
          */
         using InitPipeline = pmacc::mp_list<
-            CreateDensity<densityProfiles::Homogenous, startPosition::Random, PIC_Electrons>,
+            CreateDensity<densityProfiles::Homogenous, startPosition::Quiet, PIC_Electrons>,
             Derive<PIC_Electrons, PIC_Ions>,
-            Manipulate<manipulators::AssignXDriftPositive, PIC_Ions, filter::LowerQuarterYPosition>,
-            Manipulate<manipulators::AssignXDriftNegative, PIC_Ions, filter::MiddleHalfYPosition>,
-            Manipulate<manipulators::AssignXDriftPositive, PIC_Ions, filter::UpperQuarterYPosition>,
-            Manipulate<manipulators::AssignXDriftPositive, PIC_Electrons, filter::LowerQuarterYPosition>,
-            Manipulate<manipulators::AssignXDriftNegative, PIC_Electrons, filter::MiddleHalfYPosition>,
-            Manipulate<manipulators::AssignXDriftPositive, PIC_Electrons, filter::UpperQuarterYPosition>,
+            Manipulate<manipulators::AssignXDriftPositive, PIC_Ions, filter::Lower8thYPosition>,
+            Manipulate<manipulators::AssignXDriftNegative, PIC_Ions, filter::MiddleYPosition>,
+            Manipulate<manipulators::AssignXDriftPositive, PIC_Ions, filter::Upper3EighthYPosition>,
+            Manipulate<manipulators::AssignXDriftPositive, PIC_Electrons, filter::Lower8thYPosition>,
+            Manipulate<manipulators::AssignXDriftNegative, PIC_Electrons, filter::MiddleYPosition>,
+            Manipulate<manipulators::AssignXDriftPositive, PIC_Electrons, filter::Upper3EighthYPosition>,
             Manipulate<manipulators::AddTemperature, PIC_Electrons>>;
 
     } // namespace particles
