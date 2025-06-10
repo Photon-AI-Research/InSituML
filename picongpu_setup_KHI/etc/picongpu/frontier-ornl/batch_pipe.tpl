@@ -21,6 +21,7 @@
 
 # PIConGPU batch script for crusher's SLURM batch system
 
+##SBATCH --reservation=hackathon3
 #SBATCH --account=!TBG_nameProject
 #SBATCH --time=!TBG_wallTime
 # Sets batch job's name
@@ -327,8 +328,7 @@ sbcast ./tmp.sh /mnt/bb/$USER/sync_bins/launch.sh
 rm ./tmp.sh
 
 
-#insituml=/autofs/nccs-svm1_home1/fpoeschel/git-repos/InSituML
-insituml=/autofs/nccs-svm1_home1/kelling/checkout/InSituML
+insituml=!INSITUML
 
 oldpwd="$(pwd)"
 pushd "${insituml%/*}"
@@ -372,7 +372,7 @@ if [ $node_check_err -eq 0 ] || [ $run_cuda_memtest -eq 0 ] ; then
     # NCCL and torch.distributed (logging) settings
     # see (https://pytorch.org/docs/stable/distributed.html#logging)
     # and (https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/env.html)
-    export NCCL_SOCKET_FAMILY="AF_INET4" # address family setting for communication
+    export NCCL_SOCKET_FAMILY="AF_INET" # address family setting for communication
     export NCCL_DEBUG=WARN # possible choices: VERSION, WARN, INFO,TRACE
     export TORCH_CPP_LOG_LEVEL=WARNING # possible choices: ERROR, WARNING, INFO
     export TORCH_DISTRIBUTED_DEBUG=INFO # possible choices: INFO, DETAIL (only active if TORCH_CPP_LOG_LEVEL=INFO)

@@ -2,10 +2,11 @@
 # execute by
 #   bash submit_scaling.sh | tee -a submit_scaling_$(date '+%F_%H%M%S').log
 
-PIC_BUILD_DIR="/lustre/orion/csc621/proj-shared/kelling/checkout/frontier_env_rocm6.2.4/build/pic_KHI_large"
 
+# **set this where you can write**
+EXPERIMENT_PREFIX="/lustre/orion/csc621/proj-shared/kelling/runsFromScratch_2504"
 
-cd $INSITUML_PIC_DIR
+PIC_BUILD_DIR="/lustre/orion/csc621/proj-shared/kelling/checkout/frontier_env_rocm6.2.4/build/picnew_KHI_large"
 
 source insituml_picongpu.profile
 
@@ -19,7 +20,7 @@ cd $PIC_BUILD_DIR
 export BATCH_SIZE=4
 
 # for jobSize in {8,24,48,96}; do # for test: {8,}; do
-for jobSize in {8,24,}; do # for test: {8,}; do
+for jobSize in {8,}; do # for test: {8,}; do
     for minTB in {24,}; do
         for learningRate in "1e-06"; do
             for learningRateAE in {20,}; do
@@ -27,10 +28,10 @@ for jobSize in {8,24,}; do # for test: {8,}; do
                 export LEARN_R=${learningRate}
                 export LEARN_R_AE=${learningRateAE}
                 export MIN_TB=${minTB}
-                tbg -s \
+                $PICSRC/bin/tbg -s \
                     -t $PIC_BUILD_DIR/etc/picongpu/frontier-ornl/batch_pipe.tpl \
                     -c $PIC_BUILD_DIR/etc/picongpu/${jobSize}-nodes_streaming_bench.cfg \
-                    /lustre/orion/csc621/proj-shared/kelling/runsFromScratch_2/${jobSize}-nodes_lr-${learningRate}_min-tb-${minTB}_lrAE-${learningRateAE}_bs-${BATCH_SIZE}
+                    $EXPERIMENT_PREFIX/${jobSize}-nodes_lr-${learningRate}_min-tb-${minTB}_lrAE-${learningRateAE}_bs-${BATCH_SIZE}
             done
         done
     done
