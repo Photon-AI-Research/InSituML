@@ -1,4 +1,4 @@
-/* Copyright 2013-2022 Rene Widera, Benjamin Worpitz, Heiko Burau
+/* Copyright 2013-2024 Rene Widera, Benjamin Worpitz, Heiko Burau
  *
  * This file is part of PIConGPU.
  *
@@ -9,7 +9,7 @@
  *
  * PIConGPU is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "picongpu/simulation_defines.hpp"
 
 #include "picongpu/particles/Particles.hpp"
 
@@ -30,10 +29,6 @@
 #include <pmacc/particles/traits/FilterByFlag.hpp>
 
 
-#ifndef PARAM_RADIATION
-/* disable radiation calculation */
-#    define PARAM_RADIATION 0
-#endif
 
 
 namespace picongpu
@@ -45,8 +40,7 @@ namespace picongpu
         position<position_pic>,
         momentum,
         weighting,
-        momentumPrev1,
-	particleId
+        momentumPrev1
         >;
 
     /*########################### end particle attributes ########################*/
@@ -55,7 +49,7 @@ namespace picongpu
 
     /*--------------------------- electrons --------------------------------------*/
 
-    /* ratio relative to BASE_CHARGE and BASE_MASS */
+    /* ratio relative to base charge and base mass */
     value_identifier(float_X, MassRatioElectrons, 1.0);
     value_identifier(float_X, ChargeRatioElectrons, 1.0);
 
@@ -72,7 +66,7 @@ namespace picongpu
 
     /*--------------------------- ions -------------------------------------------*/
 
-    /* ratio relative to BASE_CHARGE and BASE_MASS */
+    /* ratio relative to base charge and base mass */
     value_identifier(float_X, MassRatioIons, 1836.152672);
     value_identifier(float_X, ChargeRatioIons, -1.0);
 
