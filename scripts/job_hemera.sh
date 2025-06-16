@@ -20,7 +20,7 @@
 
 export INSITUML="${INSITUML:-.}"
 
-. $INSITUML/share/env/ddp_tested_hemera_env.sh
+. /bigdata/hplsim/production/KHI_hackathon_2025/jeffrey_setup/picongpu_insituml.profile
 
 export WORLD_SIZE=$SLURM_NTASKS
 export MASTER_PORT="1$( echo -n $SLURM_JOBID | tail -c 4 )"
