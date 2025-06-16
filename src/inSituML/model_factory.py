@@ -1,33 +1,15 @@
-import os, sys
 import torch
 import torch.optim as optim
-from inSituML.utilities import MMD_multiscale, fit, load_checkpoint
-from inSituML.ks_models import INNModel
+from .utilities import MMD_multiscale, fit, load_checkpoint
+from .ks_models import INNModel
 
-from inSituML.args_transform import MAPPING_TO_LOSS
-from inSituML.encoder_decoder import Encoder
-from inSituML.encoder_decoder import Conv3DDecoder
-from inSituML.loss_functions import EarthMoversLoss
-from inSituML.networks import VAE
-from models.architectures import ModelFinal
+from .args_transform import MAPPING_TO_LOSS
+from .encoder_decoder import Encoder
+from .encoder_decoder import Conv3DDecoder
+from .loss_functions import EarthMoversLoss
+from .networks import VAE
+from .architectures import ModelFinal
 
-def get_world_size():
-    """Get the world size for distributed training."""
-    world_size = None
-    if "WORLD_SIZE" in os.environ:
-        world_size = int(os.environ["WORLD_SIZE"])
-    elif "SLURM_NTASKS" in os.environ:
-        print(
-            (
-                "[WW] WORLD_SIZE not defined in env, "
-                + "falling back to SLURM_NTASKS."
-            ),
-            file=sys.stderr,
-        )
-        world_size = int(os.environ["SLURM_NTASKS"])
-    else:
-        raise RuntimeError("cannot determine WORLD_SIZE")
-    return world_size
 
 def get_VAE_encoder_kwargs(io_config, model_config):
     """Create encoder kwargs dictionary from configs"""

@@ -11,7 +11,8 @@ from inSituML.ac_train_batch_buffer import TrainBatchBuffer
 from inSituML.ac_consumer_trainer import ModelTrainer
 from inSituML.dummy_openpmd_producer import DummyOpenPMDProducer
 import inSituML.dtensor as dtensor
-from models.model_factory import load_objects, get_world_size
+from inSituML.model_factory import load_objects
+from inSituML.parallel_utils import get_world_size
 import importlib.util
 
 

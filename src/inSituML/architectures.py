@@ -1,6 +1,5 @@
 import torch.nn as nn
-from inSituML.loss_functions import EarthMoversLoss
-from inSituML.ks_models import INNModel
+from .ks_models import INNModel
 
 
 class ModelFinal(nn.Module):
