@@ -39,8 +39,8 @@ class EveryoneGetsData(opmd.Strategy):
         super().__init__()
         self.inner_strategy = inner_strategy
 
-    def assign(self, assignment, inranks, outranks):
-        res = self.inner_strategy.assign(assignment, inranks, outranks)
+    def assign(self, assignment, inranks, outranks, rank, size):
+        res = self.inner_strategy.assign(assignment, inranks, outranks, rank, size)
         base_assignment = [chunks for _, chunks in res.items() if chunks]
         cur_index = 0
         max_index = len(base_assignment)
@@ -52,9 +52,7 @@ class EveryoneGetsData(opmd.Strategy):
         return res
 
 
-def distribution_strategy(
-    dataset_extent, mpi_rank, mpi_size, strategy_identifier=None
-):
+def distribution_strategy(dataset_extent, strategy_identifier=None):
     import os
     import re
 
@@ -71,14 +69,10 @@ def distribution_strategy(
     if match is not None:
         inside_node = distribution_strategy(
             dataset_extent,
-            mpi_rank,
-            mpi_size,
             strategy_identifier=match.group(1),
         )
         second_phase = distribution_strategy(
             dataset_extent,
-            mpi_rank,
-            mpi_size,
             strategy_identifier=match.group(2),
         )
         return opmd.FromPartialStrategy(
@@ -89,15 +83,13 @@ def distribution_strategy(
     elif strategy_identifier == "roundrobinofsourceranks":
         return EveryoneGetsData(opmd.RoundRobinOfSourceRanks())
     elif strategy_identifier == "blocksofsourceranks":
-        return opmd.BlocksOfSourceRanks(mpi_rank, mpi_size)
+        return opmd.BlocksOfSourceRanks()
     elif strategy_identifier == "binpacking":
         return opmd.BinPacking()
     elif strategy_identifier == "slicedataset":
         return opmd.ByCuboidSlice(
             opmd.OneDimensionalBlockSlicer(),
             dataset_extent,
-            mpi_rank,
-            mpi_size,
         )
     elif strategy_identifier == "fail":
         return opmd.FailingStrategy()
@@ -131,7 +123,7 @@ def determine_local_region(
         distribution = strategy_identifier
     else:
         distribution = distribution_strategy(
-            record_component.shape, comm.rank, comm.size, strategy_identifier
+            record_component.shape, strategy_identifier
         )
     all_chunks = record_component.available_chunks()
     # Little hack, the source_id might not be equivalent to the
@@ -147,7 +139,8 @@ def determine_local_region(
             for i, chunk in zip(range(len(all_chunks)), all_chunks)
         ]
     )
-    chunk_distribution = distribution.assign(all_chunks, inranks, outranks)
+    chunk_distribution = distribution.assign(
+        all_chunks, inranks, outranks, comm.rank, comm.size)
     res = dict()
     for target_rank, chunks in chunk_distribution.items():
         chunks = chunks.merge_chunks_from_same_sourceID()
