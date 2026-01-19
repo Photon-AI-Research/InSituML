@@ -15,6 +15,7 @@ In order to train the model do:
 	  . $INSITUML/share/env/ddp_tested_hemera_env.sh
 	  export openPMD_USE_MPI=ON
 	  pip install -r requirements.txt
+      pip install -e . # install inSituML package (editable)
 	  ```
 
 3. Adjust path to offline PIConGPU data in `$INSITUML/share/configs/io_config.py` (`pathpattern1` and `pathpattern2` (already there, but commented-out)) to
