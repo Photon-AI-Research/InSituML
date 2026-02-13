@@ -1,39 +1,26 @@
-"""
-Main file/module to train ML model from PIConGPU openPMD
-data using streaming and threads.
-"""
-
 import time
+import os
+import argparse
+import pathlib
+import torch
+from queue import Queue
+import torch.multiprocessing as mp
+import torch.distributed as dist
 
 from inSituML.ac_train_batch_buffer import TrainBatchBuffer
 from inSituML.ac_consumer_trainer import ModelTrainer
-from queue import Queue
-
-import sys
-import os
-import torch
-from torch import optim
-import torch.nn as nn
-
-from inSituML.utilities import MMD_multiscale, fit, load_checkpoint
-from inSituML.ks_models import INNModel
-
-from inSituML.args_transform import MAPPING_TO_LOSS
-from inSituML.encoder_decoder import Encoder
-from inSituML.encoder_decoder import Conv3DDecoder
-from inSituML.loss_functions import EarthMoversLoss
-from inSituML.networks import VAE
-import torch.multiprocessing as mp
-import torch.distributed as dist
-import inSituML.dtensor as dtensor
-import argparse
 from inSituML.dummy_openpmd_producer import DummyOpenPMDProducer
-
-import pathlib
+import inSituML.dtensor as dtensor
+from inSituML.model_factory import load_objects
+from inSituML.parallel_utils import get_world_size
 import importlib.util
 
-print("Done importing modules.", flush=True)
-print("torch version:", torch.__version__)
+
+def config_import(name, arg_config):
+    """Import configuration from a Python file."""
+    spec = importlib.util.spec_from_file_location(name, arg_config)
+    config = importlib.util.module_from_spec(spec)
+    return spec, config
 
 
 def main():
@@ -77,22 +64,13 @@ def main():
 
     args = parser.parse_args()
 
-    # TODO: if this file is to be used via import, the config paths or configs
-    # must be allowed to com from somewhere else than CLI args
-    spec = importlib.util.spec_from_file_location("io_config", args.io_config)
-    # global io_config
-    io_config = importlib.util.module_from_spec(spec)
-    sys.modules["io_config"] = io_config
+
+    # Import configurations
+    spec, io_config = config_import("io_config", args.io_config)
     spec.loader.exec_module(io_config)
-
-    spec = importlib.util.spec_from_file_location(
-        "model_config", args.model_config
-    )
-    # global model_config
-    model_config = importlib.util.module_from_spec(spec)
-    sys.modules["model_config"] = model_config
+    spec, model_config = config_import("model_config", args.model_config)
     spec.loader.exec_module(model_config)
-
+    
     if args.runner is None:
         args.runner = io_config.runner
 
@@ -112,249 +90,7 @@ def main():
 
     config = model_config.config
 
-    if "WORLD_SIZE" in os.environ:
-        world_size = int(os.environ["WORLD_SIZE"])
-    elif "SLURM_NTASKS" in os.environ:
-        print(
-            (
-                "[WW] WORLD_SIZE not defined in env, "
-                + "falling back to SLURM_NTASKS."
-            ),
-            file=sys.stderr,
-        )
-        world_size = int(os.environ["SLURM_NTASKS"])
-    else:
-        raise RuntimeError("cannot determine WORLD_SIZE")
-
-    class ModelFinal(nn.Module):
-        def __init__(
-            self,
-            base_network,
-            inner_model,
-            loss_function_IM=None,
-            weight_AE=1.0,
-            weight_IM=1.0,
-        ):
-            super().__init__()
-
-            self.base_network = base_network
-            self.inner_model = inner_model
-            self.loss_function_IM = loss_function_IM
-            self.weight_AE = weight_AE
-            self.weight_IM = weight_IM
-
-        def forward(self, x, y):
-
-            loss_AE, loss_ae_reconst, kl_loss, _, encoded = self.base_network(
-                x
-            )
-
-            # Check if the inner model is an instance of INNModel
-            if isinstance(self.inner_model, INNModel):
-                # Use the compute_losses function of INNModel
-                (loss_IM, l_fit, l_latent, l_rev) = (
-                    self.inner_model.compute_losses(encoded, y)
-                )
-                total_loss = (
-                    loss_AE * self.weight_AE + loss_IM * self.weight_IM
-                )
-
-                losses = {
-                    "total_loss": total_loss,
-                    "loss_AE": loss_AE * self.weight_AE,
-                    "loss_IM": loss_IM * self.weight_IM,
-                    "loss_ae_reconst": loss_ae_reconst,
-                    "kl_loss": kl_loss,
-                    "l_fit": l_fit,
-                    "l_latent": l_latent,
-                    "l_rev": l_rev,
-                }
-
-                return losses
-            else:
-                # For other types of models, such as MAF
-                loss_IM = self.inner_model(inputs=encoded, context=y)
-                total_loss = (
-                    loss_AE * self.weight_AE + loss_IM * self.weight_IM
-                )
-
-                losses = {
-                    "total_loss": total_loss,
-                    "loss_AE": loss_AE * self.weight_AE,
-                    "loss_IM": loss_IM * self.weight_IM,
-                    "loss_ae_reconst": loss_ae_reconst,
-                    "kl_loss": kl_loss,
-                }
-
-                return losses
-
-        def reconstruct(self, x, y, num_samples=1):
-
-            if isinstance(self.inner_model, INNModel):
-                lat_z_pred = self.inner_model(x, y, rev=True)
-                y = self.base_network.decoder(lat_z_pred)
-            else:
-                lat_z_pred = self.inner_model.sample_pointcloud(
-                    num_samples=num_samples, cond=y
-                )
-                y = self.base_network.decoder(lat_z_pred)
-
-            return y, lat_z_pred
-
-    VAE_encoder_kwargs = {
-        "ae_config": "non_deterministic",
-        "z_dim": model_config.latent_space_dims,
-        "input_dim": io_config.ps_dims,
-        "conv_layer_config": [16, 32, 64, 128, 256, 608],
-        "conv_add_bn": False,
-        "fc_layer_config": [544],
-    }
-
-    VAE_decoder_kwargs = {
-        "z_dim": model_config.latent_space_dims,
-        "input_dim": io_config.ps_dims,
-        "initial_conv3d_size": [16, 4, 4, 4],
-        "add_batch_normalisation": False,
-        "fc_layer_config": [1024],
-    }
-
-    def load_objects(rank):
-        torch.cuda.set_device(rank)
-        torch.cuda.empty_cache()
-
-        loss_fn_for_VAE = MAPPING_TO_LOSS[
-            model_config.config["loss_function"]
-        ](**model_config.config["loss_kwargs"])
-
-        VAE_obj = VAE(
-            encoder=Encoder,
-            encoder_kwargs=VAE_encoder_kwargs,
-            decoder=Conv3DDecoder,
-            z_dim=model_config.latent_space_dims,
-            decoder_kwargs=VAE_decoder_kwargs,
-            loss_function=loss_fn_for_VAE,
-            property_="momentum_force",
-            particles_to_sample=io_config.number_of_particles,
-            ae_config="non_deterministic",
-            use_encoding_in_decoder=False,
-            weight_kl=model_config.config["lambd_kl"],
-            device=rank,
-        )
-
-        # conv_AE
-        #     conv_AE_encoder_kwargs = {"ae_config":"simple",
-        #                     "z_dim":model_config.latent_space_dims,
-        #                     "input_dim":io_config.ps_dims,
-        #                     "conv_layer_config":[16, 32, 64, 128, 256, 512],
-        #                     "conv_add_bn": False}
-
-        #     conv_AE_decoder_kwargs = {"z_dim":model_config.latent_space_dims,
-        #                     "input_dim":io_config.ps_dims,
-        #                     "add_batch_normalisation":False}
-
-        #     conv_AE = ConvAutoencoder(encoder = Encoder,
-        #                             encoder_kwargs = conv_AE_encoder_kwargs,
-        #                             decoder = Conv3DDecoder,
-        #                             decoder_kwargs = conv_AE_decoder_kwargs,
-        #                             loss_function = EarthMoversLoss(),
-        #                             )
-
-        # MAF inner model (not used in final runs)
-        # inner_model = PC_MAF(
-        #           dim_condition=config["dim_condition"],
-        #           dim_input=config["dim_input"],
-        #           num_coupling_layers=config["num_coupling_layers"],
-        #           hidden_size=config["hidden_size"],
-        #           device=rank,
-        #           num_blocks_mat = config["num_blocks_mat"],
-        #           activation = config["activation"]
-        #           )
-
-        # INN
-        inner_model = INNModel(
-            ndim_tot=config["ndim_tot"],
-            ndim_x=config["ndim_x"],
-            ndim_y=config["ndim_y"],
-            ndim_z=config["ndim_z"],
-            loss_fit=fit,
-            loss_latent=MMD_multiscale,
-            loss_backward=MMD_multiscale,
-            lambd_predict=config["lambd_predict"],
-            lambd_latent=config["lambd_latent"],
-            lambd_rev=config["lambd_rev"],
-            zeros_noise_scale=config["zeros_noise_scale"],
-            y_noise_scale=config["y_noise_scale"],
-            hidden_size=config["hidden_size"],
-            activation=config["activation"],
-            num_coupling_layers=config["num_coupling_layers"],
-            device=rank,
-        )
-
-        # model = ModelFinal(VAE_obj, inner_model, EarthMoversLoss())
-        # model = ModelFinal(conv_AE, inner_model, EarthMoversLoss())
-        model = ModelFinal(
-            VAE_obj,
-            inner_model,
-            EarthMoversLoss(),
-            weight_AE=config["lambd_AE"],
-            weight_IM=config["lambd_IM"],
-        )
-
-        # Load a pre-trained model
-        map_location = {"cuda:%d" % 0: "cuda:%d" % rank}
-        if config["load_model"] is not None:
-            original_state_dict = torch.load(
-                config["load_model"], map_location=map_location
-            )
-            # updated_state_dict = {key.replace('VAE.', 'base_network.'):
-            # value for key, value in original_state_dict.items()}
-            model.load_state_dict(original_state_dict)
-            print("Loaded pre-trained model successfully", flush=True)
-
-        elif config["load_model_checkpoint"] is not None:
-            model, _, _, _, _, _ = load_checkpoint(
-                config["load_model_checkpoint"],
-                model,
-                map_location=map_location,
-            )
-            print("Loaded model checkpoint successfully", flush=True)
-        else:
-            pass  # run with random init
-
-        lr = config["lr"]
-        bs_factor = (
-            io_config.trainBatchBuffer_config["training_bs"] / 2 * world_size
-        )
-        lr = lr * config["lr_scaling"](bs_factor)
-        print(
-            "Scaling learning rate from {} to {} due to bs factor {}".format(
-                config["lr"], lr, bs_factor
-            ),
-            flush=True,
-        )
-        optimizer = optim.Adam(
-            [
-                {
-                    "params": model.base_network.parameters(),
-                    "lr": lr * config["lrAEmult"],
-                },
-                {"params": model.inner_model.parameters()},
-            ],  # model.parameters()
-            lr=lr,
-            betas=config["betas"],
-            eps=config["eps"],
-            weight_decay=config["weight_decay"],
-        )
-        if ("lr_annealingRate" not in config) or config[
-            "lr_annealingRate"
-        ] is None:
-            scheduler = None
-        else:
-            scheduler = torch.optim.lr_scheduler.StepLR(
-                optimizer, step_size=500, gamma=config["lr_annealingRate"]
-            )
-
-        return optimizer, scheduler, model
+    world_size = get_world_size()
 
     def setup(rank, world_size):
         os.environ["MASTER_ADDR"] = "localhost"
@@ -403,7 +139,7 @@ def main():
         else:
             setup(rank, world_size)
 
-        optimizer, scheduler, model = load_objects(rank)
+        optimizer, scheduler, model = load_objects(rank, io_config, model_config, world_size)
 
         if args.type_streamer == "streaming":
 
@@ -570,6 +306,7 @@ def main():
         # run_demo(run_copies, world_size)
     else:
         run_copies(runner=args.runner)
+
 
 
 if __name__ == "__main__":
